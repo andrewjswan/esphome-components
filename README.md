@@ -5,3 +5,33 @@
 
 # ESPHome Components
 Custom components for ESPHome
+
+## Shadow
+Allows you to run a script in a parallel thread (Task)
+
+```yaml
+external_components:
+  - source:
+      type: git
+      url: https://github.com/andrewjswan/esphome-components
+      ref: main
+    components: [ shadow ]
+    refresh: 60s
+
+script:
+  - id: some_script
+    then:
+      - logger.log: "Script Running..."
+
+shadow:
+  id: esp_shadow
+  script_id: some_script
+  interval: 60
+
+ota:
+  - platform: esphome
+    on_begin:
+      then:
+        - lambda: |-
+            id(esp_shadow)->stop();
+```

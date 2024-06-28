@@ -13,7 +13,7 @@ namespace esphome
     xTaskCreate(
       SHADOW::shadow_function,      // Function to implement the task
       TAG,                          // Name of the task
-      5000,                         // Stack size in words
+      8192,                         // Stack size in words
       (void *) this,                // Task input parameter
       1,                            // Priority of the task
       &shadow_handle);              // Task handle
@@ -26,7 +26,7 @@ namespace esphome
     SHADOW *this_task = (SHADOW *) params;
     for(;;)
     {
-      delay_microseconds_safe(SHADOW_INTERVAL * 1000000);
+      vTaskDelay(SHADOW_INTERVAL * 1000 / portTICK_RATE_MS);
 
       if (this_task->script == nullptr)
       {
@@ -40,8 +40,9 @@ namespace esphome
       }
 
       this_task->script->execute();
-
     } // for(;;)
+    
+    vTaskDelete( NULL );
   } // shadow_function()
 
   void SHADOW::stop()

@@ -7,7 +7,7 @@ on:
 
 jobs:
   configuration:
-    name: Build configuration list
+    name: Build tests list
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

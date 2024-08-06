@@ -32,7 +32,7 @@ jobs:
         uses: esphome/build-action@v3
         id: esphome-build
         with:
-          yaml_file: tests/${{ matrix.config-file }}
+          yaml-file: tests/${{ matrix.config-file }}
           version: latest
           
   ci-status:

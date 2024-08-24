@@ -42,7 +42,7 @@ namespace esphome
 
       this_task->script->execute();
     } // for(;;)
-    
+
     vTaskDelete( NULL );
   } // shadow_function()
 

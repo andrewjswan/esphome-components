@@ -34,7 +34,7 @@ jobs:
         with:
           yaml-file: tests/${{ matrix.config-file }}
           version: latest
-          
+
   ci-status:
     name: Status
     runs-on: ubuntu-latest

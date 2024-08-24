@@ -15,7 +15,7 @@ namespace esphome
       void setup() override;
       void start();
       void stop();
-  
+
       void dump_config() override;
       void set_script(script::Script<> *script);
     protected:
@@ -25,4 +25,3 @@ namespace esphome
       static void shadow_function(void *params);
   };
 }
-

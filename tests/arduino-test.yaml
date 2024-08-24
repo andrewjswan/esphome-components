@@ -50,7 +50,7 @@ external_components:
   - source:
       type: local
       path: ../components
-    components: [ shadow ]
+    components: [shadow]
 
 script:
   - id: some_script
@@ -81,7 +81,7 @@ sensor:
 
 button:
   - platform: restart
-    name: "${friendly_name} Restart"            
+    name: "${friendly_name} Restart"
     id: Restart
     entity_category: diagnostic
     icon: mdi:restart

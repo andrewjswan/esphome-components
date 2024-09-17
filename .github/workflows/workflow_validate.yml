@@ -1,0 +1,117 @@
+name: Workflow / Validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  changes:
+    name: 👀 Source / Changed
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.changes.outputs.src }}
+      python: ${{ steps.changes.outputs.python }}
+      yaml: ${{ steps.changes.outputs.yaml }}
+    steps:
+      - name: ⬇️ Check out Repo
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Check for changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            python:
+              - '**.py'
+              - 'requirements.txt'
+            yaml:
+              - '**.yaml'
+              - '**.yml'
+            cpp:
+              - '**.cpp'
+              - '**.h'
+
+  python:
+    name: 🧹 Python Ruff
+    if: ${{ needs.changes.outputs.python == 'true' }}
+    needs:
+      - changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Check out Repo
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: 📦 Install requirements
+        run: python3 -m pip install -r .github/requirements.txt
+
+      - name: ⚙️ Lint
+        run: python3 -m ruff check .
+
+      - name: 💅 Format
+        run: python3 -m ruff format . --check
+
+      - name: 💅 Format Diff
+        if: failure()
+        run: python3 -m ruff format . --check --diff
+
+  yamllint:
+    name: 🧹 Yaml Lint
+    if: ${{ needs.changes.outputs.yaml == 'true' }}
+    needs:
+      - changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⤵️ Check out Repo
+        uses: actions/checkout@v4
+
+      - name: 🚀 Run yamllint
+        run: yamllint --strict .
+
+  cpplinter:
+    name: 🧹 C++ Lint
+    if: ${{ needs.changes.outputs.cpp == 'true' }}
+    needs:
+      - changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⤵️ Check out Repo
+        uses: actions/checkout@v4
+
+      - name: 🚀 Run C++ linter
+        uses: cpp-linter/cpp-linter-action@main
+        id: linter
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          style: file
+          files-changed-only: false
+          thread-comments: false
+
+      - name: Fail fast?!
+        if: steps.linter.outputs.checks-failed != 0
+        run: |
+          echo "some linter checks failed. ${{ steps.linter.outputs.checks-failed }}"
+        # for actual deployment
+        # run: exit 1
+
+  ci-status:
+    name: 🎭 Status
+    runs-on: ubuntu-latest
+    needs:
+      - python
+      - yamllint
+      - cpplinter
+    if: always()
+    steps:
+      - name: 🎉 Success
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+      - name: ❌ Failure
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: exit 1

@@ -1,9 +1,5 @@
 #pragma once
 
-#include "esphome.h"
-#include "esphome/core/component.h"
-#include "esphome/core/helpers.h"
-
 static const char *const SHADOW_VERSION = "2024.9.5";
 static const char *const TAG = "shadow";
 

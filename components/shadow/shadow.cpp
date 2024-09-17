@@ -11,13 +11,13 @@ namespace esphome
   void SHADOW::start()
   {
     xTaskCreatePinnedToCore(
-      SHADOW::shadow_function,      // Function to implement the task
-      TAG,                          // Name of the task
-      8192,                         // Stack size in words
-      (void *) this,                // Task input parameter
-      1,                            // Priority of the task
-      &shadow_handle,               // Task handle
-      tskNO_AFFINITY);              // Core
+      SHADOW::shadow_function, // Function to implement the task
+      TAG,                     // Name of the task
+      8192,                    // Stack size in words
+      (void *) this,           // Task input parameter
+      1,                       // Priority of the task
+      &shadow_handle,          // Task handle
+      tskNO_AFFINITY);         // Core
 
     ESP_LOGCONFIG(TAG, "Running script in shadow...");
   }

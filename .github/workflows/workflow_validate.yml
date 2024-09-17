@@ -9,9 +9,9 @@ jobs:
     name: 👀 Source / Changed
     runs-on: ubuntu-latest
     outputs:
-      src: ${{ steps.changes.outputs.src }}
       python: ${{ steps.changes.outputs.python }}
       yaml: ${{ steps.changes.outputs.yaml }}
+      cpp: ${{ steps.changes.outputs.cpp }}
     steps:
       - name: ⬇️ Check out Repo
         uses: actions/checkout@v4

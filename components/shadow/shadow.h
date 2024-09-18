@@ -6,19 +6,19 @@ static const char *const TAG = "shadow";
 namespace esphome {
 
 class SHADOW : public Component {
- public:
-  void setup() override;
-  void start();
-  void stop();
+  public:
+    void setup() override;
+    void start();
+    void stop();
 
-  void dump_config() override;
-  void set_script(script::Script<> *script);
+    void dump_config() override;
+    void set_script(script::Script<> *script);
 
- protected:
-  TaskHandle_t shadow_handle = nullptr;
-  script::Script<> *script;
+  protected:
+    TaskHandle_t shadow_handle = nullptr;
+    script::Script<> *script;
 
-  static void shadow_function(void *params);
-};
+    static void shadow_function(void *params);
+}; // SHADOW
 
-}
+} // namespace esphome

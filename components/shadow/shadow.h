@@ -21,4 +21,4 @@ class SHADOW : public Component {
   static void shadow_function(void *params);
 };
 
-} // namespace esphome
+}

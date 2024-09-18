@@ -68,6 +68,6 @@ namespace esphome
   void SHADOW::dump_config()
   {
     ESP_LOGCONFIG(TAG, "Shadow version: %s", SHADOW_VERSION);
-    ESP_LOGCONFIG(TAG, "  Interval: %ds", SHADOW_INTERVAL);
+    ESP_LOGCONFIG(TAG, "      Interval: %ds", SHADOW_INTERVAL);
   }
 }

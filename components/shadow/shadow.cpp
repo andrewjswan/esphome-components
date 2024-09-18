@@ -5,7 +5,7 @@ namespace esphome {
 void SHADOW::setup() {
   ESP_LOGCONFIG(TAG, "Setting up shadow...");
   this->start();
-} // setup()
+}  // setup()
 
 void SHADOW::start() {
   xTaskCreatePinnedToCore(
@@ -18,7 +18,7 @@ void SHADOW::start() {
    tskNO_AFFINITY);         // Core
 
    ESP_LOGCONFIG(TAG, "Running script in shadow...");
-} // start()
+}  // start()
 
 void SHADOW::shadow_function(void *params) {
   SHADOW *this_task = (SHADOW *) params;
@@ -35,10 +35,10 @@ void SHADOW::shadow_function(void *params) {
     }
 
     this_task->script->execute();
-  } // for(;;)
+  }  // for(;;)
 
   vTaskDelete( NULL );
-} // shadow_function()
+}  // shadow_function()
 
 void SHADOW::stop() {
   if (this->script != nullptr && this->script->is_running()) {
@@ -49,16 +49,16 @@ void SHADOW::stop() {
   shadow_handle = nullptr;
 
   ESP_LOGCONFIG(TAG, "Everyone came out of the shadow.");
-} // stop()
+}  // stop()
 
 void SHADOW::set_script(script::Script<> *script) {
   this->script = script;
   ESP_LOGCONFIG(TAG, "Add script in the shadow...");
-} // set_script()
+}  // set_script()
 
 void SHADOW::dump_config() {
   ESP_LOGCONFIG(TAG, "Shadow version: %s", SHADOW_VERSION);
   ESP_LOGCONFIG(TAG, "      Interval: %ds", SHADOW_INTERVAL);
-} // dump_config()
+}  // dump_config()
 
-} // namespace esphome
+}  // namespace esphome

@@ -97,9 +97,8 @@ jobs:
       - name: Fail fast?!
         if: steps.linter.outputs.checks-failed != 0
         run: |
-          echo "some linter checks failed. ${{ steps.linter.outputs.checks-failed }}"
-        # for actual deployment
-        # run: exit 1
+          echo "Some linter checks failed. ${{ steps.linter.outputs.checks-failed }}"
+          exit 1
 
   ci-status:
     name: 🎭 Status

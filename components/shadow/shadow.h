@@ -4,6 +4,7 @@ static const char *const SHADOW_VERSION = "2024.9.5";
 static const char *const TAG = "shadow";
 
 namespace esphome {
+
 class SHADOW : public Component {
  public:
   void setup() override;
@@ -19,4 +20,5 @@ class SHADOW : public Component {
 
   static void shadow_function(void *params);
 };
+
 } // namespace esphome

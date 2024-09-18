@@ -92,6 +92,8 @@ jobs:
           style: file
           tidy-checks: '-*'
           files-changed-only: false
+          step-summary: true
+          format-review: ${{ github.event_name == 'pull_request' && 'update' }}
           thread-comments: ${{ github.event_name == 'pull_request' && 'update' }}
 
       - name: Fail fast?!

@@ -19,6 +19,6 @@ class SHADOW : public Component {
     script::Script<> *script;
 
     static void shadow_function(void *params);
-}; // SHADOW
+};  // SHADOW
 
-} // namespace esphome
+}  // namespace esphome

@@ -9,20 +9,20 @@ void SHADOW::setup() {
 
 void SHADOW::start() {
   xTaskCreatePinnedToCore(
-   SHADOW::shadow_function, // Function to implement the task
-   TAG,                     // Name of the task
-   8192,                    // Stack size in words
-   (void *) this,           // Task input parameter
-   1,                       // Priority of the task
-   &shadow_handle,          // Task handle
-   tskNO_AFFINITY);         // Core
+      SHADOW::shadow_function,  // Function to implement the task
+      TAG,                      // Name of the task
+      8192,                     // Stack size in words
+      (void *)this,             // Task input parameter
+      1,                        // Priority of the task
+      &shadow_handle,           // Task handle
+      tskNO_AFFINITY);          // Core
 
-   ESP_LOGCONFIG(TAG, "Running script in shadow...");
+  ESP_LOGCONFIG(TAG, "Running script in shadow...");
 }  // start()
 
 void SHADOW::shadow_function(void *params) {
-  SHADOW *this_task = (SHADOW *) params;
-  for(;;) {
+  SHADOW *this_task = (SHADOW *)params;
+  for (;;) {
     vTaskDelay(SHADOW_INTERVAL * 1000 / portTICK_RATE_MS);
 
     if (this_task->script == nullptr) {
@@ -37,7 +37,7 @@ void SHADOW::shadow_function(void *params) {
     this_task->script->execute();
   }  // for(;;)
 
-  vTaskDelete( NULL );
+  vTaskDelete(NULL);
 }  // shadow_function()
 
 void SHADOW::stop() {

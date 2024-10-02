@@ -22,7 +22,7 @@ void SHADOW::start() {
 void SHADOW::shadow_function(void *params) {
   SHADOW *this_task = (SHADOW *) params;
   for (;;) {
-    vTaskDelay(SHADOW_INTERVAL * 1000 / portTICK_RATE_MS);
+    vTaskDelay(pdMS_TO_TICKS(SHADOW_INTERVAL * 1000));
 
     if (this_task->script == nullptr) {
       ESP_LOGE(TAG, "The script came out of the shadow. Skip.");

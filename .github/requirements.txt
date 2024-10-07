@@ -1,4 +1,4 @@
 pip>=21.0,<24.3
 pre-commit>=3.7.1
-ruff==0.6.8
+ruff==0.6.9
 esphome

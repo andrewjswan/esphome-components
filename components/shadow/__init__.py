@@ -16,11 +16,11 @@ DEPENDENCIES = ["script"]
 AUTO_LOAD = ["shadow"]
 
 logging.info("")
-logging.info("Load shadow component https://github.com/andrewjswan/esphome-components")
+logging.info("Load Shadow component https://github.com/andrewjswan/esphome-components")
 logging.info("")
 
-shadow_ns = cg.esphome_ns.namespace("esphome")
-SHADOW_ = shadow_ns.class_("SHADOW", cg.Component)
+shadow_ns = cg.esphome_ns.namespace("shadow")
+SHADOW_ = shadow_ns.class_("Shadow", cg.Component)
 
 CONF_SCRIPT_ID = "script_id"
 

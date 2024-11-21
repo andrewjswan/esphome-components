@@ -1,11 +1,12 @@
 #pragma once
 
-static const char *const SHADOW_VERSION = "2024.9.5";
+namespace esphome {
+namespace shadow {
+
+static const char *const SHADOW_VERSION = "2024.11.5";
 static const char *const TAG = "shadow";
 
-namespace esphome {
-
-class SHADOW : public Component {
+class Shadow : public Component {
  public:
   void setup() override;
   void start();
@@ -19,6 +20,7 @@ class SHADOW : public Component {
   script::Script<> *script;
 
   static void shadow_function(void *params);
-};  // SHADOW
+};  // Shadow
 
+}  // namespace shadow
 }  // namespace esphome

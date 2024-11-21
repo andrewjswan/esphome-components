@@ -1,14 +1,15 @@
 #include "esphome.h"
 
 namespace esphome {
+namespace shadow {
 
-void SHADOW::setup() {
+void Shadow::setup() {
   ESP_LOGCONFIG(TAG, "Setting up shadow...");
   this->start();
 }  // setup()
 
-void SHADOW::start() {
-  xTaskCreatePinnedToCore(SHADOW::shadow_function,  // Function to implement the task
+void Shadow::start() {
+  xTaskCreatePinnedToCore(Shadow::shadow_function,  // Function to implement the task
                           TAG,                      // Name of the task
                           8192,                     // Stack size in words
                           (void *) this,            // Task input parameter
@@ -19,8 +20,8 @@ void SHADOW::start() {
   ESP_LOGCONFIG(TAG, "Running script in shadow...");
 }  // start()
 
-void SHADOW::shadow_function(void *params) {
-  SHADOW *this_task = (SHADOW *) params;
+void Shadow::shadow_function(void *params) {
+  Shadow *this_task = (Shadow *) params;
   for (;;) {
     vTaskDelay(pdMS_TO_TICKS(SHADOW_INTERVAL * 1000));
 
@@ -39,7 +40,7 @@ void SHADOW::shadow_function(void *params) {
   vTaskDelete(NULL);
 }  // shadow_function()
 
-void SHADOW::stop() {
+void Shadow::stop() {
   if (this->script != nullptr && this->script->is_running()) {
     this->script->stop();
   }
@@ -50,14 +51,15 @@ void SHADOW::stop() {
   ESP_LOGCONFIG(TAG, "Everyone came out of the shadow.");
 }  // stop()
 
-void SHADOW::set_script(script::Script<> *script) {
+void Shadow::set_script(script::Script<> *script) {
   this->script = script;
   ESP_LOGCONFIG(TAG, "Add script in the shadow...");
 }  // set_script()
 
-void SHADOW::dump_config() {
+void Shadow::dump_config() {
   ESP_LOGCONFIG(TAG, "Shadow version: %s", SHADOW_VERSION);
   ESP_LOGCONFIG(TAG, "      Interval: %ds", SHADOW_INTERVAL);
 }  // dump_config()
 
+}  // namespace shadow
 }  // namespace esphome

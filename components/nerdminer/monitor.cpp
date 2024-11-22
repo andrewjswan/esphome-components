@@ -21,16 +21,11 @@ extern unsigned long mElapsed;
 
 extern monitor_data mMonitor;
 
-void setup_monitor(void) {
-}
+void setup_monitor(void) {}
 
-double getCurrentHashRate(unsigned long mElapsed) {
-  return (1.0 * (elapsedKHs * 1000.0)) / mElapsed;
-}
+double getCurrentHashRate(unsigned long mElapsed) { return (1.0 * (elapsedKHs * 1000.0)) / mElapsed; }
 
-monitor_data getMonitorData() {
-  return mMonitor;
-}
+monitor_data getMonitorData() { return mMonitor; }
 
 mining_data getMiningData() {
   mining_data data;

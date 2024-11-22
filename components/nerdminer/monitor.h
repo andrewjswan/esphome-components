@@ -7,25 +7,22 @@
 namespace esphome {
 namespace nerdminer {
 
-enum NMState {
-  NM_Connecting,
-  NM_Hashing
-};
+enum NMState { NM_Connecting, NM_Hashing };
 
-typedef struct{
+typedef struct {
   bool Status;
   NMState NerdStatus;
 } monitor_data;
 
 typedef struct {
-  uint32_t totalMHashes;  // Total Hashes
-  uint32_t templates;  // Block Templates
-  double bestDiff;  // Best Difficulty
+  uint32_t totalMHashes;     // Total Hashes
+  uint32_t templates;        // Block Templates
+  double bestDiff;           // Best Difficulty
   uint32_t completedShares;  // 32Bit Shares
-  uint64_t timeMining;  // Hores
-  uint32_t valids;  // Valid Blocks
-  double currentHashRate;  // Hashrate
-  uint32_t totalKHashes;  // KHashes
+  uint64_t timeMining;       // Hores
+  uint32_t valids;           // Valid Blocks
+  double currentHashRate;    // Hashrate
+  uint32_t totalKHashes;     // KHashes
 } mining_data;
 
 void setup_monitor(void);

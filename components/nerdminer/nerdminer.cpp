@@ -4,7 +4,7 @@
 #include "timeconst.h"
 #include <esp_task_wdt.h>
 
-//15 minutes WDT for miner task
+// 15 minutes WDT for miner task
 #define WDT_MINER_TIMEOUT 900
 
 namespace esphome {
@@ -15,22 +15,21 @@ void NerdMiner::setup() {
   this->start();
 }  // setup()
 
-
 void NerdMiner::start() {
   esp_task_wdt_init(WDT_MINER_TIMEOUT, true);
 
-  BaseType_t res1 = xTaskCreatePinnedToCore(runMonitor, "Monitor", 10000, (void*)"Monitor", 4, &monitor_handle, 1);
-  BaseType_t res2 = xTaskCreatePinnedToCore(runStratumWorker, "Stratum", 15000, (void*)"Stratum", 3, &stratum_handle, 1);
-  
-  xTaskCreate(runMiner, "Miner0", 6000, (void*)0, 1, &miner1_handle);
-  xTaskCreate(runMiner, "Miner1", 6000, (void*)1, 1, &miner2_handle);
- 
+  BaseType_t res1 = xTaskCreatePinnedToCore(runMonitor, "Monitor", 10000, (void *) "Monitor", 4, &monitor_handle, 1);
+  BaseType_t res2 =
+      xTaskCreatePinnedToCore(runStratumWorker, "Stratum", 15000, (void *) "Stratum", 3, &stratum_handle, 1);
+
+  xTaskCreate(runMiner, "Miner0", 6000, (void *) 0, 1, &miner1_handle);
+  xTaskCreate(runMiner, "Miner1", 6000, (void *) 1, 1, &miner2_handle);
+
   esp_task_wdt_add(miner1_handle);
   esp_task_wdt_add(miner2_handle);
-  
+
   ESP_LOGCONFIG(TAG, "NerdMiner started...");
 }  // start()
-
 
 void NerdMiner::stop() {
   vTaskDelete(miner1_handle);
@@ -47,7 +46,6 @@ void NerdMiner::stop() {
   ESP_LOGCONFIG(TAG, "NerdMiner stopped.");
 }  // stop()
 
-
 void NerdMiner::dump_config() {
   ESP_LOGCONFIG(TAG, "NerdMiner version: %s", NERDMINER_VERSION);
   ESP_LOGCONFIG(TAG, "           Worker: %s", NERDMINER_WORKER);
@@ -55,59 +53,50 @@ void NerdMiner::dump_config() {
   ESP_LOGCONFIG(TAG, "             Port: %d", NERDMINER_POOL_PORT);
 }  // dump_config()
 
-
 bool NerdMiner::getMinerState() {
   monitor_data mData = getMonitorData();
   return mData.Status;
 }
 
-
 uint32_t NerdMiner::getTotalHashes() {
   mining_data mData = getMiningData();
   return mData.totalMHashes;
-} // getTotalHashes()
-
+}  // getTotalHashes()
 
 uint32_t NerdMiner::getBlockTemplates() {
   mining_data mData = getMiningData();
   return mData.templates;
-} // getBlockTemplates()
-
+}  // getBlockTemplates()
 
 double NerdMiner::getBestDiff() {
   mining_data mData = getMiningData();
   return mData.bestDiff;
-} // getBestDiff()
-
+}  // getBestDiff()
 
 uint32_t NerdMiner::get32BitShares() {
   mining_data mData = getMiningData();
   return mData.completedShares;
-} // get32BitShares()
-
+}  // get32BitShares()
 
 uint64_t NerdMiner::getHores() {
   mining_data mData = getMiningData();
   return mData.timeMining;
-} // getHores()
-
+}  // getHores()
 
 uint32_t NerdMiner::getValidBlocks() {
   mining_data mData = getMiningData();
   return mData.valids;
-} // getValidBlocks()
-
+}  // getValidBlocks()
 
 double NerdMiner::getHashrate() {
   mining_data mData = getMiningData();
   return mData.currentHashRate;
-} // getHashrate()
-
+}  // getHashrate()
 
 uint32_t NerdMiner::getKHashes() {
   mining_data mData = getMiningData();
   return mData.totalKHashes;
-} // getKHashes()
+}  // getKHashes()
 
 }  // namespace nerdminer
 }  // namespace esphome

@@ -13,7 +13,8 @@
 #define bswap32(x) __bswap32(x)
 #define bswap64(x) __bswap64(x)
 
-namespace esphome { namespace nerdminer {
+namespace esphome {
+namespace nerdminer {
 
 uint8_t hex(char ch);
 
@@ -24,6 +25,7 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob);
 bool checkValid(unsigned char *hash, unsigned char *target);
 void suffix_string(double val, char *buf, size_t bufsiz, int sigdigits);
 
-}} // namespace esphome::nerdminer
+}  // namespace nerdminer
+}  // namespace esphome
 
-#endif // UTILS_API_H
+#endif  // UTILS_API_H

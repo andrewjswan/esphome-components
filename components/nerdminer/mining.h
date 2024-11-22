@@ -24,8 +24,7 @@ typedef struct {
   bool inRun;
   bool newJob;
   bool newJob2;
-}miner_data;
-
+} miner_data;
 
 void runMonitor(void *name);
 void runStratumWorker(void *name);

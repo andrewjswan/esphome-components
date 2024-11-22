@@ -55,9 +55,11 @@ http_request:
 
 external_components:
   - source:
-      type: local
-      path: ../components
+      type: git
+      url: https://github.com/andrewjswan/esphome-components
+      ref: main
     components: [nerdminer]
+    refresh: 60s
 
 nerdminer:
   id: esp_miner

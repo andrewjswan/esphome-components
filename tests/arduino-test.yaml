@@ -2,7 +2,7 @@ substitutions:
   name: "esp-test"
   friendly_name: "Component Test"
   project_name: "ajs.component-test"
-  project_version: "1.5.0"
+  project_version: "1.7.0"
   comment: "ESPHome Custom Component Test"
 
 esphome:
@@ -19,6 +19,8 @@ dashboard_import:
 
 esp32:
   board: nodemcu-32s
+  framework:
+    type: arduino
 
 api:
   reboot_timeout: 0s
@@ -29,6 +31,8 @@ ota:
       then:
         - lambda: |-
             id(esp_shadow)->stop();
+        - lambda: |-
+            id(esp_miner)->stop();
 
 logger:
   level: INFO
@@ -50,7 +54,7 @@ external_components:
   - source:
       type: local
       path: ../components
-    components: [shadow]
+    components: [shadow, nerdminer]
 
 script:
   - id: some_script
@@ -63,13 +67,90 @@ shadow:
   script_id: some_script
   interval: 60
 
+nerdminer:
+  id: esp_miner
+  walletid: "wallet"
+
 binary_sensor:
   - platform: template
-    name: "${friendly_name} Status"
-    id: send_status
+    name: "${friendly_name} State"
+    id: miner_state
     icon: mdi:lan-connect
+    lambda: |-
+      return id(esp_miner).getMinerState();
+    web_server:
+      sorting_weight: 1
 
 sensor:
+  - platform: template
+    name: "${friendly_name} Valid Blocks"
+    icon: mdi:trophy-award
+    lambda: |-
+      return id(esp_miner).getValidBlocks();
+    accuracy_decimals: 0
+    update_interval: 60s
+    web_server:
+      sorting_weight: 2
+
+  - platform: template
+    name: "${friendly_name} Block Templates"
+    icon: mdi:code-block-brackets
+    lambda: |-
+      return id(esp_miner).getBlockTemplates();
+    accuracy_decimals: 0
+    update_interval: 60s
+    web_server:
+      sorting_weight: 3
+
+  - platform: template
+    name: "${friendly_name} Best Difficulty"
+    icon: mdi:vector-difference
+    lambda: |-
+      return id(esp_miner).getBestDiff();
+    accuracy_decimals: 3
+    update_interval: 60s
+    web_server:
+      sorting_weight: 4
+
+  - platform: template
+    name: "${friendly_name} 32Bit Shares"
+    icon: mdi:cpu-32-bit
+    lambda: |-
+      return id(esp_miner).get32BitShares();
+    accuracy_decimals: 0
+    update_interval: 60s
+    web_server:
+      sorting_weight: 5
+
+  - platform: template
+    name: "${friendly_name} Speed"
+    icon: mdi:speedometer
+    lambda: |-
+      return id(esp_miner).getHashrate();
+    accuracy_decimals: 2
+    unit_of_measurement: "KH/s"
+    update_interval: 60s
+    web_server:
+      sorting_weight: 6
+
+  - platform: template
+    name: "${friendly_name} Hashes"
+    icon: mdi:pound-box-outline
+    lambda: |-
+      return id(esp_miner).getTotalHashes();
+    accuracy_decimals: 0
+    unit_of_measurement: "MH"
+    update_interval: 60s
+    web_server:
+      sorting_weight: 7
+
+  - platform: internal_temperature
+    name: ${friendly_name} Device Temperature
+    id: device_temperature
+    icon: mdi:thermometer
+    device_class: temperature
+    entity_category: diagnostic
+
   - platform: uptime
     name: "${friendly_name} Uptime"
     entity_category: diagnostic

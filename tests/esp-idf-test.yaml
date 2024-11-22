@@ -65,12 +65,6 @@ shadow:
   script_id: some_script
   interval: 60
 
-binary_sensor:
-  - platform: template
-    name: "${friendly_name} Status"
-    id: send_status
-    icon: mdi:lan-connect
-
 sensor:
   - platform: uptime
     name: "${friendly_name} Uptime"

@@ -59,6 +59,9 @@ external_components:
 nerdminer:
   id: miner
   walletid: !secret wallet
+  worker: "esphomeminer"
+  pool: "public-pool.io"
+  port: 21496
 
 ota:
   - platform: esphome

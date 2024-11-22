@@ -1,9 +1,9 @@
 substitutions:
-  name: "esp-test"
-  friendly_name: "Component Test"
-  project_name: "ajs.component-test"
-  project_version: "1.7.0"
-  comment: "ESPHome Custom Component Test"
+  name: "esp-nerdminer"
+  friendly_name: "NerdMiner Component"
+  project_name: "ajs.component-nedrminer"
+  project_version: "1.5.0"
+  comment: "ESPHome NerdMiner"
 
 esphome:
   name: "${name}"
@@ -15,7 +15,7 @@ esphome:
     version: "${project_version}"
 
 dashboard_import:
-  package_import_url: github://andrewjswan/esphome-components/tests/arduino-test.yaml@main
+  package_import_url: github://andrewjswan/esphome-components/examples/nerdminer.yaml@main
 
 esp32:
   board: nodemcu-32s
@@ -29,8 +29,6 @@ ota:
   - platform: esphome
     on_begin:
       then:
-        - lambda: |-
-            id(esp_shadow)->stop();
         - lambda: |-
             id(esp_miner)->stop();
 
@@ -59,18 +57,7 @@ external_components:
   - source:
       type: local
       path: ../components
-    components: [shadow, nerdminer]
-
-script:
-  - id: some_script
-    then:
-      - logger.log: "${friendly_name} Script Running..."
-    mode: queued
-
-shadow:
-  id: esp_shadow
-  script_id: some_script
-  interval: 60
+    components: [nerdminer]
 
 nerdminer:
   id: esp_miner

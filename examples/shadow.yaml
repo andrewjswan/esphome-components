@@ -1,9 +1,9 @@
 substitutions:
-  name: "esp-test"
-  friendly_name: "Component Test"
-  project_name: "ajs.component-test"
+  name: "esp-shadow"
+  friendly_name: "Shadow Component"
+  project_name: "ajs.component-shadow"
   project_version: "1.5.0"
-  comment: "ESPHome Custom Component Test"
+  comment: "ESPHome Shadow"
 
 esphome:
   name: "${name}"
@@ -15,7 +15,7 @@ esphome:
     version: "${project_version}"
 
 dashboard_import:
-  package_import_url: github://andrewjswan/esphome-components/tests/esp-idf-test.yaml@main
+  package_import_url: github://andrewjswan/esphome-components/examples/shadow.yaml@main
 
 esp32:
   board: nodemcu-32s

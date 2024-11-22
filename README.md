@@ -9,6 +9,9 @@
 External components for ESPHome
 
 ## Shadow
+[![esp32_arduino](https://img.shields.io/badge/ESP32-Arduino-darkcyan.svg)](https://esphome.io/)
+[![esp32_esp_idf](https://img.shields.io/badge/ESP--IDF-blue.svg)](https://esphome.io/)
+
 Allows you to run a script in a parallel thread (Task)
 
 ```yaml
@@ -39,6 +42,8 @@ ota:
 ```
 
 ## NerdMiner
+[![esp32_arduino](https://img.shields.io/badge/ESP32-Arduino-darkcyan.svg)](https://esphome.io/)
+
 This component let you try to reach a bitcoin block with a small piece of hardware.
 
 The main aim of this component is to let you learn more about minery and to have a beautiful piece of hardware in your desktop.

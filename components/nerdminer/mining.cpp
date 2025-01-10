@@ -289,7 +289,8 @@ void runMiner(void *task_id) {
         ESP_LOGD(TAG, "  - TX SHARE: %s", esphome::format_hex_pretty(hash, 32).c_str());
 #ifdef DEBUG_MINING
         ESP_LOGD(TAG, "  - Current nonce: %d", nonce);
-        ESP_LOGD(TAG, "  - Current block header: %s", esphome::format_hex_pretty(mMiner.bytearray_blockheader, 80).c_str());
+        ESP_LOGD(TAG, "  - Current block header: %s",
+                 esphome::format_hex_pretty(mMiner.bytearray_blockheader, 80).c_str());
 #endif
         mLastTXtoPool = millis();
       }

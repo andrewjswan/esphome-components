@@ -1,4 +1,4 @@
-[![esphome_badge](https://img.shields.io/badge/ESPHome-Components-blue.svg)](https://esphome.io/)
+[![esphome_badge](https://img.shields.io/static/v1?label=ESPHome&message=Components&color=blue&logo=esphome)](https://esphome.io/)
 [![Build](https://github.com/andrewjswan/esphome-components/actions/workflows/build.yaml/badge.svg)](https://github.com/andrewjswan/esphome-components/actions/workflows/build.yaml)
 [![esp32_arduino](https://img.shields.io/badge/ESP32-Arduino-darkcyan.svg)](https://esphome.io/)
 [![esp32_esp_idf](https://img.shields.io/badge/ESP--IDF-blue.svg)](https://esphome.io/)
@@ -7,6 +7,29 @@
 
 # ESPHome Components
 External components for ESPHome
+
+## Matrix Lamp
+[![esp32_arduino](https://img.shields.io/badge/ESP32-Arduino-darkcyan.svg)](https://esphome.io/)
+
+Component assembly of firmware adaptations based on the original idea of ​​Gyver Lamp, for ESPHome.
+Has a separate repository. https://github.com/andrewjswan/matrix-lamp/
+
+```yaml
+external_components:
+  - source:
+      type: git
+      url: https://github.com/andrewjswan/matrix-lamp
+      ref: main
+    components: [matrix_lamp]
+
+matrix_lamp:
+  id: matrix
+  width: 16
+  height: 16
+  random: true
+  scale_id: matrix_scale
+  speed_id: matrix_speed
+```
 
 ## Shadow
 [![esp32_arduino](https://img.shields.io/badge/ESP32-Arduino-darkcyan.svg)](https://esphome.io/)

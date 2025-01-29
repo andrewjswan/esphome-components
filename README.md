@@ -94,6 +94,9 @@ ota:
             id(miner)->stop();
 ```
 
+> [!NOTE]
+> Based on [**NerdSoloMiner**](https://github.com/BitMaker-hub/NerdMiner_v2) by [BitMaker](https://github.com/BitMaker-hub)
+
 ## Fastled Helper
 [![esp32_arduino](https://img.shields.io/badge/ESP32-Arduino-darkcyan.svg)](https://esphome.io/)
 
@@ -105,6 +108,3 @@ fastled_helper:
   palettes: true
   music_leds: false
 ```
-
-> [!NOTE]
-> Based on [**NerdSoloMiner**](https://github.com/BitMaker-hub/NerdMiner_v2) by [BitMaker](https://github.com/BitMaker-hub)

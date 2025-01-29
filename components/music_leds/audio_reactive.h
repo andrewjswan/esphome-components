@@ -36,7 +36,7 @@ WLED_GLOBAL byte soundAgc _INIT(2);               // squelch was provided - we c
 #if !defined(SR_GAIN)
 WLED_GLOBAL byte sampleGain _INIT(30);  // default sample gain
 #else
-WLED_GLOBAL byte sampleGain _INIT(SR_GAIN);       // default sample gain
+WLED_GLOBAL byte sampleGain _INIT(SR_GAIN);  // default sample gain
 #endif
 
 #ifndef DMENABLED  // aka DOUT
@@ -48,9 +48,10 @@ WLED_GLOBAL uint8_t dmType _INIT(DMENABLED);
 WLED_GLOBAL byte inputLevel _INIT(inputLevelS);  // inputLevel (set by sliderinputLevel)
 
 // if true, sound processing (FFT, filters, AGC) will be suspended. "volatile" as its shared between tasks.
-static volatile bool disableSoundProcessing = false;
+// static volatile bool disableSoundProcessing = false;
+
 // if > 0 , enables a bandpass filter 80Hz-8Khz to remove noise. Applies before FFT.
-static unsigned useInputFilter = 0;
+// static unsigned useInputFilter = 0;
 
 // hackers corner
 // #define SOUND_DYNAMICS_LIMITER             // experimental: define to enable a dynamics limiter that avoids "sudden

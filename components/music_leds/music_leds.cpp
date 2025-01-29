@@ -11,7 +11,7 @@ void MusicLeds::setup() {
   speed = 128;
   variant = 128;
 
-  useInputFilter = 3;  // Apply 60Hz Low-Cut filter
+  useInputFilter = INPUT_FILTER;
 
   // Define the FFT Task and lock it to core 0
   xTaskCreatePinnedToCore(FFTcode,        // Function to implement the task
@@ -33,6 +33,7 @@ void MusicLeds::dump_config() {
   ESP_LOGCONFIG(TAG, "           Samples: 32bit");
 #endif
   ESP_LOGCONFIG(TAG, "       Sample rate: %d", SAMPLE_RATE);
+  ESP_LOGCONFIG(TAG, "      Input filter: %d", INPUT_FILTER);
 #ifdef I2S_GRAB_ADC1_COMPLETELY
   ESP_LOGCONFIG(TAG, "          Grab ADC: Completely (experimental)");
 #endif
@@ -98,25 +99,39 @@ void MusicLeds::ShowFrame(PLAYMODE CurrentMode, esphome::Color current_color, li
 
   switch (CurrentMode) {
     case MODE_BINMAP:
+#ifdef DEF_BINMAP
       this->visualize_binmap(fastled_helper::leds);
+#endif
       break;
     case MODE_GRAV:
+#ifdef DEF_GRAV
       this->visualize_gravfreq(fastled_helper::leds);
+#endif
       break;
     case MODE_GRAVICENTER:
+#ifdef DEF_GRAVICENTER
       this->visualize_gravcenter(fastled_helper::leds);
+#endif
       break;
     case MODE_GRAVICENTRIC:
+#ifdef DEF_GRAVICENTRIC
       this->visualize_gravcentric(fastled_helper::leds);
+#endif
       break;
     case MODE_PIXELS:
+#ifdef DEF_PIXELS
       this->visualize_pixels(fastled_helper::leds);
+#endif
       break;
     case MODE_JUNGLES:
+#ifdef DEF_JUNGLES
       this->visualize_juggles(fastled_helper::leds);
+#endif
       break;
     case MODE_MIDNOISE:
+#ifdef DEF_MIDNOISE
       this->visualize_midnoise(fastled_helper::leds);
+#endif
       break;
   }
 
@@ -263,26 +278,26 @@ void MusicLeds::FFTcode(void *parameter) {
       constexpr float filter30Hz = 0.01823938f;   // rumbling = 10-25hz
       constexpr float filter70Hz = 0.04204211f;   // mains hum = 50-60hz
       constexpr float filter120Hz = 0.07098564f;  // bad microphones deliver noise below 120Hz
-      constexpr float filter185Hz =
-          0.10730882f;  // environmental noise is strongest below 180hz: wind, engine noise, ...
+      constexpr float filter185Hz = 0.10730882f;  // environmental noise is strongest below 180hz:
+                                                  // wind, engine noise, ...
       switch (useInputFilter) {
         case 1:
           runMicFilter(samplesFFT, vReal);
           break;  // PDM microphone bandpass
         case 2:
           runHighFilter12db(filter30Hz, samplesFFT, vReal);
-          break;  // rejects rumbling noise
+          break;  // Rejects rumbling noise
         case 3:
-          runMicSmoothing_v2(samplesFFT, vReal);             // slightly reduce high frequency noise and artefacts
-          runHighFilter12db(filter70Hz, samplesFFT, vReal);  // rejects rumbling + mains hum
+          runMicSmoothing_v2(samplesFFT, vReal);             // Slightly reduce high frequency noise and artefacts
+          runHighFilter12db(filter70Hz, samplesFFT, vReal);  // Rejects rumbling + mains hum
           break;
         case 4:
-          runMicSmoothing_v2(samplesFFT, vReal);             // slightly reduce high frequency noise and artefacts
-          runHighFilter6db(filter120Hz, samplesFFT, vReal);  // rejects everything below 110Hz
+          runMicSmoothing_v2(samplesFFT, vReal);             // Slightly reduce high frequency noise and artefacts
+          runHighFilter6db(filter120Hz, samplesFFT, vReal);  // Rejects everything below 110Hz
           break;
         case 5:
-          runMicSmoothing(samplesFFT, vReal);                // reduce high frequency noise and artefacts
-          runHighFilter6db(filter185Hz, samplesFFT, vReal);  // reject low frequency noise
+          runMicSmoothing(samplesFFT, vReal);                // Reduce high frequency noise and artefacts
+          runHighFilter6db(filter185Hz, samplesFFT, vReal);  // Reject low frequency noise
           break;
       }
     }
@@ -402,6 +417,7 @@ void MusicLeds::FFTcode(void *parameter) {
 }  // FFTcode()
 
 // *****************************************************************************************************************************************************************
+#ifdef DEF_GRAV
 void MusicLeds::visualize_gravfreq(CRGB *physic_leds)  // Gravfreq. By Andrew Tuline.
 {
   fastled_helper::fade_out(physic_leds, leds_num, 240, back_color);
@@ -437,8 +453,10 @@ void MusicLeds::visualize_gravfreq(CRGB *physic_leds)  // Gravfreq. By Andrew Tu
   }
   gravityCounter = (gravityCounter + 1) % gravity;
 }  // visualize_gravfreq
+#endif
 
 // *****************************************************************************************************************************************************************
+#ifdef DEF_GRAVICENTER
 void MusicLeds::visualize_gravcenter(CRGB *physic_leds)  // Gravcenter. By Andrew Tuline.
 {
   fastled_helper::fade_out(physic_leds, leds_num, 240, back_color);
@@ -471,8 +489,10 @@ void MusicLeds::visualize_gravcenter(CRGB *physic_leds)  // Gravcenter. By Andre
   }
   gravityCounter = (gravityCounter + 1) % gravity;
 }  // visualize_gravcenter()
+#endif
 
 // *****************************************************************************************************************************************************************
+#ifdef DEF_GRAVICENTRIC
 void MusicLeds::visualize_gravcentric(CRGB *physic_leds)  // Gravcentric. By Andrew Tuline.
 {
   fastled_helper::fade_out(physic_leds, leds_num, 226, back_color);
@@ -503,8 +523,10 @@ void MusicLeds::visualize_gravcentric(CRGB *physic_leds)  // Gravcentric. By And
   }
   gravityCounter = (gravityCounter + 1) % gravity;
 }  // visualize_gravcentric
+#endif
 
 // *****************************************************************************************************************************************************************
+#ifdef DEF_BINMAP
 void MusicLeds::visualize_binmap(
     CRGB *physic_leds)  // Binmap. Scale raw fftBin[] values to SEGLEN. Shows just how noisy those bins are.
 {
@@ -554,8 +576,10 @@ void MusicLeds::visualize_binmap(
   }
 
 }  // visualize_binmap
+#endif
 
 // *****************************************************************************************************************************************************************
+#ifdef DEF_PIXELS
 void MusicLeds::visualize_pixels(CRGB *physic_leds)  // Pixels. By Andrew Tuline.
 {
   fastled_helper::fade_out(physic_leds, leds_num, (int) speed, back_color);
@@ -566,8 +590,10 @@ void MusicLeds::visualize_pixels(CRGB *physic_leds)  // Pixels. By Andrew Tuline
         back_color, fastled_helper::color_from_palette(myVals[i % 32] + i * 4, main_color), sampleAgc);
   }
 }  // visualize_pixels()
+#endif
 
 // *****************************************************************************************************************************************************************
+#ifdef DEF_JUNGLES
 void MusicLeds::visualize_juggles(CRGB *physic_leds)  // Juggles. By Andrew Tuline.
 {
   fastled_helper::fade_out(physic_leds, leds_num, 224, back_color);
@@ -579,8 +605,10 @@ void MusicLeds::visualize_juggles(CRGB *physic_leds)  // Juggles. By Andrew Tuli
         back_color, fastled_helper::color_from_palette(millis() / 4 + i * 2, main_color), my_sampleAgc);
   }
 }  // visualize_juggles()
+#endif
 
 // *****************************************************************************************************************************************************************
+#ifdef DEF_MIDNOISE
 void MusicLeds::visualize_midnoise(CRGB *physic_leds)  // Midnoise. By Andrew Tuline.
 {
   static int x = 0;
@@ -606,6 +634,7 @@ void MusicLeds::visualize_midnoise(CRGB *physic_leds)  // Midnoise. By Andrew Tu
   x = x + beatsin8(5, 0, 10);
   y = y + beatsin8(4, 0, 10);
 }  // visualize_midnoise()
+#endif
 
 }  // namespace music_leds
 }  // namespace esphome

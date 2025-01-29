@@ -5,6 +5,7 @@ BIT_32 = 32
 
 CONF_MIC_ID = "mic_id"
 CONF_MUSIC_LEDS_ID = "music_leds_id"
+CONF_INPUT_FILTER = "input_filter"
 
 MODE_BINMAP = "BINMAP"
 MODE_GRAV = "GRAV"

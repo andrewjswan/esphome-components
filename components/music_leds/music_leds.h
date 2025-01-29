@@ -58,6 +58,8 @@ class MusicLeds : public Component {
   I2S_datatype decodeADCsample(I2S_unsigned_datatype rawData);  // function to handle ADC samples
   static void FFTcode(void *parameter);
   void getSamples(float *buffer);
+  bool disableSoundProcessing{false};
+  uint8_t useInputFilter = 0;  // if > 0 , enables a bandpass filter 80Hz-8Khz to remove noise. Applies before FFT
 
   PLAYMODE CurrentMode = MODE_GRAV;
 
@@ -71,13 +73,27 @@ class MusicLeds : public Component {
   uint8_t variant;
   uint16_t leds_num;
 
+#ifdef DEF_GRAV
   void visualize_gravfreq(CRGB *physic_leds);
+#endif
+#ifdef DEF_GRAVICENTER
   void visualize_gravcenter(CRGB *physic_leds);
+#endif
+#ifdef DEF_GRAVICENTRIC
   void visualize_gravcentric(CRGB *physic_leds);
+#endif
+#ifdef DEF_BINMAP
   void visualize_binmap(CRGB *physic_leds);
+#endif
+#ifdef DEF_PIXELS
   void visualize_pixels(CRGB *physic_leds);
+#endif
+#ifdef DEF_JUNGLES
   void visualize_juggles(CRGB *physic_leds);
+#endif
+#ifdef DEF_MIDNOISE
   void visualize_midnoise(CRGB *physic_leds);
+#endif
 };
 
 }  // namespace music_leds

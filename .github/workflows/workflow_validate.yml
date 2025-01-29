@@ -93,8 +93,8 @@ jobs:
           tidy-checks: '-*'
           files-changed-only: false
           step-summary: true
-          format-review: ${{ github.event_name == 'pull_request' && 'update' }}
-          thread-comments: ${{ github.event_name == 'pull_request' && 'update' }}
+          format-review: ${{ github.event_name == 'pull_request' }}
+          thread-comments: ${{ github.event_name == 'pull_request' }}
 
       - name: Fail fast?!
         if: steps.linter.outputs.checks-failed != 0

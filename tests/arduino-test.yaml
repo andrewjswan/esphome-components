@@ -59,7 +59,7 @@ external_components:
   - source:
       type: local
       path: ../components
-    components: [shadow, nerdminer, fastled_helper]
+    components: [shadow, nerdminer, fastled_helper, music_leds]
 
 script:
   - id: some_script
@@ -80,6 +80,23 @@ fastled_helper:
   id: palettes
   palettes: true
   music_leds: true
+
+i2s_audio:
+  i2s_lrclk_pin: 15
+  i2s_bclk_pin: 14
+
+microphone:
+  - platform: i2s_audio
+    id: adc_mic
+    adc_type: external
+    sample_rate: 10240
+    bits_per_sample: 16bit
+    i2s_din_pin: 32
+    channel: right
+
+music_leds:
+  id: music_light
+  mic_id: adc_mic
 
 binary_sensor:
   - platform: template
@@ -205,3 +222,14 @@ text_sensor:
       disabled_by_default: true
       entity_category: diagnostic
       icon: mdi:console-network
+
+light:
+  - platform: neopixelbus
+    pin: GPIO16
+    num_leds: 300
+    name: ${friendly_name} NeoPixel
+    variant: 800KBPS
+    effects:
+      - music_leds_effect:
+          name: Binmap with Music
+          mode: BINMAP

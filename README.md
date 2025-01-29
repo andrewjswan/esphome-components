@@ -94,17 +94,64 @@ ota:
             id(miner)->stop();
 ```
 
+> [!NOTE]
+> Based on [**NerdSoloMiner**](https://github.com/BitMaker-hub/NerdMiner_v2) by [BitMaker](https://github.com/BitMaker-hub)
+
 ## Fastled Helper
 [![esp32_arduino](https://img.shields.io/badge/ESP32-Arduino-darkcyan.svg)](https://esphome.io/)
 
 Helper providing a set of palettes, working with palettes and additional functions.
 
 ```yaml
+external_components:
+  - source:
+      type: git
+      url: https://github.com/andrewjswan/esphome-components
+      ref: main
+    components: [fastled_helper]
+    refresh: 60s
+
 fastled_helper:
   id: palettes
   palettes: true
   music_leds: false
 ```
 
-> [!NOTE]
-> Based on [**NerdSoloMiner**](https://github.com/BitMaker-hub/NerdMiner_v2) by [BitMaker](https://github.com/BitMaker-hub)
+## Music Leds / Sound Reactive
+[![esp32_arduino](https://img.shields.io/badge/ESP32-Arduino-darkcyan.svg)](https://esphome.io/)
+
+Ported `Sound Reactive` from WLED to ESPHome
+
+```yaml
+external_components:
+  - source:
+      type: git
+      url: https://github.com/andrewjswan/esphome-components
+      ref: main
+    components: [music_leds]
+    refresh: 60s
+
+i2s_audio:
+  i2s_lrclk_pin: 15
+  i2s_bclk_pin: 14
+
+microphone:
+  - platform: i2s_audio
+    id: adc_mic
+    adc_type: external
+    sample_rate: 10240
+    bits_per_sample: 16bit
+    i2s_din_pin: 32
+    channel: right
+
+music_leds:
+  id: music_light
+  mic_id: adc_mic
+
+light:
+  - id: !extend neopixel_led
+    effects:
+      - music_leds_effect:
+          name: Binmap with Music
+          mode: BINMAP
+```

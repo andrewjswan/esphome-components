@@ -44,6 +44,8 @@ class MusicLeds : public Component {
 
   void ShowFrame(PLAYMODE CurrentMode, Color current_color, light::AddressableLight *p_it);
 
+  bool microphone_is_running() { return this->microphone_->is_running(); }
+
  private:
   i2s_audio::I2SAudioMicrophone *microphone_;
   TaskHandle_t FFT_Task{nullptr};
@@ -71,13 +73,27 @@ class MusicLeds : public Component {
   uint8_t variant;
   uint16_t leds_num;
 
+#ifdef DEF_GRAV
   void visualize_gravfreq(CRGB *physic_leds);
+#endif
+#ifdef DEF_GRAVICENTER
   void visualize_gravcenter(CRGB *physic_leds);
+#endif
+#ifdef DEF_GRAVICENTRIC
   void visualize_gravcentric(CRGB *physic_leds);
+#endif
+#ifdef DEF_BINMAP
   void visualize_binmap(CRGB *physic_leds);
+#endif
+#ifdef DEF_PIXELS
   void visualize_pixels(CRGB *physic_leds);
+#endif
+#ifdef DEF_JUNGLES
   void visualize_juggles(CRGB *physic_leds);
+#endif
+#ifdef DEF_MIDNOISE
   void visualize_midnoise(CRGB *physic_leds);
+#endif
 };
 
 }  // namespace music_leds

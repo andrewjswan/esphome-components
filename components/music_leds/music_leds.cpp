@@ -6,12 +6,8 @@ namespace esphome {
 namespace music_leds {
 
 void MusicLeds::setup() {
-  disableSoundProcessing = true;  // Just to be safe
-
   speed = 128;
   variant = 128;
-
-  useInputFilter = 3;  // Apply 60Hz Low-Cut filter
 
   // Define the FFT Task and lock it to core 0
   xTaskCreatePinnedToCore(FFTcode,        // Function to implement the task
@@ -33,6 +29,7 @@ void MusicLeds::dump_config() {
   ESP_LOGCONFIG(TAG, "           Samples: 32bit");
 #endif
   ESP_LOGCONFIG(TAG, "       Sample rate: %d", SAMPLE_RATE);
+  ESP_LOGCONFIG(TAG, "      Input filter: %d", INPUT_FILTER);
 #ifdef I2S_GRAB_ADC1_COMPLETELY
   ESP_LOGCONFIG(TAG, "          Grab ADC: Completely (experimental)");
 #endif
@@ -40,7 +37,6 @@ void MusicLeds::dump_config() {
 
 void MusicLeds::on_shutdown() {
   this->microphone_->stop();
-  disableSoundProcessing = true;  // Just to be safe
 
   vTaskDelete(FFT_Task);  // OTA: Avoid crash due to angry watchdog
 
@@ -52,9 +48,7 @@ void MusicLeds::set_speed(int index) { speed = index; }
 void MusicLeds::set_variant(int index) { variant = index; }
 
 void MusicLeds::ShowFrame(PLAYMODE CurrentMode, esphome::Color current_color, light::AddressableLight *p_it) {
-  disableSoundProcessing = !this->microphone_->is_running();
-
-  if (disableSoundProcessing) {
+  if (!this->microphone_is_running()) {
     return;
   }
 
@@ -98,25 +92,39 @@ void MusicLeds::ShowFrame(PLAYMODE CurrentMode, esphome::Color current_color, li
 
   switch (CurrentMode) {
     case MODE_BINMAP:
+#ifdef DEF_BINMAP
       this->visualize_binmap(fastled_helper::leds);
+#endif
       break;
     case MODE_GRAV:
+#ifdef DEF_GRAV
       this->visualize_gravfreq(fastled_helper::leds);
+#endif
       break;
     case MODE_GRAVICENTER:
+#ifdef DEF_GRAVICENTER
       this->visualize_gravcenter(fastled_helper::leds);
+#endif
       break;
     case MODE_GRAVICENTRIC:
+#ifdef DEF_GRAVICENTRIC
       this->visualize_gravcentric(fastled_helper::leds);
+#endif
       break;
     case MODE_PIXELS:
+#ifdef DEF_PIXELS
       this->visualize_pixels(fastled_helper::leds);
+#endif
       break;
     case MODE_JUNGLES:
+#ifdef DEF_JUNGLES
       this->visualize_juggles(fastled_helper::leds);
+#endif
       break;
     case MODE_MIDNOISE:
+#ifdef DEF_MIDNOISE
       this->visualize_midnoise(fastled_helper::leds);
+#endif
       break;
   }
 
@@ -128,67 +136,69 @@ void MusicLeds::ShowFrame(PLAYMODE CurrentMode, esphome::Color current_color, li
 }
 
 void MusicLeds::getSamples(float *buffer) {
-  if (this->microphone_->is_running()) {
-    typedef union {
-      I2S_datatype data[samplesFFT];
-      int16_t buffer[bufferFFT];
-    } data_helper_t;
+  if (!this->microphone_is_running()) {
+    return;
+  }
 
-    size_t bytes_read = 0;     // Counter variable to check if we actually got enough data
-    data_helper_t newSamples;  // Intermediary sample storage
+  typedef union {
+    I2S_datatype data[samplesFFT];
+    int16_t buffer[bufferFFT];
+  } data_helper_t;
 
-    _broken_samples_counter = 0;  // Reset ADC broken samples counter
+  size_t bytes_read = 0;     // Counter variable to check if we actually got enough data
+  data_helper_t newSamples;  // Intermediary sample storage
 
-    // Get fresh samples
-    bytes_read = this->microphone_->read(newSamples.buffer, sizeof(newSamples.buffer));
+  _broken_samples_counter = 0;  // Reset ADC broken samples counter
 
-    // For correct operation, we need to read exactly sizeof(samples) bytes from i2s
-    if (bytes_read != sizeof(newSamples.buffer)) {
-      ESP_LOGE("ASR", "AS: Failed to get enough samples: wanted: %d read: %d", sizeof(newSamples.buffer), bytes_read);
-      return;
-    }
+  // Get fresh samples
+  bytes_read = this->microphone_->read(newSamples.buffer, sizeof(newSamples.buffer));
 
-    // Store samples in sample buffer and update DC offset
-    for (int i = 0; i < samplesFFT; i++) {
-      if (_mask == 0x0FFF)  // mask = 0x0FFF means we are in I2SAdcSource
+  // For correct operation, we need to read exactly sizeof(samples) bytes from i2s
+  if (bytes_read != sizeof(newSamples.buffer)) {
+    ESP_LOGE("ASR", "AS: Failed to get enough samples: wanted: %d read: %d", sizeof(newSamples.buffer), bytes_read);
+    return;
+  }
+
+  // Store samples in sample buffer and update DC offset
+  for (int i = 0; i < samplesFFT; i++) {
+    if (_mask == 0x0FFF)  // mask = 0x0FFF means we are in I2SAdcSource
+    {
+      I2S_unsigned_datatype rawData = *reinterpret_cast<I2S_unsigned_datatype *>(
+          newSamples.data + i);  // C++ acrobatics to get sample as "unsigned"
+      I2S_datatype sampleNoFilter = this->decodeADCsample(rawData);
+      if (_broken_samples_counter >=
+          samplesFFT - 1)  // kill-switch: ADC sample correction off when all samples in a batch were "broken"
       {
-        I2S_unsigned_datatype rawData = *reinterpret_cast<I2S_unsigned_datatype *>(
-            newSamples.data + i);  // C++ acrobatics to get sample as "unsigned"
-        I2S_datatype sampleNoFilter = this->decodeADCsample(rawData);
-        if (_broken_samples_counter >=
-            samplesFFT - 1)  // kill-switch: ADC sample correction off when all samples in a batch were "broken"
-        {
-          _myADCchannel = 0x0F;
-          ESP_LOGE("ASR", "AS: Too many broken audio samples from ADC - sample correction switched off.");
-        }
-        newSamples.data[i] = (3 * sampleNoFilter + _lastADCsample) / 4;  // apply low-pass filter (2-tap FIR)
-        // newSamples.data[i] = (sampleNoFilter + lastADCsample) / 2;    // apply stronger low-pass filter (2-tap FIR)
-        _lastADCsample = sampleNoFilter;  // update ADC last sample
+        _myADCchannel = 0x0F;
+        ESP_LOGE("ASR", "AS: Too many broken audio samples from ADC - sample correction switched off.");
       }
-
-      // pre-shift samples down to 16bit
-#ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
-      if (_shift != 0)
-        newSamples.data[i] >>= 16;
-#endif
-      float currSample = 0.0;
-      if (_shift > 0)
-        currSample = (float) (newSamples.data[i] >> _shift);
-      else {
-        if (_shift < 0)
-          currSample =
-              (float) (newSamples.data[i]
-                       << (-_shift));  // need to "pump up" 12bit ADC to full 16bit as delivered by other digital mics
-        else
-#ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
-          currSample = (float) newSamples.data[i] / 65536.0f;  // _shift == 0 -> use the chance to keep lower 16bits
-#else
-          currSample = (float) newSamples.data[i];
-#endif
-      }
-      buffer[i] = currSample;     // store sample
-      buffer[i] *= _sampleScale;  // scale sample
+      newSamples.data[i] = (3 * sampleNoFilter + _lastADCsample) / 4;  // apply low-pass filter (2-tap FIR)
+      // newSamples.data[i] = (sampleNoFilter + lastADCsample) / 2;    // apply stronger low-pass filter (2-tap FIR)
+      _lastADCsample = sampleNoFilter;  // update ADC last sample
     }
+
+    // pre-shift samples down to 16bit
+#ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
+    if (_shift != 0)
+      newSamples.data[i] >>= 16;
+#endif
+    float currSample = 0.0;
+    if (_shift > 0)
+      currSample = (float) (newSamples.data[i] >> _shift);
+    else {
+      if (_shift < 0)
+        currSample =
+            (float) (newSamples.data[i]
+                     << (-_shift));  // need to "pump up" 12bit ADC to full 16bit as delivered by other digital mics
+      else
+#ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
+        currSample = (float) newSamples.data[i] / 65536.0f;  // _shift == 0 -> use the chance to keep lower 16bits
+#else
+        currSample = (float) newSamples.data[i];
+#endif
+    }
+    buffer[i] = currSample;     // store sample
+    buffer[i] *= _sampleScale;  // scale sample
   }
 }
 
@@ -241,7 +251,7 @@ void MusicLeds::FFTcode(void *parameter) {
     }
 
     // Only run the FFT computing code if we're not in "realime mode" or in Receive mode
-    if (disableSoundProcessing) {
+    if (!this_task->microphone_is_running()) {
       vTaskDelayUntil(&xLastWakeTime, xFrequency_2);  // release CPU
       continue;
     }
@@ -256,36 +266,38 @@ void MusicLeds::FFTcode(void *parameter) {
 
     xLastWakeTime = xTaskGetTickCount();  // update "last unblocked time" for vTaskDelay
 
+#ifdef INPUT_FILTER
     // input filters applied before FFT
-    if (useInputFilter > 0) {
+    if (INPUT_FILTER > 0) {
       // filter parameter - we use constexpr as it does not need any RAM (evaluted at compile time)
       // value = 1 - exp(-2*PI * FFilter / FSample);  // FFilter: filter cutoff frequency; FSample: sampling frequency
       constexpr float filter30Hz = 0.01823938f;   // rumbling = 10-25hz
       constexpr float filter70Hz = 0.04204211f;   // mains hum = 50-60hz
       constexpr float filter120Hz = 0.07098564f;  // bad microphones deliver noise below 120Hz
-      constexpr float filter185Hz =
-          0.10730882f;  // environmental noise is strongest below 180hz: wind, engine noise, ...
-      switch (useInputFilter) {
+      constexpr float filter185Hz = 0.10730882f;  // environmental noise is strongest below 180hz:
+                                                  // wind, engine noise, ...
+      switch (INPUT_FILTER) {
         case 1:
           runMicFilter(samplesFFT, vReal);
           break;  // PDM microphone bandpass
         case 2:
           runHighFilter12db(filter30Hz, samplesFFT, vReal);
-          break;  // rejects rumbling noise
+          break;  // Rejects rumbling noise
         case 3:
-          runMicSmoothing_v2(samplesFFT, vReal);             // slightly reduce high frequency noise and artefacts
-          runHighFilter12db(filter70Hz, samplesFFT, vReal);  // rejects rumbling + mains hum
+          runMicSmoothing_v2(samplesFFT, vReal);             // Slightly reduce high frequency noise and artefacts
+          runHighFilter12db(filter70Hz, samplesFFT, vReal);  // Rejects rumbling + mains hum
           break;
         case 4:
-          runMicSmoothing_v2(samplesFFT, vReal);             // slightly reduce high frequency noise and artefacts
-          runHighFilter6db(filter120Hz, samplesFFT, vReal);  // rejects everything below 110Hz
+          runMicSmoothing_v2(samplesFFT, vReal);             // Slightly reduce high frequency noise and artefacts
+          runHighFilter6db(filter120Hz, samplesFFT, vReal);  // Rejects everything below 110Hz
           break;
         case 5:
-          runMicSmoothing(samplesFFT, vReal);                // reduce high frequency noise and artefacts
-          runHighFilter6db(filter185Hz, samplesFFT, vReal);  // reject low frequency noise
+          runMicSmoothing(samplesFFT, vReal);                // Reduce high frequency noise and artefacts
+          runHighFilter6db(filter185Hz, samplesFFT, vReal);  // Reject low frequency noise
           break;
       }
     }
+#endif
 
     // find highest sample in the batch
     const int halfSamplesFFT = samplesFFT / 2;  // samplesFFT divided by 2
@@ -402,6 +414,7 @@ void MusicLeds::FFTcode(void *parameter) {
 }  // FFTcode()
 
 // *****************************************************************************************************************************************************************
+#ifdef DEF_GRAV
 void MusicLeds::visualize_gravfreq(CRGB *physic_leds)  // Gravfreq. By Andrew Tuline.
 {
   fastled_helper::fade_out(physic_leds, leds_num, 240, back_color);
@@ -437,8 +450,10 @@ void MusicLeds::visualize_gravfreq(CRGB *physic_leds)  // Gravfreq. By Andrew Tu
   }
   gravityCounter = (gravityCounter + 1) % gravity;
 }  // visualize_gravfreq
+#endif
 
 // *****************************************************************************************************************************************************************
+#ifdef DEF_GRAVICENTER
 void MusicLeds::visualize_gravcenter(CRGB *physic_leds)  // Gravcenter. By Andrew Tuline.
 {
   fastled_helper::fade_out(physic_leds, leds_num, 240, back_color);
@@ -471,8 +486,10 @@ void MusicLeds::visualize_gravcenter(CRGB *physic_leds)  // Gravcenter. By Andre
   }
   gravityCounter = (gravityCounter + 1) % gravity;
 }  // visualize_gravcenter()
+#endif
 
 // *****************************************************************************************************************************************************************
+#ifdef DEF_GRAVICENTRIC
 void MusicLeds::visualize_gravcentric(CRGB *physic_leds)  // Gravcentric. By Andrew Tuline.
 {
   fastled_helper::fade_out(physic_leds, leds_num, 226, back_color);
@@ -503,8 +520,10 @@ void MusicLeds::visualize_gravcentric(CRGB *physic_leds)  // Gravcentric. By And
   }
   gravityCounter = (gravityCounter + 1) % gravity;
 }  // visualize_gravcentric
+#endif
 
 // *****************************************************************************************************************************************************************
+#ifdef DEF_BINMAP
 void MusicLeds::visualize_binmap(
     CRGB *physic_leds)  // Binmap. Scale raw fftBin[] values to SEGLEN. Shows just how noisy those bins are.
 {
@@ -554,8 +573,10 @@ void MusicLeds::visualize_binmap(
   }
 
 }  // visualize_binmap
+#endif
 
 // *****************************************************************************************************************************************************************
+#ifdef DEF_PIXELS
 void MusicLeds::visualize_pixels(CRGB *physic_leds)  // Pixels. By Andrew Tuline.
 {
   fastled_helper::fade_out(physic_leds, leds_num, (int) speed, back_color);
@@ -566,8 +587,10 @@ void MusicLeds::visualize_pixels(CRGB *physic_leds)  // Pixels. By Andrew Tuline
         back_color, fastled_helper::color_from_palette(myVals[i % 32] + i * 4, main_color), sampleAgc);
   }
 }  // visualize_pixels()
+#endif
 
 // *****************************************************************************************************************************************************************
+#ifdef DEF_JUNGLES
 void MusicLeds::visualize_juggles(CRGB *physic_leds)  // Juggles. By Andrew Tuline.
 {
   fastled_helper::fade_out(physic_leds, leds_num, 224, back_color);
@@ -579,8 +602,10 @@ void MusicLeds::visualize_juggles(CRGB *physic_leds)  // Juggles. By Andrew Tuli
         back_color, fastled_helper::color_from_palette(millis() / 4 + i * 2, main_color), my_sampleAgc);
   }
 }  // visualize_juggles()
+#endif
 
 // *****************************************************************************************************************************************************************
+#ifdef DEF_MIDNOISE
 void MusicLeds::visualize_midnoise(CRGB *physic_leds)  // Midnoise. By Andrew Tuline.
 {
   static int x = 0;
@@ -606,6 +631,7 @@ void MusicLeds::visualize_midnoise(CRGB *physic_leds)  // Midnoise. By Andrew Tu
   x = x + beatsin8(5, 0, 10);
   y = y + beatsin8(4, 0, 10);
 }  // visualize_midnoise()
+#endif
 
 }  // namespace music_leds
 }  // namespace esphome

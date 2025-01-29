@@ -25,7 +25,7 @@ namespace music_leds {
 #define _INIT(x) = x
 
 // WLEDSR
-WLED_GLOBAL byte inputLevelS _INIT(255);          // WLEDSR default inputLevel
+WLED_GLOBAL byte inputLevelS _INIT(255);  // WLEDSR default inputLevel
 #if !defined(SR_SQUELCH)
 WLED_GLOBAL byte soundSquelch _INIT(10);          // default squelch value for volume reactive routines
 WLED_GLOBAL byte soundAgc _INIT(0);               // default Automagic gain control

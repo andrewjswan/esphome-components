@@ -551,7 +551,7 @@ void MusicLeds::visualize_binmap(
     physic_leds[i] = fastled_helper::color_blend(
         back_color, fastled_helper::color_from_palette(i * 8 + millis() / 50, main_color),
         bright);  // 'i' is just an index in the palette. The FFT value, bright, is the intensity.
-  }  // for i
+  }
 
 }  // visualize_binmap
 

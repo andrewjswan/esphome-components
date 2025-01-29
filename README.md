@@ -94,5 +94,17 @@ ota:
             id(miner)->stop();
 ```
 
+## Fastled Helper
+[![esp32_arduino](https://img.shields.io/badge/ESP32-Arduino-darkcyan.svg)](https://esphome.io/)
+
+Helper providing a set of palettes, working with palettes and additional functions.
+
+```yaml
+fastled_helper:
+  id: palettes
+  palettes: true
+  music_leds: false
+```
+
 > [!NOTE]
 > Based on [**NerdSoloMiner**](https://github.com/BitMaker-hub/NerdMiner_v2) by [BitMaker](https://github.com/BitMaker-hub)

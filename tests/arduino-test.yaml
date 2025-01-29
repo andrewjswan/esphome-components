@@ -59,7 +59,7 @@ external_components:
   - source:
       type: local
       path: ../components
-    components: [shadow, nerdminer]
+    components: [shadow, nerdminer, fastled_helper]
 
 script:
   - id: some_script
@@ -75,6 +75,11 @@ shadow:
 nerdminer:
   id: esp_miner
   walletid: "wallet"
+
+fastled_helper:
+  id: palettes
+  palettes: true
+  music_leds: true
 
 binary_sensor:
   - platform: template

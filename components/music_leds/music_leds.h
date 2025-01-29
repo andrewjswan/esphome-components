@@ -44,6 +44,8 @@ class MusicLeds : public Component {
 
   void ShowFrame(PLAYMODE CurrentMode, Color current_color, light::AddressableLight *p_it);
 
+  bool microphone_is_running() { return this->microphone_->is_running(); }
+
  private:
   i2s_audio::I2SAudioMicrophone *microphone_;
   TaskHandle_t FFT_Task{nullptr};
@@ -58,8 +60,6 @@ class MusicLeds : public Component {
   I2S_datatype decodeADCsample(I2S_unsigned_datatype rawData);  // function to handle ADC samples
   static void FFTcode(void *parameter);
   void getSamples(float *buffer);
-  bool disableSoundProcessing{false};
-  uint8_t useInputFilter = 0;  // if > 0 , enables a bandpass filter 80Hz-8Khz to remove noise. Applies before FFT
 
   PLAYMODE CurrentMode = MODE_GRAV;
 

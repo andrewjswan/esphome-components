@@ -86,6 +86,7 @@ async def to_code(config) -> None:  # noqa: ANN001
     if config[CONF_BITS_PER_SAMPLE] == BIT_16:
         cg.add_define("I2S_USE_16BIT_SAMPLES")
     cg.add_define("SAMPLE_RATE", config[CONF_SAMPLE_RATE])
+    cg.add_define("INPUT_FILTER", config[CONF_INPUT_FILTER])
 
     await cg.register_component(var, config)
 

@@ -6,12 +6,8 @@ namespace esphome {
 namespace music_leds {
 
 void MusicLeds::setup() {
-  disableSoundProcessing = true;  // Just to be safe
-
   speed = 128;
   variant = 128;
-
-  useInputFilter = INPUT_FILTER;
 
   // Define the FFT Task and lock it to core 0
   xTaskCreatePinnedToCore(FFTcode,        // Function to implement the task
@@ -41,7 +37,6 @@ void MusicLeds::dump_config() {
 
 void MusicLeds::on_shutdown() {
   this->microphone_->stop();
-  disableSoundProcessing = true;  // Just to be safe
 
   vTaskDelete(FFT_Task);  // OTA: Avoid crash due to angry watchdog
 
@@ -53,9 +48,7 @@ void MusicLeds::set_speed(int index) { speed = index; }
 void MusicLeds::set_variant(int index) { variant = index; }
 
 void MusicLeds::ShowFrame(PLAYMODE CurrentMode, esphome::Color current_color, light::AddressableLight *p_it) {
-  disableSoundProcessing = !this->microphone_->is_running();
-
-  if (disableSoundProcessing) {
+  if (!this->microphone_is_running()) {
     return;
   }
 
@@ -143,67 +136,69 @@ void MusicLeds::ShowFrame(PLAYMODE CurrentMode, esphome::Color current_color, li
 }
 
 void MusicLeds::getSamples(float *buffer) {
-  if (this->microphone_->is_running()) {
-    typedef union {
-      I2S_datatype data[samplesFFT];
-      int16_t buffer[bufferFFT];
-    } data_helper_t;
+  if (!this->microphone_is_running()) {
+    return;
+  }
 
-    size_t bytes_read = 0;     // Counter variable to check if we actually got enough data
-    data_helper_t newSamples;  // Intermediary sample storage
+  typedef union {
+    I2S_datatype data[samplesFFT];
+    int16_t buffer[bufferFFT];
+  } data_helper_t;
 
-    _broken_samples_counter = 0;  // Reset ADC broken samples counter
+  size_t bytes_read = 0;     // Counter variable to check if we actually got enough data
+  data_helper_t newSamples;  // Intermediary sample storage
 
-    // Get fresh samples
-    bytes_read = this->microphone_->read(newSamples.buffer, sizeof(newSamples.buffer));
+  _broken_samples_counter = 0;  // Reset ADC broken samples counter
 
-    // For correct operation, we need to read exactly sizeof(samples) bytes from i2s
-    if (bytes_read != sizeof(newSamples.buffer)) {
-      ESP_LOGE("ASR", "AS: Failed to get enough samples: wanted: %d read: %d", sizeof(newSamples.buffer), bytes_read);
-      return;
-    }
+  // Get fresh samples
+  bytes_read = this->microphone_->read(newSamples.buffer, sizeof(newSamples.buffer));
 
-    // Store samples in sample buffer and update DC offset
-    for (int i = 0; i < samplesFFT; i++) {
-      if (_mask == 0x0FFF)  // mask = 0x0FFF means we are in I2SAdcSource
+  // For correct operation, we need to read exactly sizeof(samples) bytes from i2s
+  if (bytes_read != sizeof(newSamples.buffer)) {
+    ESP_LOGE("ASR", "AS: Failed to get enough samples: wanted: %d read: %d", sizeof(newSamples.buffer), bytes_read);
+    return;
+  }
+
+  // Store samples in sample buffer and update DC offset
+  for (int i = 0; i < samplesFFT; i++) {
+    if (_mask == 0x0FFF)  // mask = 0x0FFF means we are in I2SAdcSource
+    {
+      I2S_unsigned_datatype rawData = *reinterpret_cast<I2S_unsigned_datatype *>(
+          newSamples.data + i);  // C++ acrobatics to get sample as "unsigned"
+      I2S_datatype sampleNoFilter = this->decodeADCsample(rawData);
+      if (_broken_samples_counter >=
+          samplesFFT - 1)  // kill-switch: ADC sample correction off when all samples in a batch were "broken"
       {
-        I2S_unsigned_datatype rawData = *reinterpret_cast<I2S_unsigned_datatype *>(
-            newSamples.data + i);  // C++ acrobatics to get sample as "unsigned"
-        I2S_datatype sampleNoFilter = this->decodeADCsample(rawData);
-        if (_broken_samples_counter >=
-            samplesFFT - 1)  // kill-switch: ADC sample correction off when all samples in a batch were "broken"
-        {
-          _myADCchannel = 0x0F;
-          ESP_LOGE("ASR", "AS: Too many broken audio samples from ADC - sample correction switched off.");
-        }
-        newSamples.data[i] = (3 * sampleNoFilter + _lastADCsample) / 4;  // apply low-pass filter (2-tap FIR)
-        // newSamples.data[i] = (sampleNoFilter + lastADCsample) / 2;    // apply stronger low-pass filter (2-tap FIR)
-        _lastADCsample = sampleNoFilter;  // update ADC last sample
+        _myADCchannel = 0x0F;
+        ESP_LOGE("ASR", "AS: Too many broken audio samples from ADC - sample correction switched off.");
       }
-
-      // pre-shift samples down to 16bit
-#ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
-      if (_shift != 0)
-        newSamples.data[i] >>= 16;
-#endif
-      float currSample = 0.0;
-      if (_shift > 0)
-        currSample = (float) (newSamples.data[i] >> _shift);
-      else {
-        if (_shift < 0)
-          currSample =
-              (float) (newSamples.data[i]
-                       << (-_shift));  // need to "pump up" 12bit ADC to full 16bit as delivered by other digital mics
-        else
-#ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
-          currSample = (float) newSamples.data[i] / 65536.0f;  // _shift == 0 -> use the chance to keep lower 16bits
-#else
-          currSample = (float) newSamples.data[i];
-#endif
-      }
-      buffer[i] = currSample;     // store sample
-      buffer[i] *= _sampleScale;  // scale sample
+      newSamples.data[i] = (3 * sampleNoFilter + _lastADCsample) / 4;  // apply low-pass filter (2-tap FIR)
+      // newSamples.data[i] = (sampleNoFilter + lastADCsample) / 2;    // apply stronger low-pass filter (2-tap FIR)
+      _lastADCsample = sampleNoFilter;  // update ADC last sample
     }
+
+    // pre-shift samples down to 16bit
+#ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
+    if (_shift != 0)
+      newSamples.data[i] >>= 16;
+#endif
+    float currSample = 0.0;
+    if (_shift > 0)
+      currSample = (float) (newSamples.data[i] >> _shift);
+    else {
+      if (_shift < 0)
+        currSample =
+            (float) (newSamples.data[i]
+                     << (-_shift));  // need to "pump up" 12bit ADC to full 16bit as delivered by other digital mics
+      else
+#ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
+        currSample = (float) newSamples.data[i] / 65536.0f;  // _shift == 0 -> use the chance to keep lower 16bits
+#else
+        currSample = (float) newSamples.data[i];
+#endif
+    }
+    buffer[i] = currSample;     // store sample
+    buffer[i] *= _sampleScale;  // scale sample
   }
 }
 
@@ -256,7 +251,7 @@ void MusicLeds::FFTcode(void *parameter) {
     }
 
     // Only run the FFT computing code if we're not in "realime mode" or in Receive mode
-    if (disableSoundProcessing) {
+    if (!this_task->microphone_is_running()) {
       vTaskDelayUntil(&xLastWakeTime, xFrequency_2);  // release CPU
       continue;
     }
@@ -271,8 +266,9 @@ void MusicLeds::FFTcode(void *parameter) {
 
     xLastWakeTime = xTaskGetTickCount();  // update "last unblocked time" for vTaskDelay
 
+#ifdef INPUT_FILTER
     // input filters applied before FFT
-    if (useInputFilter > 0) {
+    if (INPUT_FILTER > 0) {
       // filter parameter - we use constexpr as it does not need any RAM (evaluted at compile time)
       // value = 1 - exp(-2*PI * FFilter / FSample);  // FFilter: filter cutoff frequency; FSample: sampling frequency
       constexpr float filter30Hz = 0.01823938f;   // rumbling = 10-25hz
@@ -280,7 +276,7 @@ void MusicLeds::FFTcode(void *parameter) {
       constexpr float filter120Hz = 0.07098564f;  // bad microphones deliver noise below 120Hz
       constexpr float filter185Hz = 0.10730882f;  // environmental noise is strongest below 180hz:
                                                   // wind, engine noise, ...
-      switch (useInputFilter) {
+      switch (INPUT_FILTER) {
         case 1:
           runMicFilter(samplesFFT, vReal);
           break;  // PDM microphone bandpass
@@ -301,6 +297,7 @@ void MusicLeds::FFTcode(void *parameter) {
           break;
       }
     }
+#endif
 
     // find highest sample in the batch
     const int halfSamplesFFT = samplesFFT / 2;  // samplesFFT divided by 2

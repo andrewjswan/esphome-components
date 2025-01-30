@@ -17,10 +17,10 @@ from esphome.const import (
 )
 
 from .const import (
-    BIT_16,
     CONF_INPUT_FILTER,
     CONF_MIC_ID,
     CONF_MUSIC_LEDS_ID,
+    CONF_TASK_CORE,
     MODE_GRAVICENTRIC,
     MUSIC_LEDS_EFFECTS,
 )
@@ -46,6 +46,7 @@ MUSIC_LEDS_SCHEMA = cv.Schema(
         cv.Optional(CONF_INPUT_FILTER, default="3"): cv.templatable(cv.int_range(min=0, max=5)),
         cv.Optional(CONF_BITS_PER_SAMPLE): cv.float_,
         cv.Optional(CONF_SAMPLE_RATE): cv.int_,
+        cv.Optional(CONF_TASK_CORE, default=1): cv.int_range(0, 1),
     },
 )
 
@@ -82,9 +83,9 @@ async def to_code(config) -> None:  # noqa: ANN001
 
     mic = await cg.get_variable(config[CONF_MIC_ID])
     cg.add(var.set_microphone(mic))
+    cg.add(var.set_task_core(config[CONF_TASK_CORE]))
 
-    if config[CONF_BITS_PER_SAMPLE] == BIT_16:
-        cg.add_define("I2S_USE_16BIT_SAMPLES")
+    cg.add_define("BITS_PER_SAMPLE", int(config[CONF_BITS_PER_SAMPLE]))
     cg.add_define("SAMPLE_RATE", config[CONF_SAMPLE_RATE])
     cg.add_define("INPUT_FILTER", config[CONF_INPUT_FILTER])
 

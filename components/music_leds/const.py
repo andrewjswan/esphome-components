@@ -1,11 +1,9 @@
 """Constants for Music Leds component for ESPHome."""
 
-BIT_16 = 16
-BIT_32 = 32
-
 CONF_MIC_ID = "mic_id"
 CONF_MUSIC_LEDS_ID = "music_leds_id"
 CONF_INPUT_FILTER = "input_filter"
+CONF_TASK_CORE = "task_core"
 
 MODE_BINMAP = "BINMAP"
 MODE_GRAV = "GRAV"

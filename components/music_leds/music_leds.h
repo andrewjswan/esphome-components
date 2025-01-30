@@ -5,24 +5,17 @@
 namespace esphome {
 namespace music_leds {
 
+#define I2S_SAMPLE_RESOLUTION I2S_BITS_PER_SAMPLE_16BIT
+#define I2S_datatype int16_t
+#define I2S_unsigned_datatype uint16_t
+#define I2S_buffer_size (BITS_PER_SAMPLE / 16) * samplesFFT
+
 // Uncomment the line below to utilize ADC1 _exclusively_ for I2S sound input.
 // benefit: analog mic inputs will be sampled contiously -> better response times and less "glitches"
 // WARNING: this option WILL lock-up your device in case that any other analogRead() operation is performed;
 //          for example if you want to read "analog buttons"
 // #define I2S_GRAB_ADC1_COMPLETELY // (experimental) continously sample analog ADC microphone. WARNING will cause
 // analogRead() lock-up
-
-#ifdef I2S_USE_16BIT_SAMPLES
-#define I2S_datatype int16_t
-#define I2S_unsigned_datatype uint16_t
-#undef I2S_SAMPLE_DOWNSCALE_TO_16BIT
-#define bufferFFT samplesFFT
-#else
-#define I2S_datatype int32_t
-#define I2S_unsigned_datatype uint32_t
-#define I2S_SAMPLE_DOWNSCALE_TO_16BIT
-#define bufferFFT samplesFFT * 2
-#endif
 
 static const char *const TAG = "music_leds";
 static const char *const MUSIC_LEDS_VERSION = "2025.1.1";
@@ -38,6 +31,7 @@ class MusicLeds : public Component {
   void on_shutdown() override;
 
   void set_microphone(i2s_audio::I2SAudioMicrophone *microphone) { this->microphone_ = microphone; }
+  void set_task_core(uint8_t task_core) { this->task_core_ = task_core; }
 
   void set_speed(int index);
   void set_variant(int index);
@@ -49,6 +43,7 @@ class MusicLeds : public Component {
  private:
   i2s_audio::I2SAudioMicrophone *microphone_;
   TaskHandle_t FFT_Task{nullptr};
+  uint8_t task_core_{1};
 
   uint32_t _mask{0xFFFFFFFF};  // Bitmask for sample data after shifting. Bitmask 0X0FFF means that we need to convert
                                // 12bit ADC samples from unsigned to signed
@@ -66,11 +61,11 @@ class MusicLeds : public Component {
   CRGB main_color;  // SEGCOLOR(0) - First Color in WLED
   CRGB back_color;  // SEGCOLOR(1) - Second Color in WLED (Background)
 
-  int topLED = 0;
-  int gravityCounter = 0;
+  int topLED{0};
+  int gravityCounter{0};
 
-  uint8_t speed;
-  uint8_t variant;
+  uint8_t speed{128};
+  uint8_t variant{128};
   uint16_t leds_num;
 
 #ifdef DEF_GRAV

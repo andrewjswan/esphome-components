@@ -36,7 +36,7 @@ WLED_GLOBAL byte soundAgc _INIT(2);               // squelch was provided - we c
 #if !defined(SR_GAIN)
 WLED_GLOBAL byte sampleGain _INIT(30);  // default sample gain
 #else
-WLED_GLOBAL byte sampleGain _INIT(SR_GAIN);       // default sample gain
+WLED_GLOBAL byte sampleGain _INIT(SR_GAIN);  // default sample gain
 #endif
 
 #ifndef DMENABLED  // aka DOUT

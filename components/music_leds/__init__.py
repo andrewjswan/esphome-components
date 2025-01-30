@@ -19,8 +19,8 @@ from esphome.const import (
 from .const import (
     CONF_INPUT_FILTER,
     CONF_MIC_ID,
-    CONF_TASK_CORE,
     CONF_MUSIC_LEDS_ID,
+    CONF_TASK_CORE,
     MODE_GRAVICENTRIC,
     MUSIC_LEDS_EFFECTS,
 )

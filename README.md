@@ -8,6 +8,14 @@
 # ESPHome Components
 External components for ESPHome
 
+- [Matrix Lamp](#matrix-lamp)
+- [Shadow](#shadow)
+- [Fastled Helper](#fastled-helper)
+- [NerdMiner](#nerdminer)
+- [Music Leds / Sound Reactive](#music-leds--sound-reactive)
+- [CUBIC CM1106 Single Beam NDIR CO2 Sensor Module](#cubic-cm1106-single-beam-ndir-co2-sensor-module)
+- [CUBIC PM2005/PM2105 Laser Particle Sensor Module](#cubic-pm2005pm2105-laser-particle-sensor-module)
+
 ## Matrix Lamp
 [![esp32_arduino](https://img.shields.io/badge/ESP32-Arduino-darkcyan.svg)](https://esphome.io/)
 
@@ -154,4 +162,61 @@ light:
       - music_leds_effect:
           name: Binmap with Music
           mode: BINMAP
+```
+
+## CUBIC CM1106 Single Beam NDIR CO2 Sensor Module
+
+```yaml
+external_components:
+  - source:
+      type: git
+      url: https://github.com/andrewjswan/esphome-components
+      ref: main
+    components: [cm1106]
+    refresh: 60s
+
+uart:
+  - id: cm1106_uart
+    rx_pin: 16
+    tx_pin: 17
+    baud_rate: 9600
+
+sensor:
+  - platform: cm1106
+    co2:
+      name: "${name} CO2"
+      id: co2sensor
+    id: cm1106_sensor
+```
+
+## CUBIC PM2005/PM2105 Laser Particle Sensor Module
+
+```yaml
+external_components:
+  - source:
+      type: git
+      url: https://github.com/andrewjswan/esphome-components
+      ref: main
+    components: [pm2005]
+    refresh: 60s
+
+i2c:
+  - id: pm25_bus
+    sda: 23
+    scl: 22
+    scan: true
+
+sensor:
+  - platform: pm2005
+    i2c_id: pm25_bus
+    type: pm2105
+    pm_1_0:
+      name: "${name} PM1"
+      id: pm1sensor
+    pm_2_5:
+      name: "${name} PM2.5"
+      id: pm25sensor
+    pm_10_0:
+      name: "${name} PM10"
+      id: pm10sensor
 ```

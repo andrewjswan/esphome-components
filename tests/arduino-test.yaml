@@ -59,7 +59,7 @@ external_components:
   - source:
       type: local
       path: ../components
-    components: [shadow, nerdminer, fastled_helper, music_leds]
+    components: [shadow, nerdminer, fastled_helper, music_leds, cm1106, pm2005]
 
 script:
   - id: some_script
@@ -97,6 +97,18 @@ microphone:
 music_leds:
   id: music_light
   mic_id: adc_mic
+
+uart:
+  - id: cm1106_uart
+    rx_pin: 16
+    tx_pin: 17
+    baud_rate: 9600
+
+i2c:
+  - id: pm25_bus
+    sda: 23
+    scl: 22
+    scan: true
 
 binary_sensor:
   - platform: template
@@ -187,6 +199,25 @@ sensor:
     entity_category: diagnostic
     icon: mdi:signal
 
+  - platform: cm1106
+    co2:
+      name: "${name} CO2"
+      id: co2sensor
+    id: cm1106_sensor
+
+  - platform: pm2005
+    i2c_id: pm25_bus
+    type: pm2105
+    pm_1_0:
+      name: "${name} PM1"
+      id: pm1sensor
+    pm_2_5:
+      name: "${name} PM2.5"
+      id: pm25sensor
+    pm_10_0:
+      name: "${name} PM10"
+      id: pm10sensor
+
 button:
   - platform: restart
     name: "${friendly_name} Restart"
@@ -225,7 +256,7 @@ text_sensor:
 
 light:
   - platform: neopixelbus
-    pin: GPIO16
+    pin: GPIO3
     num_leds: 300
     name: ${friendly_name} NeoPixel
     variant: 800KBPS

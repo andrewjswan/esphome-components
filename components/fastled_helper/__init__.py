@@ -31,7 +31,7 @@ FASTLED_HELPER_SCHEMA = cv.Schema(
 CONFIG_SCHEMA = cv.All(FASTLED_HELPER_SCHEMA)
 
 
-async def to_code(config) -> None:  # noqa: ANN001
+async def to_code(config) -> None:
     """Code generation entry point."""
     var = cg.new_Pvariable(config[CONF_ID])
 

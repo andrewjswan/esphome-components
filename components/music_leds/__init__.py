@@ -53,7 +53,7 @@ MUSIC_LEDS_SCHEMA = cv.Schema(
 CONFIG_SCHEMA = cv.All(MUSIC_LEDS_SCHEMA)
 
 
-def _final_validate(config):  # noqa: ANN001 ANN202
+def _final_validate(config):  # noqa: ANN202
     full_config = fv.full_config.get()
     mic_path = full_config.get_path_for_id(config[CONF_MIC_ID])[:-1]
     mic_conf = full_config.get_config_for_path(mic_path)
@@ -73,7 +73,7 @@ def _final_validate(config):  # noqa: ANN001 ANN202
 FINAL_VALIDATE_SCHEMA = _final_validate
 
 
-async def to_code(config) -> None:  # noqa: ANN001
+async def to_code(config) -> None:
     """Code generation entry point."""
     var = cg.new_Pvariable(config[CONF_ID])
 
@@ -104,7 +104,7 @@ async def to_code(config) -> None:  # noqa: ANN001
         ),
     },
 )
-async def music_leds_light_effect_to_code(config, effect_id) -> AddressableLightEffect:  # noqa: ANN001
+async def music_leds_light_effect_to_code(config, effect_id) -> AddressableLightEffect:
     """Effect registration entry point."""
     parent = await cg.get_variable(config[CONF_MUSIC_LEDS_ID])
 

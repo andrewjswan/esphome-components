@@ -39,7 +39,7 @@ NERDMINER_SCHEMA = cv.Schema(
 CONFIG_SCHEMA = cv.All(NERDMINER_SCHEMA)
 
 
-async def to_code(config) -> None:  # noqa: ANN001
+async def to_code(config) -> None:
     """Code generation entry point."""
     cg.add_build_flag("-Wno-pointer-arith")
 

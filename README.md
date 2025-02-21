@@ -51,7 +51,7 @@ external_components:
       type: git
       url: https://github.com/andrewjswan/esphome-components
       ref: main
-    components: [ shadow ]
+    components: [shadow]
     refresh: 60s
 
 script:
@@ -84,7 +84,7 @@ external_components:
       type: git
       url: https://github.com/andrewjswan/esphome-components
       ref: main
-    components: [ nerdminer ]
+    components: [nerdminer]
     refresh: 60s
 
 nerdminer:

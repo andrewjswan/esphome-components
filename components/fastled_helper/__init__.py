@@ -35,7 +35,7 @@ async def to_code(config) -> None:
     """Code generation entry point."""
     var = cg.new_Pvariable(config[CONF_ID])
 
-    cg.add_library("fastled/FastLED", "3.6.0")
+    cg.add_library("fastled/FastLED", "3.7.8")
 
     if config[CONF_PALETTES]:
         cg.add_define("PALETTES")

@@ -1,5 +1,4 @@
-#ifndef MONITOR_API_H
-#define MONITOR_API_H
+#pragma once
 
 #define NEXT_HALVING_EVENT 1050000  // 840000
 #define HALVING_BLOCKS 210000
@@ -32,5 +31,3 @@ mining_data getMiningData();
 
 }  // namespace nerdminer
 }  // namespace esphome
-
-#endif  // MONITOR_API_H

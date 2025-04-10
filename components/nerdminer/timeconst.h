@@ -1,9 +1,8 @@
-//
-// Created by dwight on 3/14/24.
-//
+#pragma once
 
-#ifndef NERDMINER_V2_TIMECONST_H
-#define NERDMINER_V2_TIMECONST_H
+/*
+ * Created by dwight on 3/14/24.
+ */
 
 #define SECOND_MS 1000
 #define SECOND 1
@@ -13,5 +12,3 @@
 #define WEEK 7 * DAY        // 604,800 Seconds
 #define MONTH 30 * DAY      // 2,592,000 Seconds
 #define YEAR 365 * DAY      // 31,536,000 Seconds
-
-#endif  // NERDMINER_V2_TIMECONST_H

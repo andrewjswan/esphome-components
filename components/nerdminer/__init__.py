@@ -14,7 +14,9 @@ DEPENDENCIES = ["wifi", "http_request"]
 
 AUTO_LOAD = ["nerdminer"]
 
+logging.info("")
 logging.info("Load NerdMiner component https://github.com/andrewjswan/esphome-components")
+logging.info("")
 
 nerdminer_ns = cg.esphome_ns.namespace("nerdminer")
 NERDMINER_ = nerdminer_ns.class_("NerdMiner", cg.Component)
@@ -41,8 +43,6 @@ CONFIG_SCHEMA = cv.All(NERDMINER_SCHEMA)
 
 async def to_code(config) -> None:
     """Code generation entry point."""
-    cg.add_build_flag("-Wno-pointer-arith")
-
     var = cg.new_Pvariable(config[CONF_ID])
 
     cg.add_define("NERDMINER_WALLETID", config[CONF_WALLETID])

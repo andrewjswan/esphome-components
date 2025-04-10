@@ -1,9 +1,15 @@
-#include "esphome.h"
+#include "nerdminer.h"
 #include "mining.h"
 #include "monitor.h"
 #include "timeconst.h"
-#include <esp_task_wdt.h>
 
+#include "esphome/core/log.h"
+
+#include <esp_task_wdt.h>
+#include <soc/soc_caps.h>
+
+// 3 seconds WDT
+#define WDT_TIMEOUT 3
 // 15 minutes WDT for miner task
 #define WDT_MINER_TIMEOUT 900
 
@@ -18,15 +24,23 @@ void NerdMiner::setup() {
 void NerdMiner::start() {
   esp_task_wdt_init(WDT_MINER_TIMEOUT, true);
 
-  BaseType_t res1 = xTaskCreatePinnedToCore(runMonitor, "Monitor", 10000, (void *) "Monitor", 4, &monitor_handle, 1);
+  BaseType_t res1 = xTaskCreatePinnedToCore(runMonitor, "Monitor", 10000, (void *) "Monitor", 5, &monitor_handle, 1);
   BaseType_t res2 =
-      xTaskCreatePinnedToCore(runStratumWorker, "Stratum", 15000, (void *) "Stratum", 3, &stratum_handle, 1);
+      xTaskCreatePinnedToCore(runStratumWorker, "Stratum", 15000, (void *) "Stratum", 4, &stratum_handle, 1);
 
-  xTaskCreate(runMiner, "Miner0", 6000, (void *) 0, 1, &miner1_handle);
-  xTaskCreate(runMiner, "Miner1", 6000, (void *) 1, 1, &miner2_handle);
-
+#ifdef HARDWARE_SHA265
+  xTaskCreate(minerWorkerHw, "MinerHW-0", 4096, (void *) 0, 3, &miner1_handle);
+#else
+  xTaskCreate(minerWorkerSw, "MinerSW-0", 6000, (void *) 0, 1, &miner1_handle);
+#endif
   esp_task_wdt_add(miner1_handle);
+
+#if (SOC_CPU_CORES_NUM >= 2)
+  xTaskCreate(minerWorkerSw, "MinerSW-1", 6000, (void *) 1, 1, &miner2_handle);
   esp_task_wdt_add(miner2_handle);
+#endif
+
+  vTaskPrioritySet(NULL, 4);
 
   ESP_LOGCONFIG(TAG, "NerdMiner started...");
 }  // start()
@@ -51,6 +65,10 @@ void NerdMiner::dump_config() {
   ESP_LOGCONFIG(TAG, "           Worker: %s", NERDMINER_WORKER);
   ESP_LOGCONFIG(TAG, "             Pool: %s", NERDMINER_POOL);
   ESP_LOGCONFIG(TAG, "             Port: %d", NERDMINER_POOL_PORT);
+  ESP_LOGCONFIG(TAG, "            Cores: %d", SOC_CPU_CORES_NUM);
+#ifdef HARDWARE_SHA265
+  ESP_LOGCONFIG(TAG, "  Hardware SHA265: Yes");
+#endif
 }  // dump_config()
 
 bool NerdMiner::getMinerState() {

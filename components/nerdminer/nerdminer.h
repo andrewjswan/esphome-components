@@ -1,10 +1,15 @@
 #pragma once
 
+#include "esphome/core/component.h"
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
 namespace esphome {
 namespace nerdminer {
 
 static const char *const TAG = "nerdminer";
-static const char *const NERDMINER_VERSION = "2024.11.5-1.7.0";
+static const char *const NERDMINER_VERSION = "2025.4.5-1.7.0";
 
 class NerdMiner : public Component {
  public:

@@ -22,14 +22,17 @@ extern unsigned long mElapsed;
 
 extern monitor_data mMonitor;
 
+mining_data mMining;
+
 void setup_monitor(void) {}
 
 static std::list<double> s_hashrate_avg_list;
 static double s_hashrate_summ = 0.0;
 static uint8_t s_hashrate_recalc = 0;
 
-double getCurrentHashRate() {
-  double hashrate = (double) elapsedKHs * 1000.0 / (double) mElapsed;
+double getCurrentHashRate(unsigned long mElapsed)
+{
+  double hashrate = (double)elapsedKHs * 1000.0 / (double)mElapsed;
 
   s_hashrate_summ += hashrate;
   s_hashrate_avg_list.push_back(hashrate);
@@ -39,14 +42,15 @@ double getCurrentHashRate() {
   }
 
   ++s_hashrate_recalc;
-  if (s_hashrate_recalc == 0) {
+  if (s_hashrate_recalc == 0)
+  {
     s_hashrate_summ = 0.0;
     for (auto itt = s_hashrate_avg_list.begin(); itt != s_hashrate_avg_list.end(); ++itt) {
       s_hashrate_summ += *itt;
     }
   }
 
-  double avg_hashrate = s_hashrate_summ / (double) s_hashrate_avg_list.size();
+  double avg_hashrate = s_hashrate_summ / (double)s_hashrate_avg_list.size();
   if (avg_hashrate < 0.0) {
     avg_hashrate = 0.0;
   }
@@ -54,20 +58,17 @@ double getCurrentHashRate() {
 }
 
 monitor_data getMonitorData() { return mMonitor; }
+mining_data getMiningData() { return mMining; }
 
-mining_data getMiningData() {
-  mining_data data;
-
-  data.completedShares = shares;
-  data.totalMHashes = Mhashes;
-  data.totalKHashes = totalKHashes;
-  data.currentHashRate = getCurrentHashRate();
-  data.templates = templates;
-  data.bestDiff = best_diff;
-  data.timeMining = upTime;
-  data.valids = valids;
-
-  return data;
+void updateMiningData(unsigned long mElapsed) {
+  mMining.completedShares = shares;
+  mMining.totalMHashes = Mhashes;
+  mMining.totalKHashes = totalKHashes;
+  mMining.currentHashRate = getCurrentHashRate(mElapsed);
+  mMining.templates = templates;
+  mMining.bestDiff = best_diff;
+  mMining.timeMining = upTime;
+  mMining.valids = valids;
 }
 
 }  // namespace nerdminer

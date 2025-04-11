@@ -28,6 +28,7 @@ void setup_monitor(void);
 
 monitor_data getMonitorData();
 mining_data getMiningData();
+void updateMiningData(unsigned long mElapsed);
 
 }  // namespace nerdminer
 }  // namespace esphome

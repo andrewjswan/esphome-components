@@ -295,9 +295,9 @@ void runStratumWorker(void *name) {
 #ifdef HARDWARE_SHA265
               s_job_request_list_hw.clear();
 #endif
-              }
-              // Increse templates readed
-              templates++;
+            }
+            // Increse templates readed
+            templates++;
 
               job_pool++;
               s_working_current_job_id = job_pool & 0xFF; // Terminate current job in thread

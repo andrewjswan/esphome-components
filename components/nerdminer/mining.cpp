@@ -844,8 +844,8 @@ static inline void nerd_sha_ll_fill_text_block_sha256_double() {
     reg_addr_buf[15] = 0x00000100;
 }
 
-void minerWorkerHw(void * task_id) {
-  unsigned int miner_id = (uint32_t)task_id;
+void minerWorkerHw(void *task_id) {
+  unsigned int miner_id = (uint32_t) task_id;
   ESP_LOGCONFIG(TAG, "[MINER][HW32D] %d Started...", miner_id);
 
   std::shared_ptr<JobRequest> job;

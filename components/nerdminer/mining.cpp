@@ -906,7 +906,7 @@ void minerWorkerHw(void *task_id) {
           if (diff_hash > result->difficulty) {
             if (isSha256Valid(hash)) {
               result->difficulty = diff_hash;
-              result->nonce = job->nonce_start+n;
+              result->nonce = job->nonce_start + n;
               memcpy(result->hash, hash, sizeof(hash));
             }
           }

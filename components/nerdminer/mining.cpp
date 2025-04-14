@@ -145,9 +145,9 @@ std::list<std::shared_ptr<JobRequest>> s_job_request_list_hw;
 std::list<std::shared_ptr<JobResult>> s_job_result_list;
 static volatile uint8_t s_working_current_job_id = 0xFF;
 
-static void JobPush(std::list<std::shared_ptr<JobRequest>> &job_list,  uint32_t id, uint32_t nonce_start,
-                    uint32_t nonce_count, double difficulty, const uint8_t* sha_buffer, const uint32_t* midstate,
-                    const uint32_t* bake) {
+static void JobPush(std::list<std::shared_ptr<JobRequest>> &job_list, uint32_t id, uint32_t nonce_start,
+                    uint32_t nonce_count, double difficulty, const uint8_t *sha_buffer, const uint32_t *midstate,
+                    const uint32_t *bake) {
   std::shared_ptr<JobRequest> job = std::make_shared<JobRequest>();
   job->id = id;
   job->nonce_start = nonce_start;

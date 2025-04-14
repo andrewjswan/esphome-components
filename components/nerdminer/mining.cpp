@@ -317,8 +317,8 @@ void runStratumWorker(void *name) {
               mMiner.bytearray_blockheader[126] = 0x02;
               mMiner.bytearray_blockheader[127] = 0x80;
 
-              nerd_mids(diget_mid, mMiner.bytearray_blockheader);
-              nerd_sha256_bake(diget_mid, mMiner.bytearray_blockheader+64, bake);
+            nerd_mids(diget_mid, mMiner.bytearray_blockheader);
+            nerd_sha256_bake(diget_mid, mMiner.bytearray_blockheader + 64, bake);
 
 #ifdef HARDWARE_SHA265
 #if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)

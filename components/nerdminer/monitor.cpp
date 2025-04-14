@@ -30,8 +30,7 @@ static std::list<double> s_hashrate_avg_list;
 static double s_hashrate_summ = 0.0;
 static uint8_t s_hashrate_recalc = 0;
 
-double getCurrentHashRate(unsigned long mElapsed)
-{
+double getCurrentHashRate(unsigned long mElapsed) {
   double hashrate = (double)elapsedKHs * 1000.0 / (double)mElapsed;
 
   s_hashrate_summ += hashrate;
@@ -42,8 +41,7 @@ double getCurrentHashRate(unsigned long mElapsed)
   }
 
   ++s_hashrate_recalc;
-  if (s_hashrate_recalc == 0)
-  {
+  if (s_hashrate_recalc == 0) {
     s_hashrate_summ = 0.0;
     for (auto itt = s_hashrate_avg_list.begin(); itt != s_hashrate_avg_list.end(); ++itt) {
       s_hashrate_summ += *itt;

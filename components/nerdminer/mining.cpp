@@ -783,8 +783,8 @@ static inline void nerd_sha_ll_read_digest(void* ptr) {
 }
 
 static inline void nerd_sha_hal_wait_idle() {
-    while (DPORT_REG_READ(SHA_256_BUSY_REG)) {
-    }
+  while (DPORT_REG_READ(SHA_256_BUSY_REG)) {
+  }
 }
 
 static inline void nerd_sha_ll_fill_text_block_sha256(const void *input_text) {

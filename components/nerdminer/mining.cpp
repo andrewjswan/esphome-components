@@ -302,20 +302,20 @@ void runStratumWorker(void *name) {
             job_pool++;
             s_working_current_job_id = job_pool & 0xFF;  // Terminate current job in thread
 
-              last_job_time = millis();
-              mLastTXtoPool = last_job_time;
+            last_job_time = millis();
+            mLastTXtoPool = last_job_time;
 
-              uint32_t mh = hashes / 1000000;
-              Mhashes += mh;
-              hashes -= mh * 1000000;
+            uint32_t mh = hashes / 1000000;
+            Mhashes += mh;
+            hashes -= mh * 1000000;
 
-              // Prepare data for new jobs
-              mMiner = calculateMiningData(mWorker, mJob);
+            // Prepare data for new jobs
+            mMiner = calculateMiningData(mWorker, mJob);
 
-              memset(mMiner.bytearray_blockheader + 80, 0, 128 - 80);
-              mMiner.bytearray_blockheader[80] = 0x80;
-              mMiner.bytearray_blockheader[126] = 0x02;
-              mMiner.bytearray_blockheader[127] = 0x80;
+            memset(mMiner.bytearray_blockheader + 80, 0, 128 - 80);
+            mMiner.bytearray_blockheader[80] = 0x80;
+            mMiner.bytearray_blockheader[126] = 0x02;
+            mMiner.bytearray_blockheader[127] = 0x80;
 
             nerd_mids(diget_mid, mMiner.bytearray_blockheader);
             nerd_sha256_bake(diget_mid, mMiner.bytearray_blockheader + 64, bake);
@@ -341,75 +341,70 @@ void runStratumWorker(void *name) {
 #else
             nonce_pool = 0xDA54E700;  // nonce 0x00000000 is not possible, start from some random nonce
 #endif
-              {
-                std::lock_guard<std::mutex> lock(s_job_mutex);
-                for (int i = 0; i < 4; ++i)
-                {
-                  JobPush( s_job_request_list_sw, job_pool, nonce_pool, NONCE_PER_JOB_SW, currentPoolDifficulty, mMiner.bytearray_blockheader, diget_mid, bake);
+            {
+              std::lock_guard<std::mutex> lock(s_job_mutex);
+              for (int i = 0; i < 4; ++i) {
+                JobPush(s_job_request_list_sw, job_pool, nonce_pool, NONCE_PER_JOB_SW, currentPoolDifficulty,
+                        mMiner.bytearray_blockheader, diget_mid, bake);
 #ifdef RANDOM_NONCE
                 nonce_pool = RandomGet() & RANDOM_NONCE_MASK;
 #else
-                  nonce_pool += NONCE_PER_JOB_SW;
+                nonce_pool += NONCE_PER_JOB_SW;
 #endif
 
 #ifdef HARDWARE_SHA265
 #if defined(CONFIG_IDF_TARGET_ESP32)
-                  JobPush(s_job_request_list_hw, job_pool, nonce_pool, NONCE_PER_JOB_HW, currentPoolDifficulty, sha_buffer_swap, hw_midstate, bake);
+                JobPush(s_job_request_list_hw, job_pool, nonce_pool, NONCE_PER_JOB_HW, currentPoolDifficulty,
+                        sha_buffer_swap, hw_midstate, bake);
 #else
-                  JobPush(s_job_request_list_hw, job_pool, nonce_pool, NONCE_PER_JOB_HW, currentPoolDifficulty, mMiner.bytearray_blockheader, hw_midstate, bake);
+                JobPush(s_job_request_list_hw, job_pool, nonce_pool, NONCE_PER_JOB_HW, currentPoolDifficulty,
+                        mMiner.bytearray_blockheader, hw_midstate, bake);
 #endif
 
 #ifdef RANDOM_NONCE
-                  nonce_pool = RandomGet() & RANDOM_NONCE_MASK;
+                nonce_pool = RandomGet() & RANDOM_NONCE_MASK;
 #else
-                  nonce_pool += NONCE_PER_JOB_HW;
+                nonce_pool += NONCE_PER_JOB_HW;
 #endif
 #endif
-                }
               }
-            } else {
-              ESP_LOGD(TAG, "Parsing error, need restart");
-              client.stop();
-              isMinerSuscribed=false;
-              MiningJobStop(job_pool, s_submition_map);
             }
+          } else {
+            ESP_LOGD(TAG, "Parsing error, need restart");
+            client.stop();
+            isMinerSuscribed = false;
+            MiningJobStop(job_pool, s_submition_map);
           }
-          break;
+        } break;
         case MINING_SET_DIFFICULTY: {
-            ESP_LOGD(TAG, "Parsed JSON: Minning set difficulty");
-            parse_mining_set_difficulty(line, currentPoolDifficulty);
-          }
-          break;
+          ESP_LOGD(TAG, "Parsed JSON: Minning set difficulty");
+          parse_mining_set_difficulty(line, currentPoolDifficulty);
+        } break;
         case STRATUM_SUCCESS: {
-            ESP_LOGD(TAG, "Parsed JSON: Success");
-            unsigned long id = parse_extract_id(line);
-            auto itt = s_submition_map.find(id);
-            if (itt != s_submition_map.end())
-            {
-              if (itt->second->diff > best_diff)
-                best_diff = itt->second->diff;
-              if (itt->second->is32bit)
-                shares++;
-              if (itt->second->isValid)
-              {
-                ESP_LOGD(TAG, "CONGRATULATIONS! Valid block found");
-                valids++;
-              }
-              s_submition_map.erase(itt);
+          ESP_LOGD(TAG, "Parsed JSON: Success");
+          unsigned long id = parse_extract_id(line);
+          auto itt = s_submition_map.find(id);
+          if (itt != s_submition_map.end()) {
+            if (itt->second->diff > best_diff)
+              best_diff = itt->second->diff;
+            if (itt->second->is32bit)
+              shares++;
+            if (itt->second->isValid) {
+              ESP_LOGD(TAG, "CONGRATULATIONS! Valid block found");
+              valids++;
             }
+            s_submition_map.erase(itt);
           }
-          break;
+        } break;
         case STRATUM_PARSE_ERROR: {
-            ESP_LOGD(TAG, "Parsed JSON: error on JSON");
-            unsigned long id = parse_extract_id(line);
-            auto itt = s_submition_map.find(id);
-            if (itt != s_submition_map.end())
-            {
-              ESP_LOGD(TAG, "Refuse submition %d", id);
-              s_submition_map.erase(itt);
-            }
+          ESP_LOGD(TAG, "Parsed JSON: error on JSON");
+          unsigned long id = parse_extract_id(line);
+          auto itt = s_submition_map.find(id);
+          if (itt != s_submition_map.end()) {
+            ESP_LOGD(TAG, "Refuse submition %d", id);
+            s_submition_map.erase(itt);
           }
-          break;
+        } break;
         default:
           ESP_LOGD(TAG, "Parsed JSON: Unknown");
           break;
@@ -426,7 +421,8 @@ void runStratumWorker(void *name) {
       s_job_result_list.clear();
 
       while (s_job_request_list_sw.size() < 4) {
-        JobPush( s_job_request_list_sw, job_pool, nonce_pool, NONCE_PER_JOB_SW, currentPoolDifficulty, mMiner.bytearray_blockheader, diget_mid, bake);
+        JobPush(s_job_request_list_sw, job_pool, nonce_pool, NONCE_PER_JOB_SW, currentPoolDifficulty,
+                mMiner.bytearray_blockheader, diget_mid, bake);
 
 #ifdef RANDOM_NONCE
         nonce_pool = RandomGet() & RANDOM_NONCE_MASK;
@@ -435,12 +431,14 @@ void runStratumWorker(void *name) {
 #endif
       }
 
-      #ifdef HARDWARE_SHA265
+#ifdef HARDWARE_SHA265
       while (s_job_request_list_hw.size() < 4) {
 #if defined(CONFIG_IDF_TARGET_ESP32)
-        JobPush( s_job_request_list_hw, job_pool, nonce_pool, NONCE_PER_JOB_HW, currentPoolDifficulty, sha_buffer_swap, hw_midstate, bake);
+        JobPush(s_job_request_list_hw, job_pool, nonce_pool, NONCE_PER_JOB_HW, currentPoolDifficulty, sha_buffer_swap,
+                hw_midstate, bake);
 #else
-        JobPush( s_job_request_list_hw, job_pool, nonce_pool, NONCE_PER_JOB_HW, currentPoolDifficulty, mMiner.bytearray_blockheader, hw_midstate, bake);
+        JobPush(s_job_request_list_hw, job_pool, nonce_pool, NONCE_PER_JOB_HW, currentPoolDifficulty,
+                mMiner.bytearray_blockheader, hw_midstate, bake);
 #endif
 
 #ifdef RANDOM_NONCE
@@ -487,8 +485,8 @@ void runStratumWorker(void *name) {
 
 ////////////////// THREAD CALLS ///////////////////
 
-void minerWorkerSw(void * task_id) {
-  unsigned int miner_id = (uint32_t)task_id;
+void minerWorkerSw(void *task_id) {
+  unsigned int miner_id = (uint32_t) task_id;
   ESP_LOGCONFIG(TAG, "[MINER][SW] %d Started...", miner_id);
 
   std::shared_ptr<JobRequest> job;
@@ -523,19 +521,18 @@ void minerWorkerSw(void * task_id) {
       result->nonce_count = job->nonce_count;
       uint8_t job_in_work = job->id & 0xFF;
       for (uint32_t n = 0; n < job->nonce_count; ++n) {
-        ((uint32_t*)(job->sha_buffer+64+12))[0] = job->nonce_start+n;
-        if (nerd_sha256d_baked(job->midstate, job->sha_buffer+64, job->bake, hash)) {
+        ((uint32_t *) (job->sha_buffer + 64 + 12))[0] = job->nonce_start + n;
+        if (nerd_sha256d_baked(job->midstate, job->sha_buffer + 64, job->bake, hash)) {
           double diff_hash = diff_from_target(hash);
-          if (diff_hash > result->difficulty)
-          {
+          if (diff_hash > result->difficulty) {
             result->difficulty = diff_hash;
-            result->nonce = job->nonce_start+n;
+            result->nonce = job->nonce_start + n;
             memcpy(result->hash, hash, 32);
           }
         }
 
-        if ( (uint16_t)(n & 0xFF) == 0 && s_working_current_job_id != job_in_work) {
-          result->nonce_count = n+1;
+        if ((uint16_t) (n & 0xFF) == 0 && s_working_current_job_id != job_in_work) {
+          result->nonce_count = n + 1;
           break;
         }
       }
@@ -556,30 +553,30 @@ void minerWorkerSw(void * task_id) {
 #if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
 
 static inline void nerd_sha_ll_fill_text_block_sha256(const void *input_text, uint32_t nonce) {
-    uint32_t *data_words = (uint32_t *)input_text;
-    uint32_t *reg_addr_buf = (uint32_t *)(SHA_TEXT_BASE);
+  uint32_t *data_words = (uint32_t *) input_text;
+  uint32_t *reg_addr_buf = (uint32_t *) (SHA_TEXT_BASE);
 
-    REG_WRITE(&reg_addr_buf[0], data_words[0]);
-    REG_WRITE(&reg_addr_buf[1], data_words[1]);
-    REG_WRITE(&reg_addr_buf[2], data_words[2]);
+  REG_WRITE(&reg_addr_buf[0], data_words[0]);
+  REG_WRITE(&reg_addr_buf[1], data_words[1]);
+  REG_WRITE(&reg_addr_buf[2], data_words[2]);
 
-    REG_WRITE(&reg_addr_buf[3], nonce);
-    REG_WRITE(&reg_addr_buf[4], 0x00000080);
-    REG_WRITE(&reg_addr_buf[5], 0x00000000);
-    REG_WRITE(&reg_addr_buf[6], 0x00000000);
-    REG_WRITE(&reg_addr_buf[7], 0x00000000);
-    REG_WRITE(&reg_addr_buf[8], 0x00000000);
-    REG_WRITE(&reg_addr_buf[9], 0x00000000);
-    REG_WRITE(&reg_addr_buf[10], 0x00000000);
-    REG_WRITE(&reg_addr_buf[11], 0x00000000);
-    REG_WRITE(&reg_addr_buf[12], 0x00000000);
-    REG_WRITE(&reg_addr_buf[13], 0x00000000);
-    REG_WRITE(&reg_addr_buf[14], 0x00000000);
-    REG_WRITE(&reg_addr_buf[15], 0x80020000);
+  REG_WRITE(&reg_addr_buf[3], nonce);
+  REG_WRITE(&reg_addr_buf[4], 0x00000080);
+  REG_WRITE(&reg_addr_buf[5], 0x00000000);
+  REG_WRITE(&reg_addr_buf[6], 0x00000000);
+  REG_WRITE(&reg_addr_buf[7], 0x00000000);
+  REG_WRITE(&reg_addr_buf[8], 0x00000000);
+  REG_WRITE(&reg_addr_buf[9], 0x00000000);
+  REG_WRITE(&reg_addr_buf[10], 0x00000000);
+  REG_WRITE(&reg_addr_buf[11], 0x00000000);
+  REG_WRITE(&reg_addr_buf[12], 0x00000000);
+  REG_WRITE(&reg_addr_buf[13], 0x00000000);
+  REG_WRITE(&reg_addr_buf[14], 0x00000000);
+  REG_WRITE(&reg_addr_buf[15], 0x80020000);
 }
 
 static inline void nerd_sha_ll_fill_text_block_sha256_inter() {
-  uint32_t *reg_addr_buf = (uint32_t *)(SHA_TEXT_BASE);
+  uint32_t *reg_addr_buf = (uint32_t *) (SHA_TEXT_BASE);
 
   DPORT_INTERRUPT_DISABLE();
   REG_WRITE(&reg_addr_buf[0], DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 0 * 4));
@@ -602,62 +599,62 @@ static inline void nerd_sha_ll_fill_text_block_sha256_inter() {
   REG_WRITE(&reg_addr_buf[15], 0x00010000);
 }
 
-static inline void nerd_sha_ll_read_digest(void* ptr) {
+static inline void nerd_sha_ll_read_digest(void *ptr) {
   DPORT_INTERRUPT_DISABLE();
-  ((uint32_t*)ptr)[0] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 0 * 4);
-  ((uint32_t*)ptr)[1] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 1 * 4);
-  ((uint32_t*)ptr)[2] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 2 * 4);
-  ((uint32_t*)ptr)[3] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 3 * 4);
-  ((uint32_t*)ptr)[4] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 4 * 4);
-  ((uint32_t*)ptr)[5] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 5 * 4);
-  ((uint32_t*)ptr)[6] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 6 * 4);  
-  ((uint32_t*)ptr)[7] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 7 * 4);
+  ((uint32_t *) ptr)[0] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 0 * 4);
+  ((uint32_t *) ptr)[1] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 1 * 4);
+  ((uint32_t *) ptr)[2] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 2 * 4);
+  ((uint32_t *) ptr)[3] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 3 * 4);
+  ((uint32_t *) ptr)[4] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 4 * 4);
+  ((uint32_t *) ptr)[5] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 5 * 4);
+  ((uint32_t *) ptr)[6] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 6 * 4);
+  ((uint32_t *) ptr)[7] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 7 * 4);
   DPORT_INTERRUPT_RESTORE();
 }
 
-static inline bool nerd_sha_ll_read_digest_if(void* ptr) {
+static inline bool nerd_sha_ll_read_digest_if(void *ptr) {
   DPORT_INTERRUPT_DISABLE();
   uint32_t last = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 7 * 4);
 
-  if ( (uint16_t)(last >> 16) != 0) {
+  if ((uint16_t) (last >> 16) != 0) {
     DPORT_INTERRUPT_RESTORE();
     return false;
   }
 
-  ((uint32_t*)ptr)[7] = last;
-  ((uint32_t*)ptr)[0] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 0 * 4);
-  ((uint32_t*)ptr)[1] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 1 * 4);
-  ((uint32_t*)ptr)[2] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 2 * 4);
-  ((uint32_t*)ptr)[3] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 3 * 4);
-  ((uint32_t*)ptr)[4] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 4 * 4);
-  ((uint32_t*)ptr)[5] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 5 * 4);
-  ((uint32_t*)ptr)[6] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 6 * 4);  
+  ((uint32_t *) ptr)[7] = last;
+  ((uint32_t *) ptr)[0] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 0 * 4);
+  ((uint32_t *) ptr)[1] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 1 * 4);
+  ((uint32_t *) ptr)[2] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 2 * 4);
+  ((uint32_t *) ptr)[3] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 3 * 4);
+  ((uint32_t *) ptr)[4] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 4 * 4);
+  ((uint32_t *) ptr)[5] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 5 * 4);
+  ((uint32_t *) ptr)[6] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 6 * 4);
 
   DPORT_INTERRUPT_RESTORE();
   return true;
 }
 
 static inline void nerd_sha_ll_write_digest(void *digest_state) {
-    uint32_t *digest_state_words = (uint32_t *)digest_state;
-    uint32_t *reg_addr_buf = (uint32_t *)(SHA_H_BASE);
+  uint32_t *digest_state_words = (uint32_t *) digest_state;
+  uint32_t *reg_addr_buf = (uint32_t *) (SHA_H_BASE);
 
-    REG_WRITE(&reg_addr_buf[0], digest_state_words[0]);
-    REG_WRITE(&reg_addr_buf[1], digest_state_words[1]);
-    REG_WRITE(&reg_addr_buf[2], digest_state_words[2]);
-    REG_WRITE(&reg_addr_buf[3], digest_state_words[3]);
-    REG_WRITE(&reg_addr_buf[4], digest_state_words[4]);
-    REG_WRITE(&reg_addr_buf[5], digest_state_words[5]);
-    REG_WRITE(&reg_addr_buf[6], digest_state_words[6]);
-    REG_WRITE(&reg_addr_buf[7], digest_state_words[7]);
+  REG_WRITE(&reg_addr_buf[0], digest_state_words[0]);
+  REG_WRITE(&reg_addr_buf[1], digest_state_words[1]);
+  REG_WRITE(&reg_addr_buf[2], digest_state_words[2]);
+  REG_WRITE(&reg_addr_buf[3], digest_state_words[3]);
+  REG_WRITE(&reg_addr_buf[4], digest_state_words[4]);
+  REG_WRITE(&reg_addr_buf[5], digest_state_words[5]);
+  REG_WRITE(&reg_addr_buf[6], digest_state_words[6]);
+  REG_WRITE(&reg_addr_buf[7], digest_state_words[7]);
 }
 
 static inline void nerd_sha_hal_wait_idle() {
-    while (REG_READ(SHA_BUSY_REG)) {
-    }
+  while (REG_READ(SHA_BUSY_REG)) {
+  }
 }
 
-void minerWorkerHw(void * task_id) {
-  unsigned int miner_id = (uint32_t)task_id;
+void minerWorkerHw(void *task_id) {
+  unsigned int miner_id = (uint32_t) task_id;
   ESP_LOGCONFIG(TAG, "[MINER][HW] %d Started...", miner_id);
 
   std::shared_ptr<JobRequest> job;
@@ -695,7 +692,7 @@ void minerWorkerHw(void * task_id) {
       result->difficulty = job->difficulty;
       uint8_t job_in_work = job->id & 0xFF;
       memcpy(digest_mid, job->midstate, sizeof(digest_mid));
-      memcpy(sha_buffer, job->sha_buffer+64, sizeof(sha_buffer));
+      memcpy(sha_buffer, job->sha_buffer + 64, sizeof(sha_buffer));
 
       esp_sha_acquire_hardware();
       REG_WRITE(SHA_MODE_REG, SHA2_256);
@@ -704,7 +701,7 @@ void minerWorkerHw(void * task_id) {
         nerd_sha_ll_write_digest(digest_mid);
         nerd_sha_ll_fill_text_block_sha256(sha_buffer, n);
         REG_WRITE(SHA_CONTINUE_REG, 1);
-        
+
         sha_ll_load(SHA2_256);
         nerd_sha_hal_wait_idle();
         nerd_sha_ll_fill_text_block_sha256_inter();
@@ -714,18 +711,16 @@ void minerWorkerHw(void * task_id) {
         if (nerd_sha_ll_read_digest_if(hash)) {
           // ~5 per second
           double diff_hash = diff_from_target(hash);
-          if (diff_hash > result->difficulty)
-          {
-            if (isSha256Valid(hash))
-            {
+          if (diff_hash > result->difficulty) {
+            if (isSha256Valid(hash)) {
               result->difficulty = diff_hash;
               result->nonce = n;
               memcpy(result->hash, hash, sizeof(hash));
             }
           }
         }
-        if ((uint8_t)(n & 0xFF) == 0 && s_working_current_job_id != job_in_work) {
-          result->nonce_count = n-job->nonce_start+1;
+        if ((uint8_t) (n & 0xFF) == 0 && s_working_current_job_id != job_in_work) {
+          result->nonce_count = n - job->nonce_start + 1;
           break;
         }
       }
@@ -742,42 +737,43 @@ void minerWorkerHw(void * task_id) {
   }
 }
 
-#endif  // #if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
+#endif  // #if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) ||
+        // defined(CONFIG_IDF_TARGET_ESP32C3)
 
 #if defined(CONFIG_IDF_TARGET_ESP32)
 
-static inline bool nerd_sha_ll_read_digest_swap_if(void* ptr) {
+static inline bool nerd_sha_ll_read_digest_swap_if(void *ptr) {
   DPORT_INTERRUPT_DISABLE();
   uint32_t fin = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 7 * 4);
-  if ( (uint32_t)(fin & 0xFFFF) != 0) {
+  if ((uint32_t) (fin & 0xFFFF) != 0) {
     DPORT_INTERRUPT_RESTORE();
     return false;
   }
 
-  ((uint32_t*)ptr)[7] = __builtin_bswap32(fin);
-  ((uint32_t*)ptr)[0] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 0 * 4));
-  ((uint32_t*)ptr)[1] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 1 * 4));
-  ((uint32_t*)ptr)[2] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 2 * 4));
-  ((uint32_t*)ptr)[3] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 3 * 4));
-  ((uint32_t*)ptr)[4] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 4 * 4));
-  ((uint32_t*)ptr)[5] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 5 * 4));
-  ((uint32_t*)ptr)[6] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 6 * 4));
+  ((uint32_t *) ptr)[7] = __builtin_bswap32(fin);
+  ((uint32_t *) ptr)[0] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 0 * 4));
+  ((uint32_t *) ptr)[1] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 1 * 4));
+  ((uint32_t *) ptr)[2] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 2 * 4));
+  ((uint32_t *) ptr)[3] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 3 * 4));
+  ((uint32_t *) ptr)[4] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 4 * 4));
+  ((uint32_t *) ptr)[5] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 5 * 4));
+  ((uint32_t *) ptr)[6] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 6 * 4));
 
   DPORT_INTERRUPT_RESTORE();
   return true;
 }
 
-static inline void nerd_sha_ll_read_digest(void* ptr) {
+static inline void nerd_sha_ll_read_digest(void *ptr) {
   DPORT_INTERRUPT_DISABLE();
 
-  ((uint32_t*)ptr)[0] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 0 * 4);
-  ((uint32_t*)ptr)[1] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 1 * 4);
-  ((uint32_t*)ptr)[2] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 2 * 4);
-  ((uint32_t*)ptr)[3] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 3 * 4);
-  ((uint32_t*)ptr)[4] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 4 * 4);
-  ((uint32_t*)ptr)[5] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 5 * 4);
-  ((uint32_t*)ptr)[6] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 6 * 4);
-  ((uint32_t*)ptr)[7] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 7 * 4);
+  ((uint32_t *) ptr)[0] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 0 * 4);
+  ((uint32_t *) ptr)[1] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 1 * 4);
+  ((uint32_t *) ptr)[2] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 2 * 4);
+  ((uint32_t *) ptr)[3] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 3 * 4);
+  ((uint32_t *) ptr)[4] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 4 * 4);
+  ((uint32_t *) ptr)[5] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 5 * 4);
+  ((uint32_t *) ptr)[6] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 6 * 4);
+  ((uint32_t *) ptr)[7] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 7 * 4);
 
   DPORT_INTERRUPT_RESTORE();
 }
@@ -788,61 +784,61 @@ static inline void nerd_sha_hal_wait_idle() {
 }
 
 static inline void nerd_sha_ll_fill_text_block_sha256(const void *input_text) {
-    uint32_t *data_words = (uint32_t *)input_text;
-    uint32_t *reg_addr_buf = (uint32_t *)(SHA_TEXT_BASE);
+  uint32_t *data_words = (uint32_t *) input_text;
+  uint32_t *reg_addr_buf = (uint32_t *) (SHA_TEXT_BASE);
 
-    reg_addr_buf[0]  = data_words[0];
-    reg_addr_buf[1]  = data_words[1];
-    reg_addr_buf[2]  = data_words[2];
-    reg_addr_buf[3]  = data_words[3];
-    reg_addr_buf[4]  = data_words[4];
-    reg_addr_buf[5]  = data_words[5];
-    reg_addr_buf[6]  = data_words[6];
-    reg_addr_buf[7]  = data_words[7];
-    reg_addr_buf[8]  = data_words[8];
-    reg_addr_buf[9]  = data_words[9];
-    reg_addr_buf[10] = data_words[10];
-    reg_addr_buf[11] = data_words[11];
-    reg_addr_buf[12] = data_words[12];
-    reg_addr_buf[13] = data_words[13];
-    reg_addr_buf[14] = data_words[14];
-    reg_addr_buf[15] = data_words[15];
+  reg_addr_buf[0] = data_words[0];
+  reg_addr_buf[1] = data_words[1];
+  reg_addr_buf[2] = data_words[2];
+  reg_addr_buf[3] = data_words[3];
+  reg_addr_buf[4] = data_words[4];
+  reg_addr_buf[5] = data_words[5];
+  reg_addr_buf[6] = data_words[6];
+  reg_addr_buf[7] = data_words[7];
+  reg_addr_buf[8] = data_words[8];
+  reg_addr_buf[9] = data_words[9];
+  reg_addr_buf[10] = data_words[10];
+  reg_addr_buf[11] = data_words[11];
+  reg_addr_buf[12] = data_words[12];
+  reg_addr_buf[13] = data_words[13];
+  reg_addr_buf[14] = data_words[14];
+  reg_addr_buf[15] = data_words[15];
 }
 
 static inline void nerd_sha_ll_fill_text_block_sha256_upper(const void *input_text, uint32_t nonce) {
-    uint32_t *data_words = (uint32_t *)input_text;
-    uint32_t *reg_addr_buf = (uint32_t *)(SHA_TEXT_BASE);
+  uint32_t *data_words = (uint32_t *) input_text;
+  uint32_t *reg_addr_buf = (uint32_t *) (SHA_TEXT_BASE);
 
-    reg_addr_buf[0]  = data_words[0];
-    reg_addr_buf[1]  = data_words[1];
-    reg_addr_buf[2]  = data_words[2];
-    reg_addr_buf[3]  = __builtin_bswap32(nonce);
+  reg_addr_buf[0] = data_words[0];
+  reg_addr_buf[1] = data_words[1];
+  reg_addr_buf[2] = data_words[2];
+  reg_addr_buf[3] = __builtin_bswap32(nonce);
 
-    reg_addr_buf[4]  = 0x80000000;
-    reg_addr_buf[5]  = 0x00000000;
-    reg_addr_buf[6]  = 0x00000000;
-    reg_addr_buf[7]  = 0x00000000;
-    reg_addr_buf[8]  = 0x00000000;
-    reg_addr_buf[9]  = 0x00000000;
-    reg_addr_buf[10] = 0x00000000;
-    reg_addr_buf[11] = 0x00000000;
-    reg_addr_buf[12] = 0x00000000;
-    reg_addr_buf[13] = 0x00000000;
-    reg_addr_buf[14] = 0x00000000;
-    reg_addr_buf[15] = 0x00000280;
+  reg_addr_buf[4] = 0x80000000;
+  reg_addr_buf[5] = 0x00000000;
+  reg_addr_buf[6] = 0x00000000;
+  reg_addr_buf[7] = 0x00000000;
+  reg_addr_buf[8] = 0x00000000;
+  reg_addr_buf[9] = 0x00000000;
+  reg_addr_buf[10] = 0x00000000;
+  reg_addr_buf[11] = 0x00000000;
+  reg_addr_buf[12] = 0x00000000;
+  reg_addr_buf[13] = 0x00000000;
+  reg_addr_buf[14] = 0x00000000;
+  reg_addr_buf[15] = 0x00000280;
 }
 
 static inline void nerd_sha_ll_fill_text_block_sha256_double() {
-    uint32_t *reg_addr_buf = (uint32_t *)(SHA_TEXT_BASE);
+  uint32_t *reg_addr_buf = (uint32_t *) (SHA_TEXT_BASE);
 
-    reg_addr_buf[8]  = 0x80000000;
-    reg_addr_buf[9]  = 0x00000000;
-    reg_addr_buf[10] = 0x00000000;
-    reg_addr_buf[11] = 0x00000000;
-    reg_addr_buf[12] = 0x00000000;
-    reg_addr_buf[13] = 0x00000000;
-    reg_addr_buf[14] = 0x00000000;
-    reg_addr_buf[15] = 0x00000100;
+  reg_addr_buf[8] = 0x80000000;
+  reg_addr_buf[9] = 0x00000000;
+  reg_addr_buf[10] = 0x00000000;
+  reg_addr_buf[11] = 0x00000000;
+  reg_addr_buf[12] = 0x00000000;
+  reg_addr_buf[13] = 0x00000000;
+  reg_addr_buf[14] = 0x00000000;
+  reg_addr_buf[15] = 0x00000100;
 }
 
 void minerWorkerHw(void *task_id) {
@@ -889,7 +885,7 @@ void minerWorkerHw(void *task_id) {
         sha_ll_start_block(SHA2_256);
 
         nerd_sha_hal_wait_idle();
-        nerd_sha_ll_fill_text_block_sha256_upper(sha_buffer+64, job->nonce_start+n);
+        nerd_sha_ll_fill_text_block_sha256_upper(sha_buffer + 64, job->nonce_start + n);
         sha_ll_continue_block(SHA2_256);
 
         nerd_sha_hal_wait_idle();
@@ -938,7 +934,7 @@ void resetStat() {
   best_diff = 0.0;
 }
 
-void runMonitor(void * name) {
+void runMonitor(void *name) {
   ESP_LOGCONFIG(TAG, "[MONITOR] Started...");
 
   unsigned long mLastCheck = 0;

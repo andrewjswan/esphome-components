@@ -48,7 +48,7 @@ double getCurrentHashRate(unsigned long mElapsed) {
     }
   }
 
-  double avg_hashrate = s_hashrate_summ / (double)s_hashrate_avg_list.size();
+  double avg_hashrate = s_hashrate_summ / (double) s_hashrate_avg_list.size();
   if (avg_hashrate < 0.0) {
     avg_hashrate = 0.0;
   }

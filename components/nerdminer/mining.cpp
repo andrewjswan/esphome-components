@@ -337,7 +337,7 @@ void runStratumWorker(void *name) {
 #endif
 
 #ifdef RANDOM_NONCE
-              nonce_pool = RandomGet() & RANDOM_NONCE_MASK;
+            nonce_pool = RandomGet() & RANDOM_NONCE_MASK;
 #else
               nonce_pool = 0xDA54E700;  // nonce 0x00000000 is not possible, start from some random nonce
 #endif

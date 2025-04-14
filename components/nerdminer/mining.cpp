@@ -165,7 +165,7 @@ struct Submition {
   bool isValid;
 };
 
-static void MiningJobStop(uint32_t &job_pool, std::map<uint32_t, std::shared_ptr<Submition>> & submition_map) {
+static void MiningJobStop(uint32_t &job_pool, std::map<uint32_t, std::shared_ptr<Submition>> &submition_map) {
   {
     std::lock_guard<std::mutex> lock(s_job_mutex);
     s_job_result_list.clear();

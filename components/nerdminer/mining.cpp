@@ -299,8 +299,8 @@ void runStratumWorker(void *name) {
             // Increse templates readed
             templates++;
 
-              job_pool++;
-              s_working_current_job_id = job_pool & 0xFF; // Terminate current job in thread
+            job_pool++;
+            s_working_current_job_id = job_pool & 0xFF;  // Terminate current job in thread
 
               last_job_time = millis();
               mLastTXtoPool = last_job_time;

@@ -322,10 +322,10 @@ void runStratumWorker(void *name) {
 
 #ifdef HARDWARE_SHA265
 #if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
-                esp_sha_acquire_hardware();
-                sha_hal_hash_block(SHA2_256,  mMiner.bytearray_blockheader, 64/4, true);
-                sha_hal_read_digest(SHA2_256, hw_midstate);
-                esp_sha_release_hardware();
+            esp_sha_acquire_hardware();
+            sha_hal_hash_block(SHA2_256, mMiner.bytearray_blockheader, 64 / 4, true);
+            sha_hal_read_digest(SHA2_256, hw_midstate);
+            esp_sha_release_hardware();
 #endif
 #endif
 

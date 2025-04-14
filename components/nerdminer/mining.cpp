@@ -288,10 +288,10 @@ void runStratumWorker(void *name) {
       stratum_method result = parse_mining_method(line);
       switch (result) {
         case MINING_NOTIFY: {
-            if (parse_mining_notify(line, mJob)) {
-              {
-                std::lock_guard<std::mutex> lock(s_job_mutex);
-                s_job_request_list_sw.clear();
+          if (parse_mining_notify(line, mJob)) {
+            {
+              std::lock_guard<std::mutex> lock(s_job_mutex);
+              s_job_request_list_sw.clear();
 #ifdef HARDWARE_SHA265
                 s_job_request_list_hw.clear();
 #endif

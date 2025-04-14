@@ -962,7 +962,7 @@ void runMonitor(void * name) {
       uptime_frac += mElapsed;
       while (uptime_frac >= 1000) {
         uptime_frac -= 1000;
-        upTime ++;
+        upTime++;
       }
 
       updateMiningData(mElapsed);

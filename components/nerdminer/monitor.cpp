@@ -31,7 +31,7 @@ static double s_hashrate_summ = 0.0;
 static uint8_t s_hashrate_recalc = 0;
 
 double getCurrentHashRate(unsigned long mElapsed) {
-  double hashrate = (double)elapsedKHs * 1000.0 / (double)mElapsed;
+  double hashrate = (double) elapsedKHs * 1000.0 / (double) mElapsed;
 
   s_hashrate_summ += hashrate;
   s_hashrate_avg_list.push_back(hashrate);

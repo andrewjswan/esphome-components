@@ -911,8 +911,8 @@ void minerWorkerHw(void *task_id) {
             }
           }
         }
-        if ((uint8_t)(n & 0xFF) == 0 && s_working_current_job_id != job_in_work) {
-          result->nonce_count = n+1;
+        if ((uint8_t) (n & 0xFF) == 0 && s_working_current_job_id != job_in_work) {
+          result->nonce_count = n + 1;
           break;
         }
       }

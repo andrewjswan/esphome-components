@@ -347,7 +347,7 @@ void runStratumWorker(void *name) {
                 {
                   JobPush( s_job_request_list_sw, job_pool, nonce_pool, NONCE_PER_JOB_SW, currentPoolDifficulty, mMiner.bytearray_blockheader, diget_mid, bake);
 #ifdef RANDOM_NONCE
-                  nonce_pool = RandomGet() & RANDOM_NONCE_MASK;
+                nonce_pool = RandomGet() & RANDOM_NONCE_MASK;
 #else
                   nonce_pool += NONCE_PER_JOB_SW;
 #endif

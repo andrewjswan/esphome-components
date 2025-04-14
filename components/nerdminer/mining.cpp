@@ -330,9 +330,10 @@ void runStratumWorker(void *name) {
 #endif
 
 #if defined(CONFIG_IDF_TARGET_ESP32)
-              for (int i = 0; i < 32; ++i) {
-                ((uint32_t*)sha_buffer_swap)[i] = __builtin_bswap32(((const uint32_t*)(mMiner.bytearray_blockheader))[i]);
-              }
+            for (int i = 0; i < 32; ++i) {
+              ((uint32_t *) sha_buffer_swap)[i] =
+                  __builtin_bswap32(((const uint32_t *) (mMiner.bytearray_blockheader))[i]);
+            }
 #endif
 
 #ifdef RANDOM_NONCE

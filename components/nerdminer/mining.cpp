@@ -293,7 +293,7 @@ void runStratumWorker(void *name) {
               std::lock_guard<std::mutex> lock(s_job_mutex);
               s_job_request_list_sw.clear();
 #ifdef HARDWARE_SHA265
-                s_job_request_list_hw.clear();
+              s_job_request_list_hw.clear();
 #endif
               }
               // Increse templates readed

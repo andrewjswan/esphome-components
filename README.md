@@ -195,21 +195,17 @@ sensor:
 ```
 
 ## CUBIC PM2005/PM2105 Laser Particle Sensor Module
+[![esphome_badge](https://img.shields.io/static/v1?label=ESPHome&message=Base&color=blue&logo=esphome)](https://esphome.io/components/sensor/pm2005.html)
 [![esp32_arduino](https://img.shields.io/badge/ESP32-Arduino-darkcyan.svg)](https://esphome.io/)
 [![esp32_esp_idf](https://img.shields.io/badge/ESP--IDF-blue.svg)](https://esphome.io/)
 
 > [!IMPORTANT]
-> ESPHome Pull request: https://github.com/esphome/esphome/pull/8292
+> **Merged to ESPHome** / Pull request: https://github.com/esphome/esphome/pull/8292 
+
+> [!NOTE]
+> Documentation: [CUBIC PM2005/PM2105 Laser Particle Sensor Module](https://esphome.io/components/sensor/pm2005.html)
 
 ```yaml
-external_components:
-  - source:
-      type: git
-      url: https://github.com/andrewjswan/esphome-components
-      ref: main
-    components: [pm2005]
-    refresh: 60s
-
 i2c:
   - id: pm25_bus
     sda: 23

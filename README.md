@@ -173,10 +173,7 @@ light:
 
 ```yaml
 external_components:
-  - source:
-      type: git
-      url: https://github.com/andrewjswan/esphome-components
-      ref: main
+  - source: github://pr#8293
     components: [cm1106]
     refresh: 60s
 

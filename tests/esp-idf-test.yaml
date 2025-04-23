@@ -52,7 +52,10 @@ external_components:
   - source:
       type: local
       path: ../components
-    components: [shadow, cm1106, pm2005]
+    components: [shadow, cm1106]
+  - source: github://pr#8292
+    components: [pm2005]
+    refresh: 60s
 
 script:
   - id: some_script

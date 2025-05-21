@@ -53,9 +53,6 @@ external_components:
       type: local
       path: ../components
     components: [shadow, cm1106]
-  - source: github://pr#8292
-    components: [pm2005]
-    refresh: 60s
 
 script:
   - id: some_script
@@ -95,19 +92,6 @@ sensor:
       name: "${name} CO2"
       id: co2sensor
     id: cm1106_sensor
-
-  - platform: pm2005
-    i2c_id: pm25_bus
-    type: pm2105
-    pm_1_0:
-      name: "${name} PM1"
-      id: pm1sensor
-    pm_2_5:
-      name: "${name} PM2.5"
-      id: pm25sensor
-    pm_10_0:
-      name: "${name} PM10"
-      id: pm10sensor
 
 button:
   - platform: restart

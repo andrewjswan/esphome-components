@@ -8,7 +8,6 @@ namespace music_leds {
 #define I2S_SAMPLE_RESOLUTION I2S_BITS_PER_SAMPLE_16BIT
 #define I2S_datatype int16_t
 #define I2S_unsigned_datatype uint16_t
-#define I2S_buffer_size (BITS_PER_SAMPLE / I2S_SAMPLE_RESOLUTION) * samplesFFT
 #define READ_DURATION_MS 16UL
 
 // Uncomment the line below to utilize ADC1 _exclusively_ for I2S sound input.

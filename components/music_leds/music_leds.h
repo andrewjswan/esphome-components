@@ -1,6 +1,14 @@
 #pragma once
 
-#include "esphome.h"
+#include "esphome/components/audio/audio_transfer_buffer.h"
+#include "esphome/components/microphone/microphone_source.h"
+
+#include "esphome/core/component.h"
+#include "esphome/core/ring_buffer.h"
+
+#define FASTLED_INTERNAL  // remove annoying pragma messages
+
+#include <FastLED.h>
 
 namespace esphome {
 namespace music_leds {
@@ -30,7 +38,7 @@ class MusicLeds : public Component {
   void dump_config() override;
   void on_shutdown() override;
 
-  void set_microphone(i2s_audio::I2SAudioMicrophone *microphone) { this->microphone_ = microphone; }
+  void set_microphone(microphone::MicrophoneSource *microphone) { this->microphone_ = microphone; }
   void set_task_core(uint8_t task_core) { this->task_core_ = task_core; }
 
   void set_speed(int index);
@@ -40,20 +48,32 @@ class MusicLeds : public Component {
 
   bool microphone_is_running() { return this->microphone_->is_running(); }
 
- private:
-  i2s_audio::I2SAudioMicrophone *microphone_;
+protected:
+  /// @brief Internal start command that, if necessary, allocates ``audio_buffer_`` and a ring buffer which
+  /// ``audio_buffer_`` owns and ``ring_buffer_`` points to. Returns true if allocations were successful.
+  bool buffer_allocate_();
+
+  /// @brief Internal stop command the deallocates ``audio_buffer_`` (which automatically deallocates its ring buffer)
+  void buffer_deallocate_();
+
+  microphone::MicrophoneSource *microphone_{nullptr};
+
+  std::unique_ptr<audio::AudioSourceTransferBuffer> audio_buffer_;
+  std::weak_ptr<RingBuffer> ring_buffer_;
+
   TaskHandle_t FFT_Task{nullptr};
   uint8_t task_core_{1};
 
-  uint32_t _mask{0xFFFFFFFF};  // Bitmask for sample data after shifting. Bitmask 0X0FFF means that we need to convert
-                               // 12bit ADC samples from unsigned to signed
-  int16_t _shift{0};           // Shift obtained samples to the right (positive) or left(negative) by this amount
-  int8_t _myADCchannel{0x0F};  // current ADC channel, in case of analog input. 0x0F if undefined
-  float _sampleScale{1.0f};    // pre-scaling factor for I2S samples
+  uint32_t _mask{0xFFFFFFFF};                                   // Bitmask for sample data after shifting. Bitmask 0X0FFF means that we need to convert
+                                                                // 12bit ADC samples from unsigned to signed
+  int16_t _shift{0};                                            // Shift obtained samples to the right (positive) or left(negative) by this amount
+  int8_t _myADCchannel{0x0F};                                   // current ADC channel, in case of analog input. 0x0F if undefined
+  float _sampleScale{1.0f};                                     // pre-scaling factor for I2S samples
   unsigned int _broken_samples_counter{0};                      // counts number of broken (and fixed) ADC samples
   I2S_datatype _lastADCsample{0};                               // last sample from ADC
   I2S_datatype decodeADCsample(I2S_unsigned_datatype rawData);  // function to handle ADC samples
   static void FFTcode(void *parameter);
+ 
   void getSamples(float *buffer);
 
   PLAYMODE CurrentMode = MODE_GRAV;

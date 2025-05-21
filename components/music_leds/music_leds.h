@@ -9,6 +9,7 @@ namespace music_leds {
 #define I2S_datatype int16_t
 #define I2S_unsigned_datatype uint16_t
 #define I2S_buffer_size (BITS_PER_SAMPLE / 16) * samplesFFT
+#define READ_DURATION_MS = 16;
 
 // Uncomment the line below to utilize ADC1 _exclusively_ for I2S sound input.
 // benefit: analog mic inputs will be sampled contiously -> better response times and less "glitches"
@@ -18,7 +19,7 @@ namespace music_leds {
 // analogRead() lock-up
 
 static const char *const TAG = "music_leds";
-static const char *const MUSIC_LEDS_VERSION = "2025.1.1";
+static const char *const MUSIC_LEDS_VERSION = "2025.5.1";
 
 enum PLAYMODE { MODE_BINMAP, MODE_GRAV, MODE_GRAVICENTER, MODE_GRAVICENTRIC, MODE_PIXELS, MODE_JUNGLES, MODE_MIDNOISE };
 

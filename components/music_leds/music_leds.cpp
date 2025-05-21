@@ -142,7 +142,7 @@ void MusicLeds::getSamples(float *buffer) {
   _broken_samples_counter = 0;
 
   // Get fresh samples
-  bytes_read = this->microphone_->read(newSamples, sizeof(newSamples));
+  bytes_read = this->microphone_->read_(newSamples, sizeof(newSamples), 2 * pdMS_TO_TICKS(READ_DURATION_MS));
   bytes_read = bytes_read * BITS_PER_SAMPLE / 16;
 
   // For correct operation, we need to read exactly sizeof(samples) bytes from i2s

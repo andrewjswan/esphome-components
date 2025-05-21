@@ -29,7 +29,7 @@ _LOGGER = logging.getLogger(__name__)
 
 CODEOWNERS = ["@andrewjswan"]
 
-DEPENDENCIES = ["light"]
+DEPENDENCIES = ["light", "microphone"]
 
 AUTO_LOAD = ["music_leds", "fastled_helper"]
 

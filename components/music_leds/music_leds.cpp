@@ -1,4 +1,4 @@
-#include "esphome.h"
+#include "music_leds.h"
 #include "audio_reactive.h"
 #include "esphome/components/fastled_helper/fastled_helper.h"
 
@@ -134,22 +134,22 @@ void MusicLeds::getSamples(float *buffer) {
     return;
   }
 
-  // Counter variable to check if we actually got enough data
-  size_t bytes_read = 0;
-  // Intermediary sample storage
-  I2S_datatype newSamples[I2S_buffer_size];
   // Reset ADC broken samples counter
   _broken_samples_counter = 0;
 
   // Get fresh samples
-  bytes_read = this->microphone_->read(newSamples, sizeof(newSamples));
-  bytes_read = bytes_read * BITS_PER_SAMPLE / 16;
+  uint8_t samples[sizeof(I2S_datatype) * samplesFFT] = {0};
+  size_t bytes_read = this->microphone_->read_(samples, sizeof(samples), 2 * pdMS_TO_TICKS(I2S_READ_DURATION_MS));
+  bytes_read = bytes_read / sizeof(I2S_datatype);
 
   // For correct operation, we need to read exactly sizeof(samples) bytes from i2s
-  if (bytes_read != sizeof(newSamples)) {
-    ESP_LOGE("ASR", "AS: Failed to get enough samples: wanted: %d read: %d", sizeof(newSamples), bytes_read);
+  if (bytes_read != samplesFFT) {
+    ESP_LOGE("ASR", "AS: Failed to get enough samples: wanted: %d read: %d", samplesFFT, bytes_read);
     return;
   }
+
+  // Intermediary sample storage
+  I2S_datatype *newSamples = reinterpret_cast<I2S_datatype *>(samples);
 
   // Store samples in sample buffer and update DC offset
   for (int i = 0; i < samplesFFT; i++) {
@@ -204,6 +204,40 @@ I2S_datatype MusicLeds::decodeADCsample(I2S_unsigned_datatype rawData) {
 
   finalSample = finalSample / 4;  // mimic old analog driver behaviour (12bit -> 10bit)
   return (finalSample);
+}
+
+bool MusicLeds::buffer_allocate_() {
+  if (this->audio_buffer_ != nullptr) {
+    return true;
+  }
+
+  // Allocate a transfer buffer
+  this->audio_buffer_ = audio::AudioSourceTransferBuffer::create(
+      this->microphone_source_->get_audio_stream_info().ms_to_bytes(AUDIO_BUFFER_DURATION_MS));
+  if (this->audio_buffer_ == nullptr) {
+    this->status_momentary_error("Failed to allocate transfer buffer", 15000);
+    return false;
+  }
+
+  // Allocates a new ring buffer, adds it as a source for the transfer buffer, and points ring_buffer_ to it
+  this->ring_buffer_.reset();  // Reset pointer to any previous ring buffer allocation
+  std::shared_ptr<RingBuffer> temp_ring_buffer =
+      RingBuffer::create(this->microphone_source_->get_audio_stream_info().ms_to_bytes(RING_BUFFER_DURATION_MS));
+  if (temp_ring_buffer.use_count() == 0) {
+    this->status_momentary_error("Failed to allocate ring buffer", 15000);
+    this->stop_();
+    return false;
+  } else {
+    this->ring_buffer_ = temp_ring_buffer;
+    this->audio_buffer_->set_source(temp_ring_buffer);
+  }
+
+  this->status_clear_error();
+  return true;
+}
+
+void MusicLeds::buffer_deallocate_() {
+  this->audio_buffer_.reset();
 }
 
 // FFT main code

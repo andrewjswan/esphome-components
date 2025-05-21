@@ -1,4 +1,4 @@
-#include "esphome.h"
+#include "music_leds.h"
 #include "audio_reactive.h"
 #include "esphome/components/fastled_helper/fastled_helper.h"
 
@@ -204,6 +204,40 @@ I2S_datatype MusicLeds::decodeADCsample(I2S_unsigned_datatype rawData) {
 
   finalSample = finalSample / 4;  // mimic old analog driver behaviour (12bit -> 10bit)
   return (finalSample);
+}
+
+bool MusicLeds::buffer_allocate_() {
+  if (this->audio_buffer_ != nullptr) {
+    return true;
+  }
+
+  // Allocate a transfer buffer
+  this->audio_buffer_ = audio::AudioSourceTransferBuffer::create(
+      this->microphone_source_->get_audio_stream_info().ms_to_bytes(AUDIO_BUFFER_DURATION_MS));
+  if (this->audio_buffer_ == nullptr) {
+    this->status_momentary_error("Failed to allocate transfer buffer", 15000);
+    return false;
+  }
+
+  // Allocates a new ring buffer, adds it as a source for the transfer buffer, and points ring_buffer_ to it
+  this->ring_buffer_.reset();  // Reset pointer to any previous ring buffer allocation
+  std::shared_ptr<RingBuffer> temp_ring_buffer =
+      RingBuffer::create(this->microphone_source_->get_audio_stream_info().ms_to_bytes(RING_BUFFER_DURATION_MS));
+  if (temp_ring_buffer.use_count() == 0) {
+    this->status_momentary_error("Failed to allocate ring buffer", 15000);
+    this->stop_();
+    return false;
+  } else {
+    this->ring_buffer_ = temp_ring_buffer;
+    this->audio_buffer_->set_source(temp_ring_buffer);
+  }
+
+  this->status_clear_error();
+  return true;
+}
+
+void MusicLeds::buffer_deallocate_() {
+  this->audio_buffer_.reset();
 }
 
 // FFT main code

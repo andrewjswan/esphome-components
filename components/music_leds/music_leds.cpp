@@ -134,22 +134,22 @@ void MusicLeds::getSamples(float *buffer) {
     return;
   }
 
-  // Counter variable to check if we actually got enough data
-  size_t bytes_read = 0;
-  // Intermediary sample storage
-  I2S_datatype newSamples[I2S_buffer_size];
   // Reset ADC broken samples counter
   _broken_samples_counter = 0;
 
   // Get fresh samples
-  bytes_read = this->microphone_->read_(newSamples, sizeof(newSamples), 2 * pdMS_TO_TICKS(READ_DURATION_MS));
-  bytes_read = bytes_read * BITS_PER_SAMPLE / 16;
+  uint8_t samples[sizeof(I2S_datatype) * samplesFFT] = {0};
+  size_t bytes_read = this->microphone_->read_(samples, sizeof(samples), 2 * pdMS_TO_TICKS(READ_DURATION_MS));
+  bytes_read = bytes_read / sizeof(I2S_datatype);
 
   // For correct operation, we need to read exactly sizeof(samples) bytes from i2s
-  if (bytes_read != sizeof(newSamples)) {
-    ESP_LOGE("ASR", "AS: Failed to get enough samples: wanted: %d read: %d", sizeof(newSamples), bytes_read);
+  if (bytes_read != samplesFFT) {
+    ESP_LOGE("ASR", "AS: Failed to get enough samples: wanted: %d read: %d", samplesFFT, bytes_read);
     return;
   }
+
+  // Intermediary sample storage
+  I2S_datatype *newSamples = reinterpret_cast<I2S_datatype *>(samples);
 
   // Store samples in sample buffer and update DC offset
   for (int i = 0; i < samplesFFT; i++) {

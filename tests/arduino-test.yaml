@@ -59,7 +59,7 @@ external_components:
   - source:
       type: local
       path: ../components
-    components: [shadow, nerdminer, fastled_helper, music_leds, cm1106]
+    components: [shadow, nerdminer, fastled_helper, music_leds]
 
 script:
   - id: some_script
@@ -198,12 +198,6 @@ sensor:
     name: "${friendly_name} WiFi Signal"
     entity_category: diagnostic
     icon: mdi:signal
-
-  - platform: cm1106
-    co2:
-      name: "${name} CO2"
-      id: co2sensor
-    id: cm1106_sensor
 
 button:
   - platform: restart

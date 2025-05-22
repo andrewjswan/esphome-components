@@ -169,14 +169,12 @@ light:
 [![esp32_esp_idf](https://img.shields.io/badge/ESP--IDF-blue.svg)](https://esphome.io/)
 
 > [!IMPORTANT]
-> ESPHome Pull request: https://github.com/esphome/esphome/pull/8293
+> **Merged to ESPHome** / Pull request: https://github.com/esphome/esphome/pull/8293
+
+> [!NOTE]
+> Documentation: [CUBIC CM1106 Single Beam NDIR CO2 Sensor Module](https://esphome.io/components/sensor/cm1106.html)
 
 ```yaml
-external_components:
-  - source: github://pr#8293
-    components: [cm1106]
-    refresh: 60s
-
 uart:
   - id: cm1106_uart
     rx_pin: 16

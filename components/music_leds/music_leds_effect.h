@@ -1,6 +1,5 @@
 #pragma once
 
-#include "esphome.h"
 #include "esphome/components/light/addressable_light_effect.h"
 
 namespace esphome {

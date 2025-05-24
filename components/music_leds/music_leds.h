@@ -1,8 +1,10 @@
 #pragma once
 
 #include "esphome/components/audio/audio_transfer_buffer.h"
+#include "esphome/components/light/addressable_light.h"
 #include "esphome/components/microphone/microphone_source.h"
 
+#include "esphome/core/color.h"
 #include "esphome/core/component.h"
 #include "esphome/core/ring_buffer.h"
 
@@ -13,10 +15,15 @@
 namespace esphome {
 namespace music_leds {
 
-#define I2S_SAMPLE_RESOLUTION I2S_BITS_PER_SAMPLE_16BIT
-#define I2S_datatype int16_t
-#define I2S_unsigned_datatype uint16_t
-#define I2S_READ_DURATION_MS 16UL
+#if BITS_PER_SAMPLE == 16
+  #define I2S_datatype int16_t
+  #define I2S_unsigned_datatype uint16_t
+  #undef  I2S_SAMPLE_DOWNSCALE_TO_16BIT
+#else
+  #define I2S_datatype int32_t
+  #define I2S_unsigned_datatype uint32_t
+  #define I2S_SAMPLE_DOWNSCALE_TO_16BIT
+#endif
 
 // Uncomment the line below to utilize ADC1 _exclusively_ for I2S sound input.
 // benefit: analog mic inputs will be sampled contiously -> better response times and less "glitches"
@@ -51,10 +58,10 @@ class MusicLeds : public Component {
 protected:
   /// @brief Internal start command that, if necessary, allocates ``audio_buffer_`` and a ring buffer which
   /// ``audio_buffer_`` owns and ``ring_buffer_`` points to. Returns true if allocations were successful.
-  bool buffer_allocate_();
+  bool buffer_allocate();
 
   /// @brief Internal stop command the deallocates ``audio_buffer_`` (which automatically deallocates its ring buffer)
-  void buffer_deallocate_();
+  void buffer_deallocate();
 
   microphone::MicrophoneSource *microphone_{nullptr};
 

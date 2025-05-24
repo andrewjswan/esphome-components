@@ -1,11 +1,29 @@
 #include "music_leds.h"
 #include "audio_reactive.h"
-#include "esphome/components/fastled_helper/fastled_helper.h"
+
+#include "esphome/components/fastled_helper/utils.h"
+#include "esphome/components/light/addressable_light_effect.h"
+
+#include "esphome/core/log.h"
+
+#define FASTLED_INTERNAL  // remove annoying pragma messages
+#include <FastLED.h>
 
 namespace esphome {
 namespace music_leds {
 
+static const size_t DATA_TIMEOUT_MS = 50;
+static const uint32_t BUFFER_SIZE = sizeof(I2S_datatype) * samplesFFT;
+
 void MusicLeds::setup() {
+  this->microphone_->add_data_callback([this](const std::vector<uint8_t> &data) {
+    std::shared_ptr<RingBuffer> temp_ring_buffer = this->ring_buffer_.lock();
+    if (this->ring_buffer_.use_count() == 2) {
+      // ``audio_buffer_`` and ``temp_ring_buffer`` share ownership of a ring buffer, so its safe/useful to write
+      temp_ring_buffer->write((void *) data.data(), data.size());
+    }
+  });
+
   // Define the FFT Task and lock it to core 0
   xTaskCreatePinnedToCore(FFTcode,            // Function to implement the task
                           "FFT",              // Name of the task
@@ -31,106 +49,36 @@ void MusicLeds::dump_config() {
 
 void MusicLeds::on_shutdown() {
   this->microphone_->stop();
+  this->buffer_deallocate();
 
   vTaskDelete(FFT_Task);  // OTA: Avoid crash due to angry watchdog
 
   fastled_helper::FreeLeds();
 }
 
-void MusicLeds::set_speed(int index) { speed = index; }
-
-void MusicLeds::set_variant(int index) { variant = index; }
-
-void MusicLeds::ShowFrame(PLAYMODE CurrentMode, esphome::Color current_color, light::AddressableLight *p_it) {
+// *****************************************************************************************************************************************************************
+void MusicLeds::getSamples(float *buffer) {
   if (!this->microphone_is_running()) {
     return;
   }
 
-  fastled_helper::InitLeds(p_it->size());
-
-  static unsigned long lastUMRun = millis();  // time of last filter run
-
-  int userloopDelay = int(millis() - lastUMRun);
-  if (lastUMRun == 0)
-    userloopDelay = 0;  // startup - don't have valid data from last run.
-
-  unsigned long t_now = millis();
-  lastUMRun = t_now;
-  if (soundAgc > AGC_NUM_PRESETS)
-    soundAgc = 0;  // make sure that AGC preset is valid (to avoid array bounds violation)
-
-  if (userloopDelay < 2)
-    userloopDelay = 0;  // minor glitch, no problem
-  if (userloopDelay > 150)
-    userloopDelay = 150;  // limit number of filter re-runs
-  do {
-    getSample();                    // Sample the microphone
-    agcAvg(t_now - userloopDelay);  // Calculated the PI adjusted value as sampleAvg
-    userloopDelay -= 2;             // advance "simulated time" by 2ms
-  } while (userloopDelay > 0);
-
-  myVals[millis() % 32] = sampleAgc;
-
-  // limit dynamics (experimental)
-  limitSampleDynamics();
-
-  leds_num = p_it->size();
-
-  main_color = CRGB(current_color.r, current_color.g, current_color.b);
-  if ((int) fastled_helper::current_palette == 0) {
-    back_color =
-        CRGB(current_color.r / 100 * 5, current_color.g / 100 * 5, current_color.b / 100 * 5);  // 5% from main color
+  // Allocate buffers
+  if (this->buffer_allocate()) {
+    this->status_clear_warning();
   } else {
-    back_color = CRGB::Black;
+    // Deallocate buffers, if necessary
+    this->buffer_deallocate();
+    return;
   }
 
-  switch (CurrentMode) {
-    case MODE_BINMAP:
-#ifdef DEF_BINMAP
-      this->visualize_binmap(fastled_helper::leds);
-#endif
-      break;
-    case MODE_GRAV:
-#ifdef DEF_GRAV
-      this->visualize_gravfreq(fastled_helper::leds);
-#endif
-      break;
-    case MODE_GRAVICENTER:
-#ifdef DEF_GRAVICENTER
-      this->visualize_gravcenter(fastled_helper::leds);
-#endif
-      break;
-    case MODE_GRAVICENTRIC:
-#ifdef DEF_GRAVICENTRIC
-      this->visualize_gravcentric(fastled_helper::leds);
-#endif
-      break;
-    case MODE_PIXELS:
-#ifdef DEF_PIXELS
-      this->visualize_pixels(fastled_helper::leds);
-#endif
-      break;
-    case MODE_JUNGLES:
-#ifdef DEF_JUNGLES
-      this->visualize_juggles(fastled_helper::leds);
-#endif
-      break;
-    case MODE_MIDNOISE:
-#ifdef DEF_MIDNOISE
-      this->visualize_midnoise(fastled_helper::leds);
-#endif
-      break;
+  if (this->status_has_error()) {
+    return;
   }
 
-  for (int i = 0; i < p_it->size(); i++) {
-    (*p_it)[i] = Color(fastled_helper::leds[i].r, fastled_helper::leds[i].g, fastled_helper::leds[i].b);
-  }
-
-  delay(1);
-}
-
-void MusicLeds::getSamples(float *buffer) {
-  if (!this->microphone_is_running()) {
+  // Copy data from ring buffer into the transfer buffer
+  this->audio_buffer_->transfer_data_from_source(pdMS_TO_TICKS(DATA_TIMEOUT_MS));
+  if (this->audio_buffer_->available() < BUFFER_SIZE) {
+    // No new audio available for processing
     return;
   }
 
@@ -138,29 +86,21 @@ void MusicLeds::getSamples(float *buffer) {
   _broken_samples_counter = 0;
 
   // Get fresh samples
-  uint8_t samples[sizeof(I2S_datatype) * samplesFFT] = {0};
-  size_t bytes_read = this->microphone_->read_(samples, sizeof(samples), 2 * pdMS_TO_TICKS(I2S_READ_DURATION_MS));
-  bytes_read = bytes_read / sizeof(I2S_datatype);
-
-  // For correct operation, we need to read exactly sizeof(samples) bytes from i2s
-  if (bytes_read != samplesFFT) {
-    ESP_LOGE("ASR", "AS: Failed to get enough samples: wanted: %d read: %d", samplesFFT, bytes_read);
-    return;
-  }
-
   // Intermediary sample storage
-  I2S_datatype *newSamples = reinterpret_cast<I2S_datatype *>(samples);
+  I2S_datatype *newSamples = reinterpret_cast<I2S_datatype *>(this->audio_buffer_->get_buffer_start());
+
+  // Remove the processed samples from ``audio_buffer_``
+  this->audio_buffer_->decrease_buffer_length(BUFFER_SIZE);
 
   // Store samples in sample buffer and update DC offset
   for (int i = 0; i < samplesFFT; i++) {
     if (_mask == 0x0FFF)  // mask = 0x0FFF means we are in I2SAdcSource
     {
-      I2S_unsigned_datatype rawData =
-          *reinterpret_cast<I2S_unsigned_datatype *>(newSamples + i);  // C++ acrobatics to get sample as "unsigned"
+      // C++ acrobatics to get sample as "unsigned"
+      I2S_unsigned_datatype rawData = *reinterpret_cast<I2S_unsigned_datatype *>(newSamples + i);
       I2S_datatype sampleNoFilter = this->decodeADCsample(rawData);
-      if (_broken_samples_counter >=
-          samplesFFT - 1)  // kill-switch: ADC sample correction off when all samples in a batch were "broken"
-      {
+      if (_broken_samples_counter >= samplesFFT - 1) {
+        // Kill-switch: ADC sample correction off when all samples in a batch were "broken"
         _myADCchannel = 0x0F;
         ESP_LOGE("ASR", "AS: Too many broken audio samples from ADC - sample correction switched off.");
       }
@@ -170,20 +110,32 @@ void MusicLeds::getSamples(float *buffer) {
     }
 
     // pre-shift samples down to 16bit
+    #ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
+    if (_shift != 0)
+    {
+      newSamples[i] >>= 16;
+    }
+    #endif
     float currSample = 0.0;
-    if (_shift > 0)
+    if(_shift > 0) {
       currSample = (float) (newSamples[i] >> _shift);
-    else {
-      if (_shift < 0)
-        currSample =
-            (float) (newSamples[i]
-                     << (-_shift));  // need to "pump up" 12bit ADC to full 16bit as delivered by other digital mics
-      else
+    } else {
+      if(_shift < 0) {
+        // Need to "pump up" 12bit ADC to full 16bit as delivered by other digital mics
+        currSample = (float) (newSamples[i] << (- _shift));
+      } else {
+        #ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
+        // _shift == 0 -> use the chance to keep lower 16bits
+        currSample = (float) newSamples[i] / 65536.0f;
+        #else
         currSample = (float) newSamples[i];
+        #endif
+      }
     }
     buffer[i] = currSample;     // store sample
     buffer[i] *= _sampleScale;  // scale sample
   }
+  return;
 }
 
 // function to handle ADC samples
@@ -206,14 +158,14 @@ I2S_datatype MusicLeds::decodeADCsample(I2S_unsigned_datatype rawData) {
   return (finalSample);
 }
 
-bool MusicLeds::buffer_allocate_() {
+// *****************************************************************************************************************************************************************
+bool MusicLeds::buffer_allocate() {
   if (this->audio_buffer_ != nullptr) {
     return true;
   }
 
   // Allocate a transfer buffer
-  this->audio_buffer_ = audio::AudioSourceTransferBuffer::create(
-      this->microphone_source_->get_audio_stream_info().ms_to_bytes(AUDIO_BUFFER_DURATION_MS));
+  this->audio_buffer_ = audio::AudioSourceTransferBuffer::create(BUFFER_SIZE);
   if (this->audio_buffer_ == nullptr) {
     this->status_momentary_error("Failed to allocate transfer buffer", 15000);
     return false;
@@ -221,11 +173,10 @@ bool MusicLeds::buffer_allocate_() {
 
   // Allocates a new ring buffer, adds it as a source for the transfer buffer, and points ring_buffer_ to it
   this->ring_buffer_.reset();  // Reset pointer to any previous ring buffer allocation
-  std::shared_ptr<RingBuffer> temp_ring_buffer =
-      RingBuffer::create(this->microphone_source_->get_audio_stream_info().ms_to_bytes(RING_BUFFER_DURATION_MS));
+  std::shared_ptr<RingBuffer> temp_ring_buffer = RingBuffer::create(BUFFER_SIZE);
   if (temp_ring_buffer.use_count() == 0) {
     this->status_momentary_error("Failed to allocate ring buffer", 15000);
-    this->stop_();
+    this->buffer_deallocate();
     return false;
   } else {
     this->ring_buffer_ = temp_ring_buffer;
@@ -236,17 +187,18 @@ bool MusicLeds::buffer_allocate_() {
   return true;
 }
 
-void MusicLeds::buffer_deallocate_() {
+// *****************************************************************************************************************************************************************
+void MusicLeds::buffer_deallocate() {
   this->audio_buffer_.reset();
 }
 
+// *****************************************************************************************************************************************************************
 // FFT main code
 void MusicLeds::FFTcode(void *parameter) {
   MusicLeds *this_task = (MusicLeds *) parameter;
 
   // see https://www.freertos.org/vtaskdelayuntil.html
-  // constexpr TickType_t xFrequency = FFT_MIN_CYCLE * portTICK_PERIOD_MS;
-  constexpr TickType_t xFrequency_2 = (FFT_MIN_CYCLE * portTICK_PERIOD_MS) / 2;
+  constexpr TickType_t xFrequency = (FFT_MIN_CYCLE * portTICK_PERIOD_MS) / 2;
 
   for (;;) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -256,25 +208,23 @@ void MusicLeds::FFTcode(void *parameter) {
     delay_microseconds_safe(1);
 
     if (this_task == nullptr) {
-      vTaskDelayUntil(&xLastWakeTime, xFrequency_2);  // release CPU
+      vTaskDelayUntil(&xLastWakeTime, xFrequency);  // release CPU
       continue;
     }
 
     // Only run the FFT computing code if we're not in "realime mode" or in Receive mode
     if (!this_task->microphone_is_running()) {
-      vTaskDelayUntil(&xLastWakeTime, xFrequency_2);  // release CPU
+      vTaskDelayUntil(&xLastWakeTime, xFrequency);  // release CPU
       continue;
     }
 
 #if !defined(I2S_GRAB_ADC1_COMPLETELY)
     if (dmType > 0)  // the "delay trick" does not help for analog, because I2S ADC is disabled outside of getSamples()
 #endif
-      vTaskDelayUntil(&xLastWakeTime, xFrequency_2);  // release CPU, and give I2S some time to fill its buffers. Might
-                                                      // not work well with ADC analog sources.
-
+      vTaskDelayUntil(&xLastWakeTime, xFrequency);  // release CPU, and give I2S some time to fill its buffers. Might
+                                                    // not work well with ADC analog sources.
     this_task->getSamples(vReal);
-
-    xLastWakeTime = xTaskGetTickCount();  // update "last unblocked time" for vTaskDelay
+    xLastWakeTime = xTaskGetTickCount();            // update "last unblocked time" for vTaskDelay
 
 #ifdef INPUT_FILTER
     // input filters applied before FFT
@@ -310,29 +260,23 @@ void MusicLeds::FFTcode(void *parameter) {
 #endif
 
     // find highest sample in the batch
-    const int halfSamplesFFT = samplesFFT / 2;  // samplesFFT divided by 2
-    float maxSample1 = 0.0;                     // max sample from first half of FFT batch
-    float maxSample2 = 0.0;                     // max sample from second half of FFT batch
+    float maxSample = 0.0;                     // max sample from FFT batch
     for (int i = 0; i < samplesFFT; i++) {
       // set imaginary parts to 0
       vImag[i] = 0;
       // pick our  our current mic sample - we take the max value from all samples that go into FFT
-      if ((vReal[i] <= (INT16_MAX - 1024)) &&
-          (vReal[i] >= (INT16_MIN + 1024)))  // skip extreme values - normally these are artefacts
-      {
-        if (i <= halfSamplesFFT) {
-          if (fabsf(vReal[i]) > maxSample1)
-            maxSample1 = fabsf(vReal[i]);
-        } else {
-          if (fabsf(vReal[i]) > maxSample2)
-            maxSample2 = fabsf(vReal[i]);
+      // skip extreme values - normally these are artefacts
+      if ((vReal[i] <= (INT16_MAX - 1024)) && (vReal[i] >= (INT16_MIN + 1024))) {
+        if (fabsf(vReal[i]) > maxSample) {
+          maxSample = fabsf(vReal[i]);
         }
       }
     }
 
-    // release first sample to volume reactive effects
-    micDataSm = (uint16_t) maxSample1;
-    micDataReal = maxSample1;
+    // release highest sample to volume reactive effects early - not strictly necessary here - could also be done at the end of the function
+    // early release allows the filters (getSample() and agcAvg()) to work with fresh values - we will have matching gain and noise gate values when we want to process the FFT results.
+    micDataSm = (uint16_t) maxSample;
+    micDataReal = maxSample;
 
     FFT.dcRemoval();  // remove DC offset
     FFT.windowing(FFTWindow::Blackman_Harris,
@@ -414,14 +358,102 @@ void MusicLeds::FFTcode(void *parameter) {
 #if !defined(I2S_GRAB_ADC1_COMPLETELY)
     if (dmType > 0)  // the "delay trick" does not help for analog
 #endif
-      vTaskDelayUntil(&xLastWakeTime, xFrequency_2);  // release CPU, by waiting until FFT_MIN_CYCLE is over
-
-    // release second sample to volume reactive effects.
-    // Releasing a second sample now effectively doubles the "sample rate"
-    micDataSm = (uint16_t) maxSample2;
-    micDataReal = maxSample2;
+      vTaskDelayUntil(&xLastWakeTime, xFrequency);  // release CPU, by waiting until FFT_MIN_CYCLE is over
   }  // for(;;)
 }  // FFTcode()
+
+// *****************************************************************************************************************************************************************
+void MusicLeds::set_speed(int index) { speed = index; }
+
+void MusicLeds::set_variant(int index) { variant = index; }
+
+void MusicLeds::ShowFrame(PLAYMODE CurrentMode, esphome::Color current_color, light::AddressableLight *p_it) {
+  if (!this->microphone_is_running()) {
+    return;
+  }
+
+  fastled_helper::InitLeds(p_it->size());
+
+  static unsigned long lastUMRun = millis();  // time of last filter run
+
+  int userloopDelay = int(millis() - lastUMRun);
+  if (lastUMRun == 0)
+    userloopDelay = 0;  // startup - don't have valid data from last run.
+
+  unsigned long t_now = millis();
+  lastUMRun = t_now;
+  if (soundAgc > AGC_NUM_PRESETS)
+    soundAgc = 0;  // make sure that AGC preset is valid (to avoid array bounds violation)
+
+  if (userloopDelay < 2)
+    userloopDelay = 0;  // minor glitch, no problem
+  if (userloopDelay > 150)
+    userloopDelay = 150;  // limit number of filter re-runs
+  do {
+    getSample();                    // Sample the microphone
+    agcAvg(t_now - userloopDelay);  // Calculated the PI adjusted value as sampleAvg
+    userloopDelay -= 2;             // advance "simulated time" by 2ms
+  } while (userloopDelay > 0);
+
+  myVals[millis() % 32] = sampleAgc;
+
+  // limit dynamics (experimental)
+  limitSampleDynamics();
+
+  leds_num = p_it->size();
+
+  main_color = CRGB(current_color.r, current_color.g, current_color.b);
+  if ((int) fastled_helper::current_palette == 0) {
+    // 5% from main color
+    back_color = CRGB(current_color.r / 100 * 5, current_color.g / 100 * 5, current_color.b / 100 * 5);
+  } else {
+    back_color = CRGB::Black;
+  }
+
+  switch (CurrentMode) {
+    case MODE_BINMAP:
+#ifdef DEF_BINMAP
+      this->visualize_binmap(fastled_helper::leds);
+#endif
+      break;
+    case MODE_GRAV:
+#ifdef DEF_GRAV
+      this->visualize_gravfreq(fastled_helper::leds);
+#endif
+      break;
+    case MODE_GRAVICENTER:
+#ifdef DEF_GRAVICENTER
+      this->visualize_gravcenter(fastled_helper::leds);
+#endif
+      break;
+    case MODE_GRAVICENTRIC:
+#ifdef DEF_GRAVICENTRIC
+      this->visualize_gravcentric(fastled_helper::leds);
+#endif
+      break;
+    case MODE_PIXELS:
+#ifdef DEF_PIXELS
+      this->visualize_pixels(fastled_helper::leds);
+#endif
+      break;
+    case MODE_JUNGLES:
+#ifdef DEF_JUNGLES
+      this->visualize_juggles(fastled_helper::leds);
+#endif
+      break;
+    case MODE_MIDNOISE:
+#ifdef DEF_MIDNOISE
+      this->visualize_midnoise(fastled_helper::leds);
+#endif
+      break;
+  }
+
+  for (int i = 0; i < p_it->size(); i++) {
+    (*p_it)[i] = Color(fastled_helper::leds[i].r, fastled_helper::leds[i].g, fastled_helper::leds[i].b);
+  }
+
+  delay(1);
+}
 
 // *****************************************************************************************************************************************************************
 #ifdef DEF_GRAV

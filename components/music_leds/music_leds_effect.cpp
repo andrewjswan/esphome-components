@@ -1,4 +1,5 @@
 ﻿#include "music_leds.h"
+#include "music_leds_effect.h"
 #include "esphome/core/log.h"
 #include "esphome/core/helpers.h"
 

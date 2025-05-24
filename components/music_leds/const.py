@@ -1,6 +1,5 @@
 """Constants for Music Leds component for ESPHome."""
 
-CONF_MIC_ID = "mic_id"
 CONF_MUSIC_LEDS_ID = "music_leds_id"
 CONF_INPUT_FILTER = "input_filter"
 CONF_TASK_CORE = "task_core"

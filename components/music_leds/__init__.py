@@ -5,20 +5,21 @@ import logging
 import esphome.codegen as cg
 import esphome.config_validation as cv
 import esphome.final_validate as fv
-from esphome.components.i2s_audio import microphone
+from esphome.components import microphone
 from esphome.components.light.effects import register_addressable_effect
 from esphome.components.light.types import AddressableLightEffect
 from esphome.const import (
     CONF_BITS_PER_SAMPLE,
     CONF_ID,
+    CONF_MICROPHONE,
     CONF_MODE,
     CONF_NAME,
+    CONF_PLATFORM,
     CONF_SAMPLE_RATE,
 )
 
 from .const import (
     CONF_INPUT_FILTER,
-    CONF_MIC_ID,
     CONF_MUSIC_LEDS_ID,
     CONF_TASK_CORE,
     MODE_GRAVICENTRIC,
@@ -29,7 +30,7 @@ _LOGGER = logging.getLogger(__name__)
 
 CODEOWNERS = ["@andrewjswan"]
 
-DEPENDENCIES = ["light"]
+DEPENDENCIES = ["light", "microphone"]
 
 AUTO_LOAD = ["music_leds", "fastled_helper"]
 
@@ -42,11 +43,14 @@ MUSIC_LEDS_EFECT = music_leds_ns.class_("MusicLedsLightEffect", AddressableLight
 MUSIC_LEDS_SCHEMA = cv.Schema(
     {
         cv.GenerateID(CONF_ID): cv.declare_id(MUSIC_LEDS),
-        cv.Required(CONF_MIC_ID): cv.use_id(microphone),
         cv.Optional(CONF_INPUT_FILTER, default="3"): cv.templatable(cv.int_range(min=0, max=5)),
         cv.Optional(CONF_BITS_PER_SAMPLE): cv.float_,
         cv.Optional(CONF_SAMPLE_RATE): cv.int_,
         cv.Optional(CONF_TASK_CORE, default=1): cv.int_range(0, 1),
+    },
+).extend(
+    {
+        cv.GenerateID(CONF_MICROPHONE): cv.use_id(microphone.Microphone),
     },
 )
 
@@ -55,20 +59,26 @@ CONFIG_SCHEMA = cv.All(MUSIC_LEDS_SCHEMA)
 
 def _final_validate(config):  # noqa: ANN202
     full_config = fv.full_config.get()
-    mic_path = full_config.get_path_for_id(config[CONF_MIC_ID])[:-1]
-    mic_conf = full_config.get_config_for_path(mic_path)
-    bits = mic_conf.get(CONF_BITS_PER_SAMPLE)
-    rate = mic_conf.get(CONF_SAMPLE_RATE)
-
-    if bits not in [16, 32]:
-        msg = "Music Leds support only 16 or 32 Bits Per Sample"
-        raise cv.Invalid(msg)
 
     path = full_config.get_path_for_id(config[CONF_ID])[:-1]
     this_config = full_config.get_config_for_path(path)
-    this_config[CONF_BITS_PER_SAMPLE] = bits
-    this_config[CONF_SAMPLE_RATE] = rate
 
+    mic_path = full_config.get_path_for_id(config[CONF_MICROPHONE])[:-1]
+    mic_conf = full_config.get_config_for_path(mic_path)
+    logging.info(f"Microphone: {mic_conf.get(CONF_PLATFORM)}")
+
+    if CONF_SAMPLE_RATE in mic_conf:
+        rate = mic_conf.get(CONF_SAMPLE_RATE)
+        this_config[CONF_SAMPLE_RATE] = rate
+        logging.info(f"Sample Rate: {rate}")
+
+    if CONF_BITS_PER_SAMPLE in mic_conf:
+        bits = mic_conf.get(CONF_BITS_PER_SAMPLE)
+        if bits not in [16, 32]:
+            msg = "Music Leds support only 16 or 32 Bits Per Sample"
+            raise cv.Invalid(msg)
+        this_config[CONF_BITS_PER_SAMPLE] = bits
+        logging.info(f"Bits Per Sample: {bits}")
 
 FINAL_VALIDATE_SCHEMA = _final_validate
 
@@ -79,9 +89,12 @@ async def to_code(config) -> None:
 
     cg.add_library("kosme/arduinoFFT", None)
 
+    cg.add_define("USE_MUSIC_LEDS")
+    cg.add_define("USE_OTA_STATE_CALLBACK")
+
     cg.add_build_flag("-Wno-narrowing")
 
-    mic = await cg.get_variable(config[CONF_MIC_ID])
+    mic = await cg.get_variable(config[CONF_MICROPHONE])
     cg.add(var.set_microphone(mic))
     cg.add(var.set_task_core(config[CONF_TASK_CORE]))
 

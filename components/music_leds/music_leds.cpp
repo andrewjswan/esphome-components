@@ -9,6 +9,10 @@
 #define FASTLED_INTERNAL  // remove annoying pragma messages
 #include <FastLED.h>
 
+#ifdef USE_OTA
+#include "esphome/components/ota/ota_backend.h"
+#endif
+
 namespace esphome {
 namespace music_leds {
 
@@ -24,7 +28,7 @@ void MusicLeds::setup() {
     }
   });
 
-  // Define the FFT Task and lock it to core 0
+  // Define the FFT Task and lock it to core
   xTaskCreatePinnedToCore(FFTcode,            // Function to implement the task
                           "FFT",              // Name of the task
                           5000,               // Stack size in words
@@ -32,8 +36,18 @@ void MusicLeds::setup() {
                           1,                  // Priority of the task
                           &FFT_Task,          // Task handle
                           this->task_core_);  // Core where the task should run
+#ifdef USE_OTA
+  ota::get_global_ota_callback()->add_on_state_callback(
+      [this](ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) {
+        if (state == ota::OTA_STARTED) {
+          this->on_shutdown();
+        }
+      });
+#endif
 
   this->microphone_->start();
+
+  ESP_LOGCONFIG(TAG, "Music Leds initialized");
 }
 
 void MusicLeds::dump_config() {

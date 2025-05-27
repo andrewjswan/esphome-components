@@ -15,6 +15,7 @@
 namespace esphome {
 namespace music_leds {
 
+#define BITS_PER_SAMPLE 16
 #if BITS_PER_SAMPLE == 16
   #define I2S_datatype int16_t
   #define I2S_unsigned_datatype uint16_t
@@ -45,7 +46,7 @@ class MusicLeds : public Component {
   void dump_config() override;
   void on_shutdown() override;
 
-  void set_microphone(microphone::MicrophoneSource *microphone) { this->microphone_ = microphone; }
+  void set_microphone(microphone::Microphone *microphone) { this->microphone_ = microphone; }
   void set_task_core(uint8_t task_core) { this->task_core_ = task_core; }
 
   void set_speed(int index);
@@ -63,7 +64,7 @@ protected:
   /// @brief Internal stop command the deallocates ``audio_buffer_`` (which automatically deallocates its ring buffer)
   void buffer_deallocate();
 
-  microphone::MicrophoneSource *microphone_{nullptr};
+  microphone::Microphone *microphone_{nullptr};
 
   std::unique_ptr<audio::AudioSourceTransferBuffer> audio_buffer_;
   std::weak_ptr<RingBuffer> ring_buffer_;

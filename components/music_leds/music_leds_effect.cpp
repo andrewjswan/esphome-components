@@ -1,4 +1,4 @@
-﻿#include "music_leds.h"
+#include "music_leds.h"
 #include "music_leds_effect.h"
 #include "esphome/core/log.h"
 #include "esphome/core/helpers.h"
@@ -11,6 +11,9 @@ MusicLedsLightEffect::MusicLedsLightEffect(const std::string &name) : Addressabl
 void MusicLedsLightEffect::start() {
   ESP_LOGD(TAG, "Effect: %s", this->name_.c_str());
 
+  if (this->music_leds_) {
+    this->music_leds_->StartFrame();
+  }
   AddressableLightEffect::start();
 }
 

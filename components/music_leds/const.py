@@ -1,23 +1,11 @@
 """Constants for Music Leds component for ESPHome."""
 
+CONF_BAND_PASS_FILTER = "band_pass_filter"
+CONF_FFT_SCALING = "fft_scaling_mode"
+CONF_GAINCONTROL = "gain_control"
 CONF_MUSIC_LEDS_ID = "music_leds_id"
-CONF_INPUT_FILTER = "input_filter"
+CONF_SOUND_DYNAMICS_LIMITER = "sound_dynamics_limiter"
+CONF_SR_GAIN = "sample_gain"
+CONF_SR_SQUELCH = "squelch value"
 CONF_TASK_CORE = "task_core"
-
-MODE_BINMAP = "BINMAP"
-MODE_GRAV = "GRAV"
-MODE_GRAVICENTER = "GRAVICENTER"
-MODE_GRAVICENTRIC = "GRAVICENTRIC"
-MODE_PIXELS = "PIXELS"
-MODE_JUNGLES = "JUNGLES"
-MODE_MIDNOISE = "MIDNOISE"
-
-MUSIC_LEDS_EFFECTS = [
-    MODE_BINMAP,
-    MODE_GRAV,
-    MODE_GRAVICENTER,
-    MODE_GRAVICENTRIC,
-    MODE_PIXELS,
-    MODE_JUNGLES,
-    MODE_MIDNOISE,
-]
+CONF_TASK_PRIORITY = "task_priority"

@@ -1,7 +1,7 @@
 target-version = "py312"
 
-# Allow lines to be as long as 120.
-line-length = 100
+# Allow lines to be as long as 150.
+line-length = 150
 
 [lint]
 select = [

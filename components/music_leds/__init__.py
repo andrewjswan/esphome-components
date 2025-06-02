@@ -5,6 +5,7 @@ import logging
 import esphome.codegen as cg
 import esphome.config_validation as cv
 import esphome.final_validate as fv
+from esphome import core
 from esphome.components import microphone
 from esphome.components.light.effects import register_addressable_effect
 from esphome.components.light.types import AddressableLightEffect
@@ -28,6 +29,10 @@ from .const import (
     CONF_SR_SQUELCH,
     CONF_TASK_CORE,
     CONF_TASK_PRIORITY,
+    SAMPLE_RATE_10,
+    SAMPLE_RATE_16,
+    SAMPLE_RATE_20,
+    SAMPLE_RATE_22,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -86,12 +91,12 @@ def _final_validate(config):  # noqa: ANN202
 
     mic_path = full_config.get_path_for_id(config[CONF_MICROPHONE])[:-1]
     mic_conf = full_config.get_config_for_path(mic_path)
-    logging.info(f"Microphone: {mic_conf.get(CONF_PLATFORM)}")
+    logging.info("Microphone: %s", mic_conf.get(CONF_PLATFORM))
 
     if CONF_SAMPLE_RATE in mic_conf:
         rate = mic_conf.get(CONF_SAMPLE_RATE)
         this_config[CONF_SAMPLE_RATE] = rate
-        logging.info(f"Sample Rate: {rate}")
+        logging.info("Sample Rate: %s", rate)
 
     if CONF_BITS_PER_SAMPLE in mic_conf:
         bits = mic_conf.get(CONF_BITS_PER_SAMPLE)
@@ -99,7 +104,8 @@ def _final_validate(config):  # noqa: ANN202
             msg = "Music Leds support only 16 or 32 Bits Per Sample"
             raise cv.Invalid(msg)
         this_config[CONF_BITS_PER_SAMPLE] = bits
-        logging.info(f"Bits Per Sample: {bits}")
+        logging.info("Bits Per Sample: %s", bits)
+
 
 FINAL_VALIDATE_SCHEMA = _final_validate
 
@@ -137,7 +143,7 @@ async def to_code(config) -> None:
 
     # Squelch value for volume reactive routines
     cg.add_define("SR_SQUELCH", config[CONF_SR_SQUELCH])
-    
+
     # FFTResult scaling: 0 none; 1 optimized logarithmic; 2 optimized linear; 3 optimized square root
     cg.add_define("FFT_SCALING", config[CONF_FFT_SCALING])
 
@@ -161,16 +167,17 @@ async def to_code(config) -> None:
     # FFT_MIN_CYCLE 23         // minimum time before FFT task is repeated. Use with 20Khz sampling
     # FFT_MIN_CYCLE 30         // Use with 16Khz sampling
     # FFT_MIN_CYCLE 46         // minimum time before FFT task is repeated. Use with 10Khz sampling
-    if config[CONF_SAMPLE_RATE] >= 22050:
+    if config[CONF_SAMPLE_RATE] >= SAMPLE_RATE_22:
         cg.add_define("FFT_MIN_CYCLE", 21)
-    elif config[CONF_SAMPLE_RATE] >= 20480:
+    elif config[CONF_SAMPLE_RATE] >= SAMPLE_RATE_20:
         cg.add_define("FFT_MIN_CYCLE", 23)
-    elif config[CONF_SAMPLE_RATE] >= 16000:
+    elif config[CONF_SAMPLE_RATE] >= SAMPLE_RATE_16:
         cg.add_define("FFT_MIN_CYCLE", 30)
-    elif config[CONF_SAMPLE_RATE] >= 10240:
+    elif config[CONF_SAMPLE_RATE] >= SAMPLE_RATE_10:
         cg.add_define("FFT_MIN_CYCLE", 46)
     else:
-        raise core.EsphomeError("Low Sample rate for Music Leds plz increase.")
+        msg = "Low Sample rate for Music Leds plz increase."
+        raise core.EsphomeError(msg)
 
     await cg.register_component(var, config)
 

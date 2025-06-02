@@ -34,7 +34,6 @@ class MusicLeds : public Component {
   void set_speed(int index);
   void set_variant(int index);
 
-  void getSamples(float *buffer, uint16_t num_samples);
   void StartFrame() { this->start_effect_ = true; };
   void ShowFrame(PLAYMODE CurrentMode, Color current_color, light::AddressableLight *p_it);
 
@@ -43,19 +42,14 @@ class MusicLeds : public Component {
 protected:
   microphone::Microphone *microphone_{nullptr};
 
-  std::unique_ptr<audio::AudioSourceTransferBuffer> audio_buffer_;
   std::weak_ptr<RingBuffer> ring_buffer_;
-
-  /// @brief Internal start command that, if necessary, allocates ``audio_buffer_`` and a ring buffer which
-  /// ``audio_buffer_`` owns and ``ring_buffer_`` points to. Returns true if allocations were successful.
-  bool buffer_allocate();
-
-  /// @brief Internal stop command the deallocates ``audio_buffer_`` (which automatically deallocates its ring buffer)
-  void buffer_deallocate();
 
   void on_start();
   void on_loop();
   void on_stop();
+
+  static void FFTcode(void *params);
+  TaskHandle_t FFT_Task{nullptr};
 
   // variables used by getSample() and agcAvg()
   int16_t micIn{0};                // Current sample starts with negative values and large values, which is why it's 16 bit signed

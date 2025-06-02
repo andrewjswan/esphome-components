@@ -39,8 +39,11 @@ static const uint32_t BUFFER_SIZE = sizeof(I2S_datatype) * SAMPLES_FFT;
 void MusicLeds::setup() {
   this->microphone_->add_data_callback([this](const std::vector<uint8_t> &data) {
     std::shared_ptr<RingBuffer> temp_ring_buffer = this->ring_buffer_.lock();
-    if (this->ring_buffer_.use_count() == 2) {
-      // ``audio_buffer_`` and ``temp_ring_buffer`` share ownership of a ring buffer, so its safe/useful to write
+    if (this->ring_buffer_.use_count() > 1) {
+      size_t bytes_free = temp_ring_buffer->free();
+      if (bytes_free < data.size()) {
+        temp_ring_buffer->reset();
+      }
       temp_ring_buffer->write((void *) data.data(), data.size());
     }
   });
@@ -68,6 +71,9 @@ void MusicLeds::loop() {
 
 void MusicLeds::dump_config() {
   ESP_LOGCONFIG(TAG, "Music Leds version: %s", MUSIC_LEDS_VERSION);
+  if (this->is_failed()) {
+    ESP_LOGCONFIG(TAG, "Music Leds failed!");
+  }
   ESP_LOGCONFIG(TAG, "         Task Core: %u", FFTTASK_CORE);
   ESP_LOGCONFIG(TAG, "     Task Priority: %u", FFTTASK_PRIORITY);
   ESP_LOGCONFIG(TAG, "           Samples: %dbit", BITS_PER_SAMPLE);
@@ -88,7 +94,6 @@ void MusicLeds::dump_config() {
 
 void MusicLeds::on_shutdown() {
   this->microphone_->stop();
-  this->buffer_deallocate();
   this->on_stop();
 }
 
@@ -148,20 +153,20 @@ static uint16_t decayTime = 1400;                 // int: decay time in millisec
 
 // some prototypes, to ensure consistent interfaces
 static float fftAddAvg(int from, int to);  // average of several FFT result bins
-void FFTcode(void * parameter);  // audio processing task: read samples, run FFT, fill GEQ channels from FFT results
 #ifdef USE_BANDPASSFILTER
 static void runMicFilter(uint16_t numSamples, float *sampleBuffer);  // pre-filtering of raw samples (band-pass)
 #endif
 static void postProcessFFTResults(bool noiseGateOpen, int numberOfChannels);  // post-processing and post-amp of GEQ channels
-
-static TaskHandle_t FFT_Task = nullptr;
+static I2S_datatype postProcessSample(I2S_datatype sample_in);   // samples post-processing
 
 // Table of multiplication factors so that we can even out the frequency response.
 static float fftResultPink[NUM_GEQ_CHANNELS] = { 1.70f, 1.71f, 1.73f, 1.78f, 1.68f, 1.56f, 1.55f, 1.63f, 1.79f, 1.62f, 1.80f, 2.06f, 2.47f, 3.35f, 6.83f, 9.55f };
 
 // FFT Task variables (filtering and post-processing)
 static float fftCalc[NUM_GEQ_CHANNELS] = {0.0f};  // Try and normalize fftBin values to a max of 4096, so that 4096/16 = 256.
+#ifdef USE_SOUND_DYNAMICS_LIMITER
 static float fftAvg[NUM_GEQ_CHANNELS] = {0.0f};   // Calculated frequency channel results, with smoothing (used if dynamics limiter is ON)
+#endif
 
 // audio source parameters and constant
 // constexpr SRate_t SAMPLE_RATE = 22050;  // Base sample rate in Hz - 22Khz is a standard rate. Physical sample time -> 23ms
@@ -188,7 +193,9 @@ static float* vImag = nullptr;             // imaginary parts
 // #define FFT_SPEED_OVER_PRECISION        // enables use of reciprocals (1/x etc) - not faster on ESP32
 // #define FFT_SQRT_APPROXIMATION          // enables "quake3" style inverse sqrt  - slower on ESP32
 
-// Helper functions
+///////////////////////////
+// Helper functions      //
+///////////////////////////
 
 // Compute average of several FFT result bins
 static float fftAddAvg(int from, int to) {
@@ -198,170 +205,6 @@ static float fftAddAvg(int from, int to) {
   }
   return result / float(to - from + 1);
 }
-
-//
-// FFT main task
-//
-void FFTcode(void * parameter)
-{
-  MusicLeds *this_task = (MusicLeds *) parameter;
-  ESP_LOGCONFIG(TAG, "FFT: started on core: %u", FFTTASK_CORE);
-
-  // allocate FFT buffers on first call
-  if (vReal == nullptr) {
-    vReal = (float*) calloc(sizeof(float), SAMPLES_FFT);
-  }
-  if (vImag == nullptr) {
-    vImag = (float*) calloc(sizeof(float), SAMPLES_FFT);
-  }
-
-  if ((vReal == nullptr) || (vImag == nullptr)) {
-    // something went wrong
-    if (vReal) {
-      free(vReal); 
-      vReal = nullptr;
-    }
-    if (vImag) {
-      free(vImag); 
-      vImag = nullptr;
-    }
-    return;
-  }
-
-  // Create FFT object with weighing factor storage
-  ArduinoFFT<float> FFT = ArduinoFFT<float>(vReal, vImag, SAMPLES_FFT, SAMPLE_RATE, true);
-
-  // see https://www.freertos.org/vtaskdelayuntil.html
-  const TickType_t xFrequency = FFT_MIN_CYCLE * portTICK_PERIOD_MS;  
-
-  TickType_t xLastWakeTime = xTaskGetTickCount();
-  for(;;) {
-    delay_microseconds_safe(1);
-
-    if (this_task == nullptr) {
-      if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Dead");
-      vTaskDelayUntil(&xLastWakeTime, xFrequency);  // release CPU
-      continue;
-    }
-
-    // Only run the FFT computing code if microphone running
-    if (!this_task->microphone_is_running()) {
-      if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Mute");
-      vTaskDelayUntil(&xLastWakeTime, xFrequency);  // release CPU
-      continue;
-    }
-
-    // Get a fresh batch of samples from microphone
-    this_task->getSamples(vReal, SAMPLES_FFT);
-    memset(vImag, 0, SAMPLES_FFT * sizeof(float));  // set imaginary parts to 0
-
-    xLastWakeTime = xTaskGetTickCount(); // update "last unblocked time" for vTaskDelay
-
-    #ifdef USE_BANDPASSFILTER
-    // band pass filter - can reduce noise floor by a factor of 50
-    // downside: frequencies below 100Hz will be ignored
-    runMicFilter(SAMPLES_FFT, vReal);
-    #endif
-
-    // find highest sample in the batch
-    float maxSample = 0.0f;  // max sample from FFT batch
-    for (int i=0; i < SAMPLES_FFT; i++) {
-      // pick our  our current mic sample - we take the max value from all samples that go into FFT
-      // skip extreme values - normally these are artefacts
-      if ((vReal[i] <= (INT16_MAX - 1024)) && (vReal[i] >= (INT16_MIN + 1024))) {
-        float cSample = fabsf(vReal[i]);
-        if (cSample > maxSample) {
-          maxSample = cSample;
-        }
-      }
-    }
-
-    // release highest sample to volume reactive effects early - not strictly necessary here - could also be done at the end of the function
-    // early release allows the filters (getSample() and agcAvg()) to work with fresh values - we will have matching gain and noise gate values when we want to process the FFT results.
-    micDataReal = maxSample;
-
-    if (sampleAvg > 0.25f) { // noise gate open means that FFT results will be used. Don't run FFT if results are not needed.
-      // run FFT (takes 3-5ms on ESP32, ~12ms on ESP32-S2)
-      FFT.dcRemoval();                                            // remove DC offset
-      FFT.windowing( FFTWindow::Flat_top, FFTDirection::Forward); // Weigh data using "Flat Top" function - better amplitude accuracy
-      //FFT.windowing(FFTWindow::Blackman_Harris, FFTDirection::Forward);  // Weigh data using "Blackman- Harris" window - sharp peaks due to excellent sideband rejection
-      FFT.compute( FFTDirection::Forward );                       // Compute FFT
-      FFT.complexToMagnitude();                                   // Compute magnitudes
-      vReal[0] = 0;   // The remaining DC offset on the signal produces a strong spike on position 0 that should be eliminated to avoid issues.
-
-      FFT.majorPeak(&FFT_MajorPeak, &FFT_Magnitude);              // let the effects know which freq was most dominant
-      FFT_MajorPeak = constrain(FFT_MajorPeak, 1.0f, 11025.0f);   // restrict value to range expected by effects
-    } else { // noise gate closed - only clear results as FFT was skipped. MIC samples are still valid when we do this.
-      memset(vReal, 0, SAMPLES_FFT * sizeof(float));
-      FFT_MajorPeak = 1;
-      FFT_Magnitude = 0.001;
-      if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Noise");
-    }
-
-    for (int i = 0; i < SAMPLES_FFT; i++) {
-      float cSample = fabsf(vReal[i]);                            // just to be sure - values in fft bins should be positive any way
-      vReal[i] = cSample / 16.0f;                                 // Reduce magnitude. Want end result to be scaled linear and ~4096 max.
-    } // for()
-
-    // mapping of FFT result bins to frequency channels
-    if (fabsf(sampleAvg) > 0.5f) { // noise gate open
-      /*
-      * This FFT post processing is a DIY endeavour.
-      * What we really need is someone with sound engineering expertise to do a great job here AND most importantly, that the animations look GREAT as a result.
-      * Andrew's updated mapping of 256 bins down to the 16 result bins with Sample Freq = 10240, samplesFFT = 512 and some overlap.
-      * Based on testing, the lowest/Start frequency is 60 Hz (with bin 3) and a highest/End frequency of 5120 Hz in bin 255.
-      * Now, Take the 60Hz and multiply by 1.320367784 to get the next frequency and so on until the end. Then determine the bins.
-      * End frequency = Start frequency * multiplier ^ 16
-      * Multiplier = (End frequency/ Start frequency) ^ 1/16
-      * Multiplier = 1.320367784
-      * new mapping, optimized for 22050 Hz by softhack007
-      */
-      //                                          // bins frequency  range
-      #ifdef USE_BANDPASSFILTER
-      // skip frequencies below 100hz
-      fftCalc[ 0] = 0.8f * fftAddAvg(3,4);
-      fftCalc[ 1] = 0.9f * fftAddAvg(4,5);
-      fftCalc[ 2] = fftAddAvg(5,6);
-      fftCalc[ 3] = fftAddAvg(6,7);
-      // don't use the last bins from 206 to 255. 
-      fftCalc[15] = fftAddAvg(165,205) * 0.75f;   // 40 7106 - 8828 high  -- with some damping
-      #else
-      fftCalc[ 0] = fftAddAvg(1,2);               // 1    43 - 86   sub-bass
-      fftCalc[ 1] = fftAddAvg(2,3);               // 1    86 - 129  bass
-      fftCalc[ 2] = fftAddAvg(3,5);               // 2   129 - 216  bass
-      fftCalc[ 3] = fftAddAvg(5,7);               // 2   216 - 301  bass + midrange
-      // don't use the last bins from 216 to 255. They are usually contaminated by aliasing (aka noise) 
-      fftCalc[15] = fftAddAvg(165,215) * 0.70f;   // 50 7106 - 9259 high  -- with some damping
-      #endif
-      fftCalc[ 4] = fftAddAvg(7,10);              // 3   301 - 430  midrange
-      fftCalc[ 5] = fftAddAvg(10,13);             // 3   430 - 560  midrange
-      fftCalc[ 6] = fftAddAvg(13,19);             // 5   560 - 818  midrange
-      fftCalc[ 7] = fftAddAvg(19,26);             // 7   818 - 1120 midrange  -- 1Khz should always be the center !
-      fftCalc[ 8] = fftAddAvg(26,33);             // 7  1120 - 1421 midrange
-      fftCalc[ 9] = fftAddAvg(33,44);             // 9  1421 - 1895 midrange
-      fftCalc[10] = fftAddAvg(44,56);             // 12 1895 - 2412 midrange + high mid
-      fftCalc[11] = fftAddAvg(56,70);             // 14 2412 - 3015 high mid
-      fftCalc[12] = fftAddAvg(70,86);             // 16 3015 - 3704 high mid
-      fftCalc[13] = fftAddAvg(86,104);            // 18 3704 - 4479 high mid
-      fftCalc[14] = fftAddAvg(104,165) * 0.88f;   // 61 4479 - 7106 high mid + high  -- with slight damping
-    } else {  // noise gate closed - just decay old values
-      for (int i=0; i < NUM_GEQ_CHANNELS; i++) {
-        fftCalc[i] *= 0.85f;  // decay to zero
-        if (fftCalc[i] < 4.0f) fftCalc[i] = 0.0f;
-      }
-    }
-
-    // post-processing of frequency channels (pink noise adjustment, AGC, smoothing, scaling)
-    postProcessFFTResults((fabsf(sampleAvg) > 0.25f)? true : false , NUM_GEQ_CHANNELS);
-
-    // run peak detection
-    autoResetPeak();
-    detectSamplePeak();
-    
-    vTaskDelayUntil(&xLastWakeTime, xFrequency);  // release CPU
-  } // for(;;)ever
-} // FFTcode() task end
-
 
 ///////////////////////////
 // Pre / Postprocessing  //
@@ -416,10 +259,13 @@ static void postProcessFFTResults(bool noiseGateOpen, int numberOfChannels)
       if (FFTScalingMode > 0) fftCalc[i] *= FFT_DOWNSCALE;
       // Manual linear adjustment of gain using sampleGain adjustment for different input types.
       // Apply gain, with inputLevel adjustment
-      fftCalc[i] *= soundAgc ? multAgc : ((float)sampleGain/40.0f * (float)inputLevel/128.0f + 1.0f/16.0f);
+      fftCalc[i] *= soundAgc ? multAgc : ((float)sampleGain/40.0f * (float)inputLevel / 128.0f + 1.0f / 16.0f);
       if(fftCalc[i] < 0) fftCalc[i] = 0;
     }
+    // Constrain internal vars - just to be sure
+    fftCalc[i] = constrain(fftCalc[i], 0.0f, 1023.0f);
 
+    #ifdef USE_SOUND_DYNAMICS_LIMITER
     // Smooth results - rise fast, fall slower
     if(fftCalc[i] > fftAvg[i]) {  // rise fast 
       fftAvg[i] = fftCalc[i] *0.75f + 0.25f*fftAvg[i];  // will need approx 2 cycles (50ms) for converging against fftCalc[i]
@@ -429,10 +275,9 @@ static void postProcessFFTResults(bool noiseGateOpen, int numberOfChannels)
       else if (decayTime < 3000) fftAvg[i] = fftCalc[i]*0.14f + 0.86f*fftAvg[i];  // approx 14 cycles (350ms) for falling to zero
       else fftAvg[i] = fftCalc[i]*0.1f  + 0.9f*fftAvg[i];                         // approx 20 cycles (500ms) for falling to zero
     }
-
     // Constrain internal vars - just to be sure
-    fftCalc[i] = constrain(fftCalc[i], 0.0f, 1023.0f);
     fftAvg[i] = constrain(fftAvg[i], 0.0f, 1023.0f);
+    #endif
 
     float currentResult;
     #ifdef USE_SOUND_DYNAMICS_LIMITER
@@ -485,6 +330,51 @@ static void postProcessFFTResults(bool noiseGateOpen, int numberOfChannels)
   }
 }
 
+static I2S_datatype postProcessSample(I2S_datatype sample_in) {
+  static I2S_datatype lastADCsample = 0;                       // last good sample
+  // static unsigned int broken_samples_counter = 0;           // number of consecutive broken (and fixed) ADC samples
+  // static uint8_t _myADCchannel = 0x0F;                      // current ADC channel, in case of analog input. 0x0F if undefined
+  I2S_datatype sample_out = 0;
+
+  // bring sample down down to 16bit unsigned
+  I2S_unsigned_datatype rawData = * reinterpret_cast<I2S_unsigned_datatype *> (&sample_in); // C++ acrobatics to get sample as "unsigned"
+  #if BITS_PER_SAMPLE == 16
+    rawData = rawData & 0xFFFF;                               // input is already in 16bit, just mask off possible junk
+    I2S_datatype lastGoodSample = lastADCsample * 4;          // prepare "last good sample" accordingly (10bit-> 12bit)
+  #else
+    rawData = (rawData >> 16) & 0xFFFF;                       // scale input down from 32bit -> 16bit
+    I2S_datatype lastGoodSample = lastADCsample / 16384 ;     // prepare "last good sample" accordingly (26bit-> 12bit with correct sign handling)
+  #endif
+
+  // decode ADC sample data fields
+  // uint16_t the_channel = (rawData >> 12) & 0x000F;         // upper 4 bit = ADC channel
+  uint16_t the_sample = rawData & 0x0FFF;                     // lower 12bit -> ADC sample (unsigned)
+  I2S_datatype finalSample = (int(the_sample) - 2048);        // convert unsigned sample to signed (centered at 0);
+
+  /*
+  if ((the_channel != _myADCchannel) && (_myADCchannel != 0x0F)) { // 0x0F means "don't know what my channel is" 
+    // fix bad sample
+    finalSample = lastGoodSample;                             // replace with last good ADC sample
+    broken_samples_counter ++;
+    if (broken_samples_counter > 256) {
+      _myADCchannel = 0x0F;                                   // too  many bad samples in a row -> disable sample corrections
+    }
+  } else broken_samples_counter = 0;                          // good sample - reset counter
+  */
+
+  // back to original resolution
+  #if BITS_PER_SAMPLE == 32
+    finalSample = finalSample << 16;                          // scale up from 16bit -> 32bit;
+  #endif
+
+  finalSample = finalSample / 4;                              // mimic old analog driver behaviour (12bit -> 10bit)
+  sample_out = (3 * finalSample + lastADCsample) / 4;         // apply low-pass filter (2-tap FIR)
+  // sample_out = (finalSample + lastADCsample) / 2;          // apply stronger low-pass filter (2-tap FIR)
+
+  lastADCsample = sample_out;                                 // update ADC last sample
+  return(sample_out);
+}
+
 ////////////////////
 // Peak detection //
 ////////////////////
@@ -507,6 +397,222 @@ static void autoResetPeak(void) {
     samplePeak = false;
   }
 }
+
+// *****************************************************************************
+// FFT main task 
+// audio processing task: read samples, run FFT, fill GEQ channels from FFT results
+// *****************************************************************************
+void MusicLeds::FFTcode(void * parameter)
+{
+  MusicLeds *this_task = (MusicLeds *) parameter;
+  ESP_LOGCONFIG(TAG, "FFT: started on core: %u", FFTTASK_CORE);
+
+  // Allocate FFT buffers on first call
+  if (vReal == nullptr) {
+    vReal = (float*) calloc(sizeof(float), SAMPLES_FFT);
+  }
+  if (vImag == nullptr) {
+    vImag = (float*) calloc(sizeof(float), SAMPLES_FFT);
+  }
+
+  if ((vReal == nullptr) || (vImag == nullptr)) {
+    // Something went wrong
+    if (vReal) {
+      free(vReal); 
+      vReal = nullptr;
+    }
+    if (vImag) {
+      free(vImag); 
+      vImag = nullptr;
+    }
+    ESP_LOGW(TAG, "Allocate FFT buffers failed.");
+    this_task->status_set_warning();
+    return;
+  }
+
+  {  // Ensures any C++ objects fall out of scope to deallocate before deleting the task
+    std::unique_ptr<audio::AudioSourceTransferBuffer> audio_buffer;
+    // Allocate audio transfer buffer
+    audio_buffer = audio::AudioSourceTransferBuffer::create(BUFFER_SIZE);
+    if (audio_buffer == nullptr) {
+      ESP_LOGW(TAG, "Allocate Audio buffer failed.");
+      this_task->status_set_warning();
+      return;
+    }
+    // Allocate ring buffer
+    std::shared_ptr<RingBuffer> temp_ring_buffer = RingBuffer::create(BUFFER_SIZE);
+    if (temp_ring_buffer.use_count() == 0) {
+      ESP_LOGW(TAG, "Allocate Ring buffer failed.");
+      this_task->status_set_warning();
+      return;
+    }
+    audio_buffer->set_source(temp_ring_buffer);
+    this_task->ring_buffer_ = temp_ring_buffer;
+
+    // Create FFT object with weighing factor storage
+    ArduinoFFT<float> FFT = ArduinoFFT<float>(vReal, vImag, SAMPLES_FFT, SAMPLE_RATE, true);
+
+    // see https://www.freertos.org/vtaskdelayuntil.html
+    const TickType_t xFrequency = FFT_MIN_CYCLE * portTICK_PERIOD_MS;  
+
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    for(;;) {
+      delay_microseconds_safe(1);
+
+      if (this_task == nullptr) {
+        if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Dead");
+        ESP_LOGW(TAG, "Music Leds dead?");
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);  // release CPU
+        continue;
+      }
+
+      // Only run the FFT computing code if microphone running
+      if (!this_task->microphone_is_running()) {
+        if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Mute");
+        ESP_LOGW(TAG, "Microphone not running...");
+        this_task->status_set_warning();
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);  // release CPU
+        continue;
+      }
+      this_task->status_clear_warning();
+
+      audio_buffer->transfer_data_from_source(pdMS_TO_TICKS(DATA_TIMEOUT_MS));
+      if (audio_buffer->available() < BUFFER_SIZE) {
+        // Insufficient data for processing, read more next iteration
+        if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Insufficient data %d", audio_buffer->available());
+        continue;
+      }
+
+      // Get a fresh batch of samples from microphone
+      // Intermediary sample storage
+      I2S_datatype *newSamples = reinterpret_cast<I2S_datatype *>(audio_buffer->get_buffer_start());
+
+      float sum = 0.0f;
+      // Store samples in sample buffer and update DC offset
+      for (int i = 0; i < SAMPLES_FFT; i++) {
+        newSamples[i] = postProcessSample(newSamples[i]);  // perform postprocessing (needed for ADC samples)
+        float currSample = 0.0f;
+#ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
+        currSample = (float) newSamples[i] / 65536.0f;     // 32bit input -> 16bit; keeping lower 16bits as decimal places
+#else
+        currSample = (float) newSamples[i];                // 16bit input -> use as-is
+#endif
+        vReal[i] = currSample;
+        // vReal[i] *= _sampleScale;                       // scale samples float _sampleScale{1.0f}; // pre-scaling factor for I2S samples
+        sum = sum + vReal[i];
+      }
+      if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Samples %f | High %f", sum, this_task->volumeSmth);
+
+      audio_buffer->decrease_buffer_length(BUFFER_SIZE);   // Remove the processed samples from audio_buffer
+      memset(vImag, 0, SAMPLES_FFT * sizeof(float));       // Set imaginary parts to 0
+
+      xLastWakeTime = xTaskGetTickCount(); // update "last unblocked time" for vTaskDelay
+
+      #ifdef USE_BANDPASSFILTER
+      // band pass filter - can reduce noise floor by a factor of 50
+      // downside: frequencies below 100Hz will be ignored
+      runMicFilter(SAMPLES_FFT, vReal);
+      #endif
+
+      // find highest sample in the batch
+      float maxSample = 0.0f;  // max sample from FFT batch
+      for (int i=0; i < SAMPLES_FFT; i++) {
+        // pick our  our current mic sample - we take the max value from all samples that go into FFT
+        // skip extreme values - normally these are artefacts
+        if ((vReal[i] <= (INT16_MAX - 1024)) && (vReal[i] >= (INT16_MIN + 1024))) {
+          float cSample = fabsf(vReal[i]);
+          if (cSample > maxSample) {
+            maxSample = cSample;
+          }
+        }
+      }
+  
+      // release highest sample to volume reactive effects early - not strictly necessary here - could also be done at the end of the function
+      // early release allows the filters (getSample() and agcAvg()) to work with fresh values - we will have matching gain and noise gate values when we want to process the FFT results.
+      micDataReal = maxSample;
+
+      if (sampleAvg > 0.25f) { // noise gate open means that FFT results will be used. Don't run FFT if results are not needed.
+        // run FFT (takes 3-5ms on ESP32, ~12ms on ESP32-S2)
+        FFT.dcRemoval();                                            // remove DC offset
+        FFT.windowing( FFTWindow::Flat_top, FFTDirection::Forward); // Weigh data using "Flat Top" function - better amplitude accuracy
+        //FFT.windowing(FFTWindow::Blackman_Harris, FFTDirection::Forward);  // Weigh data using "Blackman- Harris" window - sharp peaks due to excellent sideband rejection
+        FFT.compute( FFTDirection::Forward );                       // Compute FFT
+        FFT.complexToMagnitude();                                   // Compute magnitudes
+        vReal[0] = 0;   // The remaining DC offset on the signal produces a strong spike on position 0 that should be eliminated to avoid issues.
+
+        FFT.majorPeak(&FFT_MajorPeak, &FFT_Magnitude);              // let the effects know which freq was most dominant
+        FFT_MajorPeak = constrain(FFT_MajorPeak, 1.0f, 11025.0f);   // restrict value to range expected by effects
+      } else { // noise gate closed - only clear results as FFT was skipped. MIC samples are still valid when we do this.
+        memset(vReal, 0, SAMPLES_FFT * sizeof(float));
+        FFT_MajorPeak = 1;
+        FFT_Magnitude = 0.001;
+        if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Noise");
+      }
+
+      for (int i = 0; i < SAMPLES_FFT; i++) {
+        float cSample = fabsf(vReal[i]);                            // just to be sure - values in fft bins should be positive any way
+        vReal[i] = cSample / 16.0f;                                 // Reduce magnitude. Want end result to be scaled linear and ~4096 max.
+      } // for()
+
+      // mapping of FFT result bins to frequency channels
+      if (fabsf(sampleAvg) > 0.5f) { // noise gate open
+        /*
+        * This FFT post processing is a DIY endeavour.
+        * What we really need is someone with sound engineering expertise to do a great job here AND most importantly, that the animations look GREAT as a result.
+        * Andrew's updated mapping of 256 bins down to the 16 result bins with Sample Freq = 10240, samplesFFT = 512 and some overlap.
+        * Based on testing, the lowest/Start frequency is 60 Hz (with bin 3) and a highest/End frequency of 5120 Hz in bin 255.
+        * Now, Take the 60Hz and multiply by 1.320367784 to get the next frequency and so on until the end. Then determine the bins.
+        * End frequency = Start frequency * multiplier ^ 16
+        * Multiplier = (End frequency/ Start frequency) ^ 1/16
+        * Multiplier = 1.320367784
+        * new mapping, optimized for 22050 Hz by softhack007
+        */
+        //                                          // bins frequency  range
+        #ifdef USE_BANDPASSFILTER
+        // skip frequencies below 100hz
+        fftCalc[ 0] = 0.8f * fftAddAvg(3,4);
+        fftCalc[ 1] = 0.9f * fftAddAvg(4,5);
+        fftCalc[ 2] = fftAddAvg(5,6);
+        fftCalc[ 3] = fftAddAvg(6,7);
+        // don't use the last bins from 206 to 255. 
+        fftCalc[15] = fftAddAvg(165,205) * 0.75f;   // 40 7106 - 8828 high  -- with some damping
+        #else
+        fftCalc[ 0] = fftAddAvg(1,2);               // 1    43 - 86   sub-bass
+        fftCalc[ 1] = fftAddAvg(2,3);               // 1    86 - 129  bass
+        fftCalc[ 2] = fftAddAvg(3,5);               // 2   129 - 216  bass
+        fftCalc[ 3] = fftAddAvg(5,7);               // 2   216 - 301  bass + midrange
+        // don't use the last bins from 216 to 255. They are usually contaminated by aliasing (aka noise) 
+        fftCalc[15] = fftAddAvg(165,215) * 0.70f;   // 50 7106 - 9259 high  -- with some damping
+        #endif
+        fftCalc[ 4] = fftAddAvg(7,10);              // 3   301 - 430  midrange
+        fftCalc[ 5] = fftAddAvg(10,13);             // 3   430 - 560  midrange
+        fftCalc[ 6] = fftAddAvg(13,19);             // 5   560 - 818  midrange
+        fftCalc[ 7] = fftAddAvg(19,26);             // 7   818 - 1120 midrange  -- 1Khz should always be the center !
+        fftCalc[ 8] = fftAddAvg(26,33);             // 7  1120 - 1421 midrange
+        fftCalc[ 9] = fftAddAvg(33,44);             // 9  1421 - 1895 midrange
+        fftCalc[10] = fftAddAvg(44,56);             // 12 1895 - 2412 midrange + high mid
+        fftCalc[11] = fftAddAvg(56,70);             // 14 2412 - 3015 high mid
+        fftCalc[12] = fftAddAvg(70,86);             // 16 3015 - 3704 high mid
+        fftCalc[13] = fftAddAvg(86,104);            // 18 3704 - 4479 high mid
+        fftCalc[14] = fftAddAvg(104,165) * 0.88f;   // 61 4479 - 7106 high mid + high  -- with slight damping
+      } else {  // noise gate closed - just decay old values
+        for (int i=0; i < NUM_GEQ_CHANNELS; i++) {
+          fftCalc[i] *= 0.85f;  // decay to zero
+          if (fftCalc[i] < 4.0f) fftCalc[i] = 0.0f;
+        }
+      }
+
+      // post-processing of frequency channels (pink noise adjustment, AGC, smoothing, scaling)
+      postProcessFFTResults((fabsf(sampleAvg) > 0.25f)? true : false , NUM_GEQ_CHANNELS);
+
+      // run peak detection
+      autoResetPeak();
+      detectSamplePeak();
+
+      vTaskDelayUntil(&xLastWakeTime, xFrequency);  // release CPU
+    } // for(;;)ever
+  }
+} // FFTcode() task end
 
 // *****************************************************************************
 // Audio Processing
@@ -571,7 +677,7 @@ void MusicLeds::agcAvg(unsigned long the_time)
 
     // compute error terms
     control_error = multAgcTemp - lastMultAgc;
-    
+
     if (((multAgcTemp > 0.085f) && (multAgcTemp < 6.5f))          // integrator anti-windup by clamping
         && (multAgc*this->sampleMax < agcZoneStop[AGC_preset]))   // integrator ceiling (>140% of max)
       this->control_integrated += control_error * 0.002 * 0.25;   // 2ms = integration time; 0.25 for damping
@@ -640,7 +746,7 @@ void MusicLeds::getSample() {
   tmpSample = this->expAdjF;
   this->micIn = abs(this->micIn);                                        // And get the absolute value of each sample
 
-  sampleAdj = tmpSample * sampleGain / 40.0f * inputLevel/128.0f + tmpSample / 16.0f; // Adjust the gain. with inputLevel adjustment
+  sampleAdj = tmpSample * sampleGain / 40.0f * inputLevel / 128.0f + tmpSample / 16.0f; // Adjust the gain. with inputLevel adjustment
   this->sampleReal = tmpSample;
 
   sampleAdj = fmax(fmin(sampleAdj, 255), 0);  // Question: why are we limiting the value to 8 bits ???
@@ -666,7 +772,7 @@ void MusicLeds::getSample() {
   sampleAvg = fabsf(sampleAvg);                            // make sure we have a positive value
 } // getSample()
 
-#ifdef USE_SOUND_DYNAMICS_LIMITER  
+#ifdef USE_SOUND_DYNAMICS_LIMITER
 /* 
 * Limits the dynamics of volumeSmth (= sampleAvg or sampleAgc). 
 * does not affect FFTResult[] or volumeRaw ( = sample or rawSampleAgc) 
@@ -716,22 +822,28 @@ void MusicLeds::on_start() {
 
   // Reset FFT data
   memset(fftCalc, 0, sizeof(fftCalc)); 
+  #ifdef USE_SOUND_DYNAMICS_LIMITER
   memset(fftAvg, 0, sizeof(fftAvg)); 
+  #endif
   memset(fftResult, 0, sizeof(fftResult)); 
-  for(int i=(init?0:1); i<NUM_GEQ_CHANNELS; i+=2) {
+  for(int i = 0; i < NUM_GEQ_CHANNELS; i += 2) {
     fftResult[i] = 16; // make a tiny pattern
   }
   inputLevel = 128;    // reset level slider to default
   autoResetPeak();
 
   // Define the FFT Task and lock it to core
-  xTaskCreatePinnedToCore(FFTcode,            // Function to implement the task
-                          "FFT",              // Name of the task
-                          5000,               // Stack size in words
-                          (void *) this,      // Task input parameter
-                          FFTTASK_PRIORITY,   // Priority of the task
-                          &FFT_Task,          // Task handle
-                          FFTTASK_CORE);      // Core where the task should run
+  xTaskCreatePinnedToCore(MusicLeds::FFTcode,  // Function to implement the task
+                          "FFT",               // Name of the task
+                          5000,                // Stack size in words
+                          (void *) this,       // Task input parameter
+                          FFTTASK_PRIORITY,    // Priority of the task
+                          &this->FFT_Task,     // Task handle
+                          FFTTASK_CORE);       // Core where the task should run
+
+  if (this->FFT_Task == nullptr) {
+    this->status_momentary_error("Task failed to start...", 1000);
+  }
 }
 
 void MusicLeds::on_stop() {
@@ -778,39 +890,8 @@ void MusicLeds::on_loop()
 }
 
 // *****************************************************************************
-// Buffers and Data
+// Data
 // *****************************************************************************
-bool MusicLeds::buffer_allocate() {
-  if (this->audio_buffer_ != nullptr) {
-    return true;
-  }
-
-  // Allocate a transfer buffer
-  this->audio_buffer_ = audio::AudioSourceTransferBuffer::create(BUFFER_SIZE);
-  if (this->audio_buffer_ == nullptr) {
-    this->status_momentary_error("Failed to allocate transfer buffer", 15000);
-    return false;
-  }
-
-  // Allocates a new ring buffer, adds it as a source for the transfer buffer, and points ring_buffer_ to it
-  this->ring_buffer_.reset();  // Reset pointer to any previous ring buffer allocation
-  std::shared_ptr<RingBuffer> temp_ring_buffer = RingBuffer::create(BUFFER_SIZE);
-  if (temp_ring_buffer.use_count() == 0) {
-    this->status_momentary_error("Failed to allocate ring buffer", 15000);
-    this->buffer_deallocate();
-    return false;
-  } else {
-    this->ring_buffer_ = temp_ring_buffer;
-    this->audio_buffer_->set_source(temp_ring_buffer);
-  }
-
-  this->status_clear_error();
-  return true;
-}
-
-void MusicLeds::buffer_deallocate() {
-  this->audio_buffer_.reset();
-}
 
 // allocates effect data buffer on heap and initialises (erases) it
 bool MusicLeds::allocateData(size_t len) {
@@ -828,7 +909,8 @@ bool MusicLeds::allocateData(size_t len) {
   // Do not use SPI RAM on ESP32 since it is slow
   this->data = (byte*)calloc(len, sizeof(byte));
   if (!this->data) {
-    ESP_LOGD(TAG, "Effect Data !!! Allocation failed. !!!");
+    ESP_LOGW(TAG, "Effect Data !!! Allocation failed. !!!");
+    this->status_set_warning();
     return false;
   } // allocation failed
 
@@ -848,107 +930,6 @@ void MusicLeds::deallocateData() {
   this->data = nullptr;
   _dataLen = 0;
 }
-
-// *****************************************************************************
-// 
-// *****************************************************************************
-static I2S_datatype postProcessSample(I2S_datatype sample_in) {
-  static I2S_datatype lastADCsample = 0;                       // last good sample
-  // static unsigned int broken_samples_counter = 0;           // number of consecutive broken (and fixed) ADC samples
-  // static uint8_t _myADCchannel = 0x0F;                      // current ADC channel, in case of analog input. 0x0F if undefined
-  I2S_datatype sample_out = 0;
-
-  // bring sample down down to 16bit unsigned
-  I2S_unsigned_datatype rawData = * reinterpret_cast<I2S_unsigned_datatype *> (&sample_in); // C++ acrobatics to get sample as "unsigned"
-  #if BITS_PER_SAMPLE == 16
-    rawData = rawData & 0xFFFF;                               // input is already in 16bit, just mask off possible junk
-    I2S_datatype lastGoodSample = lastADCsample * 4;          // prepare "last good sample" accordingly (10bit-> 12bit)
-  #else
-    rawData = (rawData >> 16) & 0xFFFF;                       // scale input down from 32bit -> 16bit
-    I2S_datatype lastGoodSample = lastADCsample / 16384 ;     // prepare "last good sample" accordingly (26bit-> 12bit with correct sign handling)
-  #endif
-
-  // decode ADC sample data fields
-  // uint16_t the_channel = (rawData >> 12) & 0x000F;         // upper 4 bit = ADC channel
-  uint16_t the_sample = rawData & 0x0FFF;                     // lower 12bit -> ADC sample (unsigned)
-  I2S_datatype finalSample = (int(the_sample) - 2048);        // convert unsigned sample to signed (centered at 0);
-
-  /*
-  if ((the_channel != _myADCchannel) && (_myADCchannel != 0x0F)) { // 0x0F means "don't know what my channel is" 
-    // fix bad sample
-    finalSample = lastGoodSample;                             // replace with last good ADC sample
-    broken_samples_counter ++;
-    if (broken_samples_counter > 256) {
-      _myADCchannel = 0x0F;                                   // too  many bad samples in a row -> disable sample corrections
-    }
-  } else broken_samples_counter = 0;                          // good sample - reset counter
-  */
-
-  // back to original resolution
-  #if BITS_PER_SAMPLE == 32
-    finalSample = finalSample << 16;                          // scale up from 16bit -> 32bit;
-  #endif
-
-  finalSample = finalSample / 4;                              // mimic old analog driver behaviour (12bit -> 10bit)
-  sample_out = (3 * finalSample + lastADCsample) / 4;         // apply low-pass filter (2-tap FIR)
-  // sample_out = (finalSample + lastADCsample) / 2;          // apply stronger low-pass filter (2-tap FIR)
-
-  lastADCsample = sample_out;                                 // update ADC last sample
-  return(sample_out);
-}
-
-void MusicLeds::getSamples(float *buffer, uint16_t num_samples) {
-  if (!this->microphone_is_running()) {
-    if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Mic");
-    return;
-  }
-
-  // Allocate buffers
-  if (this->buffer_allocate()) {
-    this->status_clear_warning();
-  } else {
-    // Deallocate buffers, if necessary
-    this->buffer_deallocate();
-    if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Buffer");
-    return;
-  }
-
-  if (this->status_has_error()) {
-    if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Error");
-    return;
-  }
-
-  // Copy data from ring buffer into the transfer buffer
-  this->audio_buffer_->transfer_data_from_source(pdMS_TO_TICKS(DATA_TIMEOUT_MS));
-  if (this->audio_buffer_->available() < BUFFER_SIZE) {
-    // No new audio available for processing
-    if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "No new audio %d", this->audio_buffer_->available());
-    return;
-  }
-
-  // Get fresh samples
-  // Intermediary sample storage
-  I2S_datatype *newSamples = reinterpret_cast<I2S_datatype *>(this->audio_buffer_->get_buffer_start());
-
-  float sum = 0.0f;
-  // Store samples in sample buffer and update DC offset
-  for (int i = 0; i < num_samples; i++) {
-    newSamples[i] = postProcessSample(newSamples[i]);  // perform postprocessing (needed for ADC samples)
-    float currSample = 0.0f;
-#ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
-    currSample = (float) newSamples[i] / 65536.0f;     // 32bit input -> 16bit; keeping lower 16bits as decimal places
-#else
-    currSample = (float) newSamples[i];                // 16bit input -> use as-is
-#endif
-    buffer[i] = currSample;
-    // buffer[i] *= _sampleScale;                      // scale samples float _sampleScale{1.0f}; // pre-scaling factor for I2S samples
-    sum = sum + buffer[i];
-  }
-  if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Samples %f | High %f", sum, this->volumeSmth);
-
-  // Remove the processed samples from ``audio_buffer_``
-  this->audio_buffer_->decrease_buffer_length(BUFFER_SIZE);
-} // getSamples()
 
 // *****************************************************************************
 // Speed and Variant
@@ -1018,7 +999,7 @@ void MusicLeds::ShowFrame(PLAYMODE CurrentMode, esphome::Color current_color, li
   for (int i = 0; i < p_it->size(); i++) {
     (*p_it)[i] = Color(fastled_helper::leds[i].r, fastled_helper::leds[i].g, fastled_helper::leds[i].b);
   }
-  
+
   this->start_effect_ = false;
   delay_microseconds_safe(1);
 }

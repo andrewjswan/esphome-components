@@ -15,5 +15,6 @@ ignore = [
     "D212", # multi-line-summary-first-line (incompatible with formatter)
     "FIX002", # Line contains TODO, consider resolving an issue
     "TD003", # Missing issue link on the line following this TODO
+    "TRY003", # Avoid specifying long messages outside the exception class
     "LOG015" # info() call on root logger
 ]

@@ -452,17 +452,10 @@ void MusicLeds::FFTcode(void * parameter)
     // Create FFT object with weighing factor storage
     ArduinoFFT<float> FFT = ArduinoFFT<float>(vReal, vImag, SAMPLES_FFT, SAMPLE_RATE, true);
 
-    // see https://www.freertos.org/vtaskdelayuntil.html
-    const TickType_t xFrequency = FFT_MIN_CYCLE * portTICK_PERIOD_MS;  
-
-    TickType_t xLastWakeTime = xTaskGetTickCount();
     for(;;) {
-      delay_microseconds_safe(1);
-
       if (this_task == nullptr) {
         if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Dead");
         ESP_LOGW(TAG, "Music Leds dead?");
-        vTaskDelayUntil(&xLastWakeTime, xFrequency);  // release CPU
         continue;
       }
 
@@ -471,7 +464,6 @@ void MusicLeds::FFTcode(void * parameter)
         if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Mute");
         ESP_LOGW(TAG, "Microphone not running...");
         this_task->status_set_warning();
-        vTaskDelayUntil(&xLastWakeTime, xFrequency);  // release CPU
         continue;
       }
       this_task->status_clear_warning();
@@ -501,12 +493,8 @@ void MusicLeds::FFTcode(void * parameter)
         // vReal[i] *= _sampleScale;                       // scale samples float _sampleScale{1.0f}; // pre-scaling factor for I2S samples
         sum = sum + vReal[i];
       }
-      if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Samples %f | High %f", sum, this_task->volumeSmth);
-
       audio_buffer->decrease_buffer_length(BUFFER_SIZE);   // Remove the processed samples from audio_buffer
       memset(vImag, 0, SAMPLES_FFT * sizeof(float));       // Set imaginary parts to 0
-
-      xLastWakeTime = xTaskGetTickCount(); // update "last unblocked time" for vTaskDelay
 
       #ifdef USE_BANDPASSFILTER
       // band pass filter - can reduce noise floor by a factor of 50
@@ -530,6 +518,7 @@ void MusicLeds::FFTcode(void * parameter)
       // release highest sample to volume reactive effects early - not strictly necessary here - could also be done at the end of the function
       // early release allows the filters (getSample() and agcAvg()) to work with fresh values - we will have matching gain and noise gate values when we want to process the FFT results.
       micDataReal = maxSample;
+      if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Samples %f | High %f", sum, micDataReal);
 
       if (sampleAvg > 0.25f) { // noise gate open means that FFT results will be used. Don't run FFT if results are not needed.
         // run FFT (takes 3-5ms on ESP32, ~12ms on ESP32-S2)
@@ -608,8 +597,6 @@ void MusicLeds::FFTcode(void * parameter)
       // run peak detection
       autoResetPeak();
       detectSamplePeak();
-
-      vTaskDelayUntil(&xLastWakeTime, xFrequency);  // release CPU
     } // for(;;)ever
   }
 } // FFTcode() task end
@@ -840,7 +827,6 @@ void MusicLeds::on_start() {
                           FFTTASK_PRIORITY,    // Priority of the task
                           &this->FFT_Task,     // Task handle
                           FFTTASK_CORE);       // Core where the task should run
-
   if (this->FFT_Task == nullptr) {
     this->status_momentary_error("Task failed to start...", 1000);
   }

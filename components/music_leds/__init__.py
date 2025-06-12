@@ -68,7 +68,7 @@ MUSIC_LEDS_SCHEMA = cv.Schema(
         cv.Optional(CONF_BITS_PER_SAMPLE): cv.float_,
         cv.Optional(CONF_SAMPLE_RATE): cv.int_,
         cv.Optional(CONF_TASK_CORE, default=1): cv.int_range(0, 1),
-        cv.Optional(CONF_TASK_PRIORITY, default=1): cv.int_range(1, 10),
+        cv.Optional(CONF_TASK_PRIORITY, default=3): cv.int_range(1, 10),
         cv.Optional(CONF_GAINCONTROL, default=0): cv.int_range(0, 3),
         cv.Optional(CONF_FFT_SCALING, default=3): cv.int_range(0, 3),
         cv.Optional(CONF_SR_GAIN, default=60): cv.int_range(0, 255),

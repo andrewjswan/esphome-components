@@ -20,6 +20,13 @@ static const char *const MUSIC_LEDS_VERSION = "2025.6.1";
 
 enum PLAYMODE { MODE_GRAV, MODE_GRAVICENTER, MODE_GRAVICENTRIC, MODE_GRAVIMETER, MODE_PIXELS, MODE_JUNGLES, MODE_MIDNOISE };
 
+enum State : uint8_t {
+  STOPPED = 0,
+  STARTING,
+  RUNNING,
+  STOPPING
+};
+
 class MusicLeds : public Component {
  public:
   float get_setup_priority() const override { return setup_priority::LATE; }
@@ -28,6 +35,12 @@ class MusicLeds : public Component {
   void loop() override;
   void dump_config() override;
   void on_shutdown() override;
+
+  void start();
+  void stop();
+
+  bool is_running() const { return this->state_ == State::RUNNING; }
+  bool is_stopped() const { return this->state_ == State::STOPPED; }
 
   void set_microphone(microphone::Microphone *microphone) { this->microphone_ = microphone; }
 
@@ -50,6 +63,12 @@ protected:
 
   static void FFTcode(void *params);
   TaskHandle_t FFT_Task{nullptr};
+
+  State state_{State::STOPPED};
+  void set_state_(State state);
+
+  // Handles managing the stop/state of the FFT task
+  EventGroupHandle_t event_group_;
 
   // variables used by getSample() and agcAvg()
   int16_t micIn{0};                // Current sample starts with negative values and large values, which is why it's 16 bit signed

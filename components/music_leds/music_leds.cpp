@@ -36,14 +36,60 @@ namespace music_leds {
 static const size_t DATA_TIMEOUT_MS = 50;
 static const uint32_t BUFFER_SIZE = sizeof(I2S_datatype) * SAMPLES_FFT;
 
+enum EventGroupBits : uint32_t {
+  COMMAND_STOP = (1 << 0),  // Signals the FFT task should stop
+
+  TASK_STARTING = (1 << 3),
+  TASK_RUNNING = (1 << 4),
+  TASK_STOPPING = (1 << 5),
+  TASK_STOPPED = (1 << 6),
+  TASK_INFO = (1 << 7),
+
+  ERROR_MEMORY = (1 << 9),
+  ERROR_FFT = (1 << 10),
+
+  WARNING_FULL_RING_BUFFER = (1 << 13),
+
+  ERROR_BITS = ERROR_MEMORY | ERROR_FFT,
+  ALL_BITS = 0xfffff,  // 24 total bits available in an event group
+};
+
+static const LogString *music_leds_state_to_string(State state) {
+  switch (state) {
+    case State::STARTING:
+      return LOG_STR("STARTING");
+    case State::STOPPING:
+      return LOG_STR("STOPPING");
+    case State::STOPPED:
+      return LOG_STR("STOPPED");
+    case State::RUNNING:
+      return LOG_STR("RUNNING");
+    default:
+      return LOG_STR("UNKNOWN");
+  }
+}
+
 void MusicLeds::setup() {
+  this->event_group_ = xEventGroupCreate();
+  if (this->event_group_ == nullptr) {
+    ESP_LOGE(TAG, "Failed to create event group");
+    this->mark_failed();
+    return;
+  }
+
   this->microphone_->add_data_callback([this](const std::vector<uint8_t> &data) {
+    if (this->state_ == State::STOPPED) {
+      return;
+    }
+
     std::shared_ptr<RingBuffer> temp_ring_buffer = this->ring_buffer_.lock();
     if (this->ring_buffer_.use_count() > 1) {
       size_t bytes_free = temp_ring_buffer->free();
       if (bytes_free < data.size()) {
+        xEventGroupSetBits(this->event_group_, EventGroupBits::WARNING_FULL_RING_BUFFER);
         temp_ring_buffer->reset();
       }
+
       temp_ring_buffer->write((void *) data.data(), data.size());
     }
   });
@@ -57,15 +103,63 @@ void MusicLeds::setup() {
       });
 #endif
 
-  this->on_start();
-  this->microphone_->start();
-
   ESP_LOGCONFIG(TAG, "Music Leds initialized");
+  this->start();
 }
 
 void MusicLeds::loop() {
-  if (this->microphone_is_running()) {
-    this->on_loop();
+  uint32_t event_group_bits = xEventGroupGetBits(this->event_group_);
+
+  if (event_group_bits & EventGroupBits::ERROR_MEMORY) {
+    xEventGroupClearBits(this->event_group_, EventGroupBits::ERROR_MEMORY);
+    ESP_LOGE(TAG, "Encountered an error allocating buffers");
+  }
+
+  if (event_group_bits & EventGroupBits::ERROR_FFT) {
+    xEventGroupClearBits(this->event_group_, EventGroupBits::ERROR_FFT);
+    ESP_LOGE(TAG, "Encountered an error while performing an FFT");
+  }
+
+  if (event_group_bits & EventGroupBits::WARNING_FULL_RING_BUFFER) {
+    xEventGroupClearBits(this->event_group_, EventGroupBits::WARNING_FULL_RING_BUFFER);
+    ESP_LOGW(TAG, "Not enough free bytes in ring buffer to store incoming audio data. Resetting the ring buffer.");
+  }
+
+  if (event_group_bits & EventGroupBits::TASK_STARTING) {
+    ESP_LOGD(TAG, "FFT task has started, attempting to allocate memory for buffers");
+    xEventGroupClearBits(this->event_group_, EventGroupBits::TASK_STARTING);
+  }
+
+  if (event_group_bits & EventGroupBits::TASK_RUNNING) {
+    ESP_LOGD(TAG, "FFT task is running");
+    xEventGroupClearBits(this->event_group_, EventGroupBits::TASK_RUNNING);
+    this->set_state_(State::RUNNING);
+  }
+
+  if (event_group_bits & EventGroupBits::TASK_STOPPING) {
+    ESP_LOGD(TAG, "FFT task is stopping, deallocating buffers");
+    xEventGroupClearBits(this->event_group_, EventGroupBits::TASK_STOPPING);
+  }
+
+  if ((event_group_bits & EventGroupBits::TASK_STOPPED)) {
+    ESP_LOGD(TAG, "FFT task is finished, freeing task resources");
+    this->on_stop();
+    xEventGroupClearBits(this->event_group_, ALL_BITS);
+    this->set_state_(State::STOPPED);
+  }
+
+  switch (this->state_) {
+    case State::STARTING:
+      this->on_start();
+      break;
+    case State::RUNNING:
+      this->on_loop();
+      break;
+    case State::STOPPING:
+      xEventGroupSetBits(this->event_group_, EventGroupBits::COMMAND_STOP);
+      break;
+    case State::STOPPED:
+      break;
   }
 }
 
@@ -93,8 +187,30 @@ void MusicLeds::dump_config() {
 }  // dump_config()
 
 void MusicLeds::on_shutdown() {
-  this->microphone_->stop();
-  this->on_stop();
+  this->stop();
+}
+
+void MusicLeds::start() {
+  if (this->state_ != State::STOPPED)
+    return;
+
+  ESP_LOGD(TAG, "Starting MusicLeds");
+  this->state_ = State::STARTING;
+}
+
+void MusicLeds::stop() {
+  if (this->state_ == State::STOPPED)
+    return;
+
+  ESP_LOGD(TAG, "Stopping MusicLeds...");
+  this->set_state_(State::STOPPING);
+}
+
+void MusicLeds::set_state_(State state) {
+  if (this->state_ != state) {
+    ESP_LOGD(TAG, "State changed from %s to %s", LOG_STR_ARG(music_leds_state_to_string(this->state_)), LOG_STR_ARG(music_leds_state_to_string(state)));
+    this->state_ = state;
+  }
 }
 
 // *****************************************************************************
@@ -157,7 +273,6 @@ static float fftAddAvg(int from, int to);  // average of several FFT result bins
 static void runMicFilter(uint16_t numSamples, float *sampleBuffer);  // pre-filtering of raw samples (band-pass)
 #endif
 static void postProcessFFTResults(bool noiseGateOpen, int numberOfChannels);  // post-processing and post-amp of GEQ channels
-static I2S_datatype postProcessSample(I2S_datatype sample_in);   // samples post-processing
 
 // Table of multiplication factors so that we can even out the frequency response.
 static float fftResultPink[NUM_GEQ_CHANNELS] = { 1.70f, 1.71f, 1.73f, 1.78f, 1.68f, 1.56f, 1.55f, 1.63f, 1.79f, 1.62f, 1.80f, 2.06f, 2.47f, 3.35f, 6.83f, 9.55f };
@@ -331,43 +446,30 @@ static void postProcessFFTResults(bool noiseGateOpen, int numberOfChannels)
 }
 
 static I2S_datatype postProcessSample(I2S_datatype sample_in) {
+  // https://github.com/atomic14/esp32_audio/blob/master/i2s_sampling/src/ADCSampler.cpp
+  // https://github.com/atomic14/esp32_audio/blob/master/i2s_sampling/src/I2SMEMSSampler.cpp
   static I2S_datatype lastADCsample = 0;                       // last good sample
-  // static unsigned int broken_samples_counter = 0;           // number of consecutive broken (and fixed) ADC samples
-  // static uint8_t _myADCchannel = 0x0F;                      // current ADC channel, in case of analog input. 0x0F if undefined
   I2S_datatype sample_out = 0;
 
   // bring sample down down to 16bit unsigned
   I2S_unsigned_datatype rawData = * reinterpret_cast<I2S_unsigned_datatype *> (&sample_in); // C++ acrobatics to get sample as "unsigned"
+
   #if BITS_PER_SAMPLE == 16
     rawData = rawData & 0xFFFF;                               // input is already in 16bit, just mask off possible junk
-    I2S_datatype lastGoodSample = lastADCsample * 4;          // prepare "last good sample" accordingly (10bit-> 12bit)
   #else
     rawData = (rawData >> 16) & 0xFFFF;                       // scale input down from 32bit -> 16bit
-    I2S_datatype lastGoodSample = lastADCsample / 16384 ;     // prepare "last good sample" accordingly (26bit-> 12bit with correct sign handling)
   #endif
 
-  // decode ADC sample data fields
-  // uint16_t the_channel = (rawData >> 12) & 0x000F;         // upper 4 bit = ADC channel
   uint16_t the_sample = rawData & 0x0FFF;                     // lower 12bit -> ADC sample (unsigned)
   I2S_datatype finalSample = (int(the_sample) - 2048);        // convert unsigned sample to signed (centered at 0);
 
-  /*
-  if ((the_channel != _myADCchannel) && (_myADCchannel != 0x0F)) { // 0x0F means "don't know what my channel is" 
-    // fix bad sample
-    finalSample = lastGoodSample;                             // replace with last good ADC sample
-    broken_samples_counter ++;
-    if (broken_samples_counter > 256) {
-      _myADCchannel = 0x0F;                                   // too  many bad samples in a row -> disable sample corrections
-    }
-  } else broken_samples_counter = 0;                          // good sample - reset counter
-  */
-
   // back to original resolution
   #if BITS_PER_SAMPLE == 32
-    finalSample = finalSample << 16;                          // scale up from 16bit -> 32bit;
+  finalSample = finalSample << 16;                            // scale up from 16bit -> 32bit;
   #endif
 
   finalSample = finalSample / 4;                              // mimic old analog driver behaviour (12bit -> 10bit)
+
   sample_out = (3 * finalSample + lastADCsample) / 4;         // apply low-pass filter (2-tap FIR)
   // sample_out = (finalSample + lastADCsample) / 2;          // apply stronger low-pass filter (2-tap FIR)
 
@@ -407,63 +509,68 @@ void MusicLeds::FFTcode(void * parameter)
   MusicLeds *this_task = (MusicLeds *) parameter;
   ESP_LOGCONFIG(TAG, "FFT: started on core: %u", FFTTASK_CORE);
 
-  // Allocate FFT buffers on first call
-  if (vReal == nullptr) {
-    vReal = (float*) calloc(sizeof(float), SAMPLES_FFT);
-  }
-  if (vImag == nullptr) {
-    vImag = (float*) calloc(sizeof(float), SAMPLES_FFT);
-  }
-
-  if ((vReal == nullptr) || (vImag == nullptr)) {
-    // Something went wrong
-    if (vReal) {
-      free(vReal); 
-      vReal = nullptr;
-    }
-    if (vImag) {
-      free(vImag); 
-      vImag = nullptr;
-    }
-    ESP_LOGW(TAG, "Allocate FFT buffers failed.");
-    this_task->status_set_warning();
-    return;
-  }
+  xEventGroupSetBits(this_task->event_group_, EventGroupBits::TASK_STARTING);
 
   {  // Ensures any C++ objects fall out of scope to deallocate before deleting the task
+    // Allocate FFT buffers on first call
+    if (vReal == nullptr) {
+      vReal = (float*) calloc(sizeof(float), SAMPLES_FFT);
+    }
+    if (vImag == nullptr) {
+      vImag = (float*) calloc(sizeof(float), SAMPLES_FFT);
+    }
+  
+    if ((vReal == nullptr) || (vImag == nullptr)) {
+      // Something went wrong
+      if (vReal) {
+        free(vReal); 
+        vReal = nullptr;
+      }
+      if (vImag) {
+        free(vImag); 
+        vImag = nullptr;
+      }
+      ESP_LOGW(TAG, "Allocate FFT buffers failed.");
+      xEventGroupSetBits(this_task->event_group_, EventGroupBits::ERROR_MEMORY);
+      this_task->status_set_warning();
+      return;
+    }
+
     std::unique_ptr<audio::AudioSourceTransferBuffer> audio_buffer;
     // Allocate audio transfer buffer
     audio_buffer = audio::AudioSourceTransferBuffer::create(BUFFER_SIZE);
     if (audio_buffer == nullptr) {
       ESP_LOGW(TAG, "Allocate Audio buffer failed.");
+      xEventGroupSetBits(this_task->event_group_, EventGroupBits::ERROR_MEMORY);
       this_task->status_set_warning();
       return;
     }
+
     // Allocate ring buffer
     std::shared_ptr<RingBuffer> temp_ring_buffer = RingBuffer::create(BUFFER_SIZE);
     if (temp_ring_buffer.use_count() == 0) {
       ESP_LOGW(TAG, "Allocate Ring buffer failed.");
+      xEventGroupSetBits(this_task->event_group_, EventGroupBits::ERROR_MEMORY);
       this_task->status_set_warning();
       return;
     }
+
     audio_buffer->set_source(temp_ring_buffer);
     this_task->ring_buffer_ = temp_ring_buffer;
 
     // Create FFT object with weighing factor storage
     ArduinoFFT<float> FFT = ArduinoFFT<float>(vReal, vImag, SAMPLES_FFT, SAMPLE_RATE, true);
 
-    for(;;) {
-      if (this_task == nullptr) {
-        if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Dead");
-        ESP_LOGW(TAG, "Music Leds dead?");
-        continue;
-      }
+    xEventGroupSetBits(this_task->event_group_, EventGroupBits::TASK_RUNNING);
 
+    this_task->microphone_->start();
+    temp_ring_buffer->reset();
+
+    while (!(xEventGroupGetBits(this_task->event_group_) & EventGroupBits::COMMAND_STOP)) {
       // Only run the FFT computing code if microphone running
       if (!this_task->microphone_is_running()) {
-        if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Mute");
-        ESP_LOGW(TAG, "Microphone not running...");
-        this_task->status_set_warning();
+        this_task->status_momentary_warning("Microphone not running!");
+        vTaskDelay(FFT_MIN_CYCLE / portTICK_PERIOD_MS);
         continue;
       }
       this_task->status_clear_warning();
@@ -471,7 +578,6 @@ void MusicLeds::FFTcode(void * parameter)
       audio_buffer->transfer_data_from_source(pdMS_TO_TICKS(DATA_TIMEOUT_MS));
       if (audio_buffer->available() < BUFFER_SIZE) {
         // Insufficient data for processing, read more next iteration
-        if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Insufficient data %d", audio_buffer->available());
         continue;
       }
 
@@ -479,7 +585,6 @@ void MusicLeds::FFTcode(void * parameter)
       // Intermediary sample storage
       I2S_datatype *newSamples = reinterpret_cast<I2S_datatype *>(audio_buffer->get_buffer_start());
 
-      float sum = 0.0f;
       // Store samples in sample buffer and update DC offset
       for (int i = 0; i < SAMPLES_FFT; i++) {
         newSamples[i] = postProcessSample(newSamples[i]);  // perform postprocessing (needed for ADC samples)
@@ -491,7 +596,6 @@ void MusicLeds::FFTcode(void * parameter)
 #endif
         vReal[i] = currSample;
         // vReal[i] *= _sampleScale;                       // scale samples float _sampleScale{1.0f}; // pre-scaling factor for I2S samples
-        sum = sum + vReal[i];
       }
       audio_buffer->decrease_buffer_length(BUFFER_SIZE);   // Remove the processed samples from audio_buffer
       memset(vImag, 0, SAMPLES_FFT * sizeof(float));       // Set imaginary parts to 0
@@ -514,18 +618,16 @@ void MusicLeds::FFTcode(void * parameter)
           }
         }
       }
-  
+
       // release highest sample to volume reactive effects early - not strictly necessary here - could also be done at the end of the function
       // early release allows the filters (getSample() and agcAvg()) to work with fresh values - we will have matching gain and noise gate values when we want to process the FFT results.
       micDataReal = maxSample;
-      if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Samples %f | High %f", sum, micDataReal);
-
       if (sampleAvg > 0.25f) { // noise gate open means that FFT results will be used. Don't run FFT if results are not needed.
         // run FFT (takes 3-5ms on ESP32, ~12ms on ESP32-S2)
         FFT.dcRemoval();                                            // remove DC offset
-        FFT.windowing( FFTWindow::Flat_top, FFTDirection::Forward); // Weigh data using "Flat Top" function - better amplitude accuracy
+        FFT.windowing(FFTWindow::Flat_top, FFTDirection::Forward);  // Weigh data using "Flat Top" function - better amplitude accuracy
         //FFT.windowing(FFTWindow::Blackman_Harris, FFTDirection::Forward);  // Weigh data using "Blackman- Harris" window - sharp peaks due to excellent sideband rejection
-        FFT.compute( FFTDirection::Forward );                       // Compute FFT
+        FFT.compute(FFTDirection::Forward);                         // Compute FFT
         FFT.complexToMagnitude();                                   // Compute magnitudes
         vReal[0] = 0;   // The remaining DC offset on the signal produces a strong spike on position 0 that should be eliminated to avoid issues.
 
@@ -535,7 +637,6 @@ void MusicLeds::FFTcode(void * parameter)
         memset(vReal, 0, SAMPLES_FFT * sizeof(float));
         FFT_MajorPeak = 1;
         FFT_Magnitude = 0.001;
-        if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "Noise");
       }
 
       for (int i = 0; i < SAMPLES_FFT; i++) {
@@ -544,7 +645,7 @@ void MusicLeds::FFTcode(void * parameter)
       } // for()
 
       // mapping of FFT result bins to frequency channels
-      if (fabsf(sampleAvg) > 0.5f) { // noise gate open
+      if (sampleAvg > 0.5f) { // noise gate open
         /*
         * This FFT post processing is a DIY endeavour.
         * What we really need is someone with sound engineering expertise to do a great job here AND most importantly, that the animations look GREAT as a result.
@@ -597,7 +698,19 @@ void MusicLeds::FFTcode(void * parameter)
       // run peak detection
       autoResetPeak();
       detectSamplePeak();
-    } // for(;;)ever
+      xEventGroupSetBits(this_task->event_group_, EventGroupBits::TASK_INFO);
+    } // while (!(xEventGroupGetBits(this_task->event_group_) & COMMAND_STOP))
+
+    xEventGroupSetBits(this_task->event_group_, EventGroupBits::TASK_STOPPING);
+
+    this_task->microphone_->stop();
+
+    xEventGroupSetBits(this_task->event_group_, EventGroupBits::TASK_STOPPED);
+
+    while (true) {
+      // Continuously delay until the loop method deletes the task
+      vTaskDelay(FFT_MIN_CYCLE / portTICK_PERIOD_MS);
+    }
   }
 } // FFTcode() task end
 
@@ -774,16 +887,16 @@ void MusicLeds::limitSampleDynamics(void) {
   delta_time = constrain(delta_time, 1, 1000);  // below 1ms -> 1ms; above 1sec -> sily lil hick-up
   float deltaSample = this->volumeSmth - last_volumeSmth;
 
-  if (attackTime > 0) {                         // user has defined attack time > 0
+  if (attackTime > 0) {  // user has defined attack time > 0
     float maxAttack =   bigChange * float(delta_time) / float(attackTime);
     if (deltaSample > maxAttack) deltaSample = maxAttack;
   }
-  if (decayTime > 0) {                          // user has defined decay time > 0
+  if (decayTime > 0) {   // user has defined decay time > 0
     float maxDecay  = - bigChange * float(delta_time) / float(decayTime);
     if (deltaSample < maxDecay) deltaSample = maxDecay;
   }
 
-  this->volumeSmth = last_volumeSmth + deltaSample; 
+  this->volumeSmth = last_volumeSmth + deltaSample;
 
   last_volumeSmth = this->volumeSmth;
   last_time = millis();
@@ -828,13 +941,17 @@ void MusicLeds::on_start() {
                           &this->FFT_Task,     // Task handle
                           FFTTASK_CORE);       // Core where the task should run
   if (this->FFT_Task == nullptr) {
-    this->status_momentary_error("Task failed to start...", 1000);
+    this->status_momentary_error("MusicLeds task failed to start...", 1000);
   }
 }
 
 void MusicLeds::on_stop() {
-  vTaskDelete(FFT_Task);
+  vTaskDelete(this->FFT_Task);
+  this->FFT_Task = nullptr;
+
   fastled_helper::FreeLeds();
+
+  this->status_clear_error();
 }
 
 void MusicLeds::on_loop()
@@ -849,9 +966,9 @@ void MusicLeds::on_loop()
     userloopDelay = 0;                          // startup - don't have valid data from last run.
 
   // run filters, and repeat in case of loop delays (hick-up compensation)
-  if (userloopDelay <2)
+  if (userloopDelay < 2)
     userloopDelay = 0;                          // minor glitch, no problem
-  if (userloopDelay >200)
+  if (userloopDelay > 200)
     userloopDelay = 200;                        // limit number of filter re-runs  
   do {
     this->getSample();                          // run microphone sampling filters
@@ -867,12 +984,20 @@ void MusicLeds::on_loop()
   // update FFTMagnitude, taking into account AGC amplification
   this->my_magnitude = FFT_Magnitude;           // / 16.0f, 8.0f, 4.0f done in effects
   if (soundAgc) this->my_magnitude *= multAgc;
-  if (this->volumeSmth < 1 ) this->my_magnitude = 0.001f;   // noise gate closed - mute
+  if (this->volumeSmth < 1 ) {
+    this->my_magnitude = 0.001f;                // noise gate closed - mute
+  }
 
   #ifdef USE_SOUND_DYNAMICS_LIMITER
   this->limitSampleDynamics();
   #endif
   autoResetPeak();                              // auto-reset sample peak after strip minShowDelay
+
+  uint32_t event_group_bits = xEventGroupGetBits(this->event_group_);
+  if ((event_group_bits & EventGroupBits::TASK_INFO)) {
+    if (millis() % 50 == 0) ESP_LOGE(TAG, "Samples: High: %f | volumeSmth: %f | sampleAgc: %f | sampleAvg: %f", micDataReal, this->volumeSmth, sampleAgc, sampleAvg);
+    xEventGroupClearBits(this->event_group_, EventGroupBits::TASK_INFO);
+  }
 }
 
 // *****************************************************************************
@@ -895,8 +1020,7 @@ bool MusicLeds::allocateData(size_t len) {
   // Do not use SPI RAM on ESP32 since it is slow
   this->data = (byte*)calloc(len, sizeof(byte));
   if (!this->data) {
-    ESP_LOGW(TAG, "Effect Data !!! Allocation failed. !!!");
-    this->status_set_warning();
+    this->status_momentary_warning("Effect data, allocation failed!");
     return false;
   } // allocation failed
 
@@ -928,7 +1052,7 @@ void MusicLeds::set_variant(int index) { this->variant = index; }
 // Effects
 // *****************************************************************************
 void MusicLeds::ShowFrame(PLAYMODE CurrentMode, esphome::Color current_color, light::AddressableLight *p_it) {
-  if (!this->microphone_is_running()) {
+  if (!this->is_running() && !this->microphone_is_running()) {
     return;
   }
 
@@ -1091,7 +1215,6 @@ void MusicLeds::mode_gravcenter_base(unsigned mode, CRGB *physic_leds) {
     }
   } 
   gravcen->gravityCounter = (gravcen->gravityCounter + 1) % gravity;
-  if (millis() % 50 == 0) ESP_LOGCONFIG(TAG, "this->volumeSmth %f", this->volumeSmth);
 }
 #endif
 

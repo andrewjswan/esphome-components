@@ -1,9 +1,15 @@
 #include "esphome.h"
 #include "audio_reactive.h"
+#include "audio_source.h"
+
 #include "esphome/components/fastled_helper/fastled_helper.h"
 
 namespace esphome {
 namespace music_leds {
+
+#define READ_DURATION_MS 16UL
+
+static const uint32_t BUFFER_SIZE = sizeof(I2S_datatype) * samplesFFT;
 
 void MusicLeds::setup() {
   // Define the FFT Task and lock it to core 0
@@ -134,76 +140,31 @@ void MusicLeds::getSamples(float *buffer) {
     return;
   }
 
-  // Counter variable to check if we actually got enough data
-  size_t bytes_read = 0;
-  // Intermediary sample storage
-  I2S_datatype newSamples[I2S_buffer_size];
-  // Reset ADC broken samples counter
-  _broken_samples_counter = 0;
-
   // Get fresh samples
-  bytes_read = this->microphone_->read(newSamples, sizeof(newSamples));
-  bytes_read = bytes_read * BITS_PER_SAMPLE / 16;
+  uint8_t samples[BUFFER_SIZE] = {0};
+  size_t bytes_read =
+      ((AudioSource *) this->microphone_)->read_(samples, BUFFER_SIZE, 10 * pdMS_TO_TICKS(READ_DURATION_MS));
 
   // For correct operation, we need to read exactly sizeof(samples) bytes from i2s
-  if (bytes_read != sizeof(newSamples)) {
-    ESP_LOGE("ASR", "AS: Failed to get enough samples: wanted: %d read: %d", sizeof(newSamples), bytes_read);
+  if (bytes_read != BUFFER_SIZE) {
+    ESP_LOGE("ASR", "AS: Failed to get enough samples: wanted: %d read: %d", BUFFER_SIZE, bytes_read);
     return;
   }
 
+  // Intermediary sample storage
+  I2S_datatype *newSamples = reinterpret_cast<I2S_datatype *>(samples);
+
   // Store samples in sample buffer and update DC offset
   for (int i = 0; i < samplesFFT; i++) {
-    if (_mask == 0x0FFF)  // mask = 0x0FFF means we are in I2SAdcSource
-    {
-      I2S_unsigned_datatype rawData =
-          *reinterpret_cast<I2S_unsigned_datatype *>(newSamples + i);  // C++ acrobatics to get sample as "unsigned"
-      I2S_datatype sampleNoFilter = this->decodeADCsample(rawData);
-      if (_broken_samples_counter >=
-          samplesFFT - 1)  // kill-switch: ADC sample correction off when all samples in a batch were "broken"
-      {
-        _myADCchannel = 0x0F;
-        ESP_LOGE("ASR", "AS: Too many broken audio samples from ADC - sample correction switched off.");
-      }
-      newSamples[i] = (3 * sampleNoFilter + _lastADCsample) / 4;  // apply low-pass filter (2-tap FIR)
-      // newSamples[i] = (sampleNoFilter + lastADCsample) / 2;    // apply stronger low-pass filter (2-tap FIR)
-      _lastADCsample = sampleNoFilter;  // update ADC last sample
-    }
-
     // pre-shift samples down to 16bit
     float currSample = 0.0;
-    if (_shift > 0)
-      currSample = (float) (newSamples[i] >> _shift);
-    else {
-      if (_shift < 0)
-        currSample =
-            (float) (newSamples[i]
-                     << (-_shift));  // need to "pump up" 12bit ADC to full 16bit as delivered by other digital mics
-      else
-        currSample = (float) newSamples[i];
-    }
-    buffer[i] = currSample;     // store sample
-    buffer[i] *= _sampleScale;  // scale sample
+#ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
+    currSample = (float) newSamples[i] / 65536.0f;
+#else
+    currSample = (float) newSamples[i];
+#endif
+    buffer[i] = currSample;  // store sample
   }
-}
-
-// function to handle ADC samples
-I2S_datatype MusicLeds::decodeADCsample(I2S_unsigned_datatype rawData) {
-  rawData = rawData & 0xFFFF;                        // input is already in 16bit, just mask off possible junk
-  I2S_datatype lastGoodSample = _lastADCsample * 4;  // 10bit-> 12bit
-
-  // decode ADC sample
-  uint16_t the_channel = (rawData >> 12) & 0x000F;      // upper 4 bit = ADC channel
-  uint16_t the_sample = rawData & 0x0FFF;               // lower 12bit -> ADC sample (unsigned)
-  I2S_datatype finalSample = (int(the_sample) - 2048);  // convert to signed (centered at 0);
-
-  // fix bad samples
-  if ((the_channel != _myADCchannel) && (_myADCchannel != 0x0F)) {  // 0x0F means "don't know what my channel is"
-    finalSample = lastGoodSample;                                   // replace with the last good ADC sample
-    _broken_samples_counter++;
-  }
-
-  finalSample = finalSample / 4;  // mimic old analog driver behaviour (12bit -> 10bit)
-  return (finalSample);
 }
 
 // FFT main code

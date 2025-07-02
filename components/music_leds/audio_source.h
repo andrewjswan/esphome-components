@@ -12,5 +12,5 @@ class AudioSource : public i2s_audio::I2SAudioMicrophone {
   using i2s_audio::I2SAudioMicrophone::read_;
 };
 
-}  // namespace i2s_audio
+}  // namespace music_leds
 }  // namespace esphome

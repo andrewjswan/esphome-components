@@ -5,9 +5,15 @@
 namespace esphome {
 namespace music_leds {
 
-#define I2S_SAMPLE_RESOLUTION I2S_BITS_PER_SAMPLE_16BIT
-#define I2S_datatype int16_t
-#define I2S_unsigned_datatype uint16_t
+#if BITS_PER_SAMPLE == 16
+  #define I2S_datatype int16_t
+  #define I2S_unsigned_datatype uint16_t
+  #undef  I2S_SAMPLE_DOWNSCALE_TO_16BIT
+#else
+  #define I2S_datatype int32_t
+  #define I2S_unsigned_datatype uint32_t
+  #define I2S_SAMPLE_DOWNSCALE_TO_16BIT
+#endif
 
 // Uncomment the line below to utilize ADC1 _exclusively_ for I2S sound input.
 // benefit: analog mic inputs will be sampled contiously -> better response times and less "glitches"
@@ -44,14 +50,6 @@ class MusicLeds : public Component {
   TaskHandle_t FFT_Task{nullptr};
   uint8_t task_core_{1};
 
-  uint32_t _mask{0xFFFFFFFF};  // Bitmask for sample data after shifting. Bitmask 0X0FFF means that we need to convert
-                               // 12bit ADC samples from unsigned to signed
-  int16_t _shift{0};           // Shift obtained samples to the right (positive) or left(negative) by this amount
-  int8_t _myADCchannel{0x0F};  // current ADC channel, in case of analog input. 0x0F if undefined
-  float _sampleScale{1.0f};    // pre-scaling factor for I2S samples
-  unsigned int _broken_samples_counter{0};                      // counts number of broken (and fixed) ADC samples
-  I2S_datatype _lastADCsample{0};                               // last sample from ADC
-  I2S_datatype decodeADCsample(I2S_unsigned_datatype rawData);  // function to handle ADC samples
   static void FFTcode(void *parameter);
   void getSamples(float *buffer);
 

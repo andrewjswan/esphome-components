@@ -142,7 +142,8 @@ void MusicLeds::getSamples(float *buffer) {
 
   // Get fresh samples
   uint8_t samples[BUFFER_SIZE] = {0};
-  size_t bytes_read = ((AudioSource*)this->microphone_)->read_(samples, BUFFER_SIZE, 10 * pdMS_TO_TICKS(READ_DURATION_MS));
+  size_t bytes_read =
+      ((AudioSource *) this->microphone_)->read_(samples, BUFFER_SIZE, 10 * pdMS_TO_TICKS(READ_DURATION_MS));
 
   // For correct operation, we need to read exactly sizeof(samples) bytes from i2s
   if (bytes_read != BUFFER_SIZE) {
@@ -162,10 +163,9 @@ void MusicLeds::getSamples(float *buffer) {
 #else
     currSample = (float) newSamples[i];
 #endif
-    }
-
-    buffer[i] = currSample;     // store sample
+    buffer[i] = currSample;  // store sample
   }
+}
 }
 
 // FFT main code

@@ -6,13 +6,13 @@ namespace esphome {
 namespace music_leds {
 
 #if BITS_PER_SAMPLE == 16
-  #define I2S_datatype int16_t
-  #define I2S_unsigned_datatype uint16_t
-  #undef  I2S_SAMPLE_DOWNSCALE_TO_16BIT
+#define I2S_datatype int16_t
+#define I2S_unsigned_datatype uint16_t
+#undef I2S_SAMPLE_DOWNSCALE_TO_16BIT
 #else
-  #define I2S_datatype int32_t
-  #define I2S_unsigned_datatype uint32_t
-  #define I2S_SAMPLE_DOWNSCALE_TO_16BIT
+#define I2S_datatype int32_t
+#define I2S_unsigned_datatype uint32_t
+#define I2S_SAMPLE_DOWNSCALE_TO_16BIT
 #endif
 
 // Uncomment the line below to utilize ADC1 _exclusively_ for I2S sound input.

@@ -23,7 +23,7 @@ namespace music_leds {
 // analogRead() lock-up
 
 static const char *const TAG = "music_leds";
-static const char *const MUSIC_LEDS_VERSION = "2025.1.1";
+static const char *const MUSIC_LEDS_VERSION = "2025.6.1";
 
 enum PLAYMODE { MODE_BINMAP, MODE_GRAV, MODE_GRAVICENTER, MODE_GRAVICENTRIC, MODE_PIXELS, MODE_JUNGLES, MODE_MIDNOISE };
 

@@ -166,7 +166,6 @@ void MusicLeds::getSamples(float *buffer) {
     buffer[i] = currSample;  // store sample
   }
 }
-}
 
 // FFT main code
 void MusicLeds::FFTcode(void *parameter) {

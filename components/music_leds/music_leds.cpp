@@ -7,6 +7,10 @@
 namespace esphome {
 namespace music_leds {
 
+#define READ_DURATION_MS 16UL
+
+static const uint32_t BUFFER_SIZE = sizeof(I2S_datatype) * samplesFFT;
+
 void MusicLeds::setup() {
   // Define the FFT Task and lock it to core 0
   xTaskCreatePinnedToCore(FFTcode,            // Function to implement the task
@@ -136,22 +140,21 @@ void MusicLeds::getSamples(float *buffer) {
     return;
   }
 
-  // Counter variable to check if we actually got enough data
-  size_t bytes_read = 0;
-  // Intermediary sample storage
-  I2S_datatype newSamples[I2S_buffer_size];
   // Reset ADC broken samples counter
   _broken_samples_counter = 0;
 
   // Get fresh samples
-  bytes_read = ((AudioSource*)this->microphone_)->read(newSamples, sizeof(newSamples));
-  bytes_read = bytes_read * BITS_PER_SAMPLE / 16;
+  uint8_t samples[BUFFER_SIZE] = {0};
+  size_t bytes_read = ((AudioSource*)this->microphone_)->read_(samples, BUFFER_SIZE, 2 * pdMS_TO_TICKS(READ_DURATION_MS));
 
   // For correct operation, we need to read exactly sizeof(samples) bytes from i2s
-  if (bytes_read != sizeof(newSamples)) {
-    ESP_LOGE("ASR", "AS: Failed to get enough samples: wanted: %d read: %d", sizeof(newSamples), bytes_read);
+  if (bytes_read != BUFFER_SIZE) {
+    ESP_LOGE("ASR", "AS: Failed to get enough samples: wanted: %d read: %d", BUFFER_SIZE, bytes_read);
     return;
   }
+
+  // Intermediary sample storage
+  I2S_datatype *newSamples = reinterpret_cast<I2S_datatype *>(samples);
 
   // Store samples in sample buffer and update DC offset
   for (int i = 0; i < samplesFFT; i++) {

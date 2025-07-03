@@ -326,20 +326,22 @@ static float fftAddAvg(int from, int to) {
 #ifdef USE_BANDPASSFILTER
 static void runMicFilter(uint16_t numSamples, float *sampleBuffer)  // pre-filtering of raw samples (band-pass)
 {
-  // low frequency cutoff parameter - see
-  // https://dsp.stackexchange.com/questions/40462/exponential-moving-average-cut-off-frequency constexpr float alpha =
-  // 0.04f;     // 150Hz constexpr float alpha = 0.03f;     // 110Hz
-  constexpr float alpha = 0.0225f;  // 80hz
+  // clang-format off
+  // low frequency cutoff parameter - see https://dsp.stackexchange.com/questions/40462/exponential-moving-average-cut-off-frequency
+  // constexpr float alpha = 0.04f;     // 150Hz
+  // constexpr float alpha = 0.03f;     // 110Hz
+  constexpr float alpha = 0.0225f;      // 80hz
   // constexpr float alpha = 0.01693f;  // 60hz
   // high frequency cutoff  parameter
   // constexpr float beta1 = 0.75f;     // 11Khz
   // constexpr float beta1 = 0.82f;     // 15Khz
   // constexpr float beta1 = 0.8285f;   // 18Khz
-  constexpr float beta1 = 0.85f;  // 20Khz
+  constexpr float beta1 = 0.85f;        // 20Khz
 
   constexpr float beta2 = (1.0f - beta1) / 2.0f;
-  static float last_vals[2] = {0.0f};  // FIR high freq cutoff filter
-  static float lowfilt = 0.0f;         // IIR low frequency cutoff filter
+  static float last_vals[2] = {0.0f};   // FIR high freq cutoff filter
+  static float lowfilt = 0.0f;          // IIR low frequency cutoff filter
+  // clang-format on
 
   for (int i = 0; i < numSamples; i++) {
     // FIR lowpass, to remove high frequency noise
@@ -593,10 +595,10 @@ void MusicLeds::FFTcode(void *parameter) {
           0.25f) {  // noise gate open means that FFT results will be used. Don't run FFT if results are not needed.
         // run FFT (takes 3-5ms on ESP32, ~12ms on ESP32-S2)
         FFT.dcRemoval();  // remove DC offset
-        FFT.windowing(FFTWindow::Flat_top,
-                      FFTDirection::Forward);  // Weigh data using "Flat Top" function - better amplitude accuracy
-        // FFT.windowing(FFTWindow::Blackman_Harris, FFTDirection::Forward);  // Weigh data using "Blackman- Harris"
-        // window - sharp peaks due to excellent sideband rejection
+        // Weigh data using "Flat Top" function better amplitude accuracy
+        FFT.windowing(FFTWindow::Flat_top, FFTDirection::Forward);
+        // Weigh data using "Blackman- Harris" window - sharp peaks due to excellent sideband rejection
+        // FFT.windowing(FFTWindow::Blackman_Harris, FFTDirection::Forward);
         FFT.compute(FFTDirection::Forward);  // Compute FFT
         FFT.complexToMagnitude();            // Compute magnitudes
 
@@ -610,8 +612,8 @@ void MusicLeds::FFTcode(void *parameter) {
         FFT.majorPeak(&FFT_MajorPeak, &FFT_Magnitude);             // let the effects know which freq was most dominant
         FFT_MajorPeak = constrain(FFT_MajorPeak, 1.0f, 11025.0f);  // restrict value to range expected by effects
         FFT_Magnitude = fabsf(FFT_Magnitude);
-      } else {  // noise gate closed - only clear results as FFT was skipped. MIC samples are still valid when we do
-                // this.
+      } else {  // noise gate closed - only clear results as FFT was skipped.
+                // MIC samples are still valid when we do this.
         memset(vReal, 0, SAMPLES_FFT * sizeof(float));
         FFT_MajorPeak = 1;
         FFT_Magnitude = 0.001;
@@ -626,14 +628,16 @@ void MusicLeds::FFTcode(void *parameter) {
       // mapping of FFT result bins to frequency channels
       if (sampleAvg > 0.5f) {  // noise gate open
         /*
-         * This FFT post processing is a DIY endeavour.
-         * What we really need is someone with sound engineering expertise to do a great job here AND most importantly, that the
-         * animations look GREAT as a result. Andrew's updated mapping of 256 bins down to the 16 result bins with Sample Freq =
-         * 10240, samplesFFT = 512 and some overlap. Based on testing, the lowest/Start frequency is 60 Hz (with bin 3) and a
-         * highest/End frequency of 5120 Hz in bin 255. Now, Take the 60Hz and multiply by 1.320367784 to get the next frequency
-         * and so on until the end. Then determine the bins. End frequency = Start frequency * multiplier ^ 16 Multiplier = (End
-         * frequency/ Start frequency) ^ 1/16 Multiplier = 1.320367784 new mapping, optimized for 22050 Hz by softhack007
-         */
+        * This FFT post processing is a DIY endeavour.
+        * What we really need is someone with sound engineering expertise to do a great job here AND most importantly, that the animations look GREAT as a result.
+        * Andrew's updated mapping of 256 bins down to the 16 result bins with Sample Freq = 10240, samplesFFT = 512 and some overlap.
+        * Based on testing, the lowest/Start frequency is 60 Hz (with bin 3) and a highest/End frequency of 5120 Hz in bin 255.
+        * Now, Take the 60Hz and multiply by 1.320367784 to get the next frequency and so on until the end. Then determine the bins.
+        * End frequency = Start frequency * multiplier ^ 16
+        * Multiplier = (End frequency/ Start frequency) ^ 1/16
+        * Multiplier = 1.320367784
+        * new mapping, optimized for 22050 Hz by softhack007
+        */
 
         //                                          // bins frequency  range
         #ifdef USE_BANDPASSFILTER
@@ -748,11 +752,11 @@ void MusicLeds::agcAvg(unsigned long the_time) {
     } else {
       // compute new setpoint
       if (tmpAgc <= agcTarget0Up[AGC_preset]) {
-        multAgcTemp = agcTarget0[AGC_preset] /
-                      this->sampleMax;  // Make the multiplier so that sampleMax * multiplier = first setpoint
+        // Make the multiplier so that sampleMax * multiplier = first setpoint
+        multAgcTemp = agcTarget0[AGC_preset] / this->sampleMax;
       } else {
-        multAgcTemp = agcTarget1[AGC_preset] /
-                      this->sampleMax;  // Make the multiplier so that sampleMax * multiplier = second setpoint
+        // Make the multiplier so that sampleMax * multiplier = second setpoint
+        multAgcTemp = agcTarget1[AGC_preset] / this->sampleMax;
       }
     }
 

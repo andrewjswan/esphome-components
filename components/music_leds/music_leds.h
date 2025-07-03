@@ -61,6 +61,7 @@ protected:
   void on_loop();
   void on_stop();
 
+  void getSamples(std::unique_ptr<audio::AudioSourceTransferBuffer> & audio_buffer, float *buffer);
   static void FFTcode(void *params);
   TaskHandle_t FFT_Task{nullptr};
 

@@ -28,12 +28,9 @@
 #define NUM_GEQ_CHANNELS 16 // number of frequency channels. Don't change !!
 #define SAMPLES_FFT 512     // Samples in an FFT batch - This value MUST ALWAYS be a power of 2
 
-#define WDT_SOUND_TIMEOUT 5
-
 namespace esphome {
 namespace music_leds {
 
-static const size_t DATA_TIMEOUT_MS = 50;
 static const uint32_t BUFFER_SIZE = sizeof(I2S_datatype) * SAMPLES_FFT;
 
 enum EventGroupBits : uint32_t {
@@ -445,38 +442,6 @@ static void postProcessFFTResults(bool noiseGateOpen, int numberOfChannels)
   }
 }
 
-static I2S_datatype postProcessSample(I2S_datatype sample_in) {
-  // https://github.com/atomic14/esp32_audio/blob/master/i2s_sampling/src/ADCSampler.cpp
-  // https://github.com/atomic14/esp32_audio/blob/master/i2s_sampling/src/I2SMEMSSampler.cpp
-  static I2S_datatype lastADCsample = 0;                       // last good sample
-  I2S_datatype sample_out = 0;
-
-  // bring sample down down to 16bit unsigned
-  I2S_unsigned_datatype rawData = * reinterpret_cast<I2S_unsigned_datatype *> (&sample_in); // C++ acrobatics to get sample as "unsigned"
-
-  #if BITS_PER_SAMPLE == 16
-    rawData = rawData & 0xFFFF;                               // input is already in 16bit, just mask off possible junk
-  #else
-    rawData = (rawData >> 16) & 0xFFFF;                       // scale input down from 32bit -> 16bit
-  #endif
-
-  uint16_t the_sample = rawData & 0x0FFF;                     // lower 12bit -> ADC sample (unsigned)
-  I2S_datatype finalSample = (int(the_sample) - 2048);        // convert unsigned sample to signed (centered at 0);
-
-  // back to original resolution
-  #if BITS_PER_SAMPLE == 32
-  finalSample = finalSample << 16;                            // scale up from 16bit -> 32bit;
-  #endif
-
-  finalSample = finalSample / 4;                              // mimic old analog driver behaviour (12bit -> 10bit)
-
-  sample_out = (3 * finalSample + lastADCsample) / 4;         // apply low-pass filter (2-tap FIR)
-  // sample_out = (finalSample + lastADCsample) / 2;          // apply stronger low-pass filter (2-tap FIR)
-
-  lastADCsample = sample_out;                                 // update ADC last sample
-  return(sample_out);
-}
-
 ////////////////////
 // Peak detection //
 ////////////////////
@@ -488,7 +453,7 @@ static void detectSamplePeak(void) {
   // Poor man's beat detection by seeing if sample > Average + some value.
   // This goes through ALL of the 255 bins - but ignores stupid settings
   // Then we got a peak, else we don't. The peak has to time out on its own in order to support UDP sound sync.
-  if ((sampleAvg > 1) && (maxVol > 0) && (binNum > 4) && (vReal[binNum] > maxVol) && ((millis() - timeOfPeak) > 100)) {
+  if ((sampleAvg > 1.0f) && (maxVol > 0) && (binNum > 4) && (vReal[binNum] > maxVol) && ((millis() - timeOfPeak) > 100)) {
     samplePeak = true;
     timeOfPeak = millis();
   }
@@ -504,6 +469,30 @@ static void autoResetPeak(void) {
 // FFT main task 
 // audio processing task: read samples, run FFT, fill GEQ channels from FFT results
 // *****************************************************************************
+void MusicLeds::getSamples(std::unique_ptr<audio::AudioSourceTransferBuffer> & audio_buffer, float *buffer) {
+  audio_buffer->transfer_data_from_source(FFT_MIN_CYCLE / portTICK_PERIOD_MS);
+  if (audio_buffer->available() < BUFFER_SIZE) {
+    // Insufficient data for processing, read more next iteration
+    return;
+  }
+
+  // Get a fresh batch of samples from microphone
+  // Intermediary sample storage
+  I2S_datatype *newSamples = reinterpret_cast<I2S_datatype *>(audio_buffer->get_buffer_start());
+
+  // Store samples in sample buffer and update DC offset
+  for (int i = 0; i < SAMPLES_FFT; i++) {
+    float currSample = 0.0f;
+    #ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
+    currSample = (float) newSamples[i] / 65536.0f;     // 32bit input -> 16bit; keeping lower 16bits as decimal places
+    #else
+    currSample = (float) newSamples[i];                // 16bit input -> use as-is
+    #endif
+    buffer[i] = currSample;
+  }
+  audio_buffer->clear_buffered_data();                 // Remove the processed samples from audio_buffer
+}
+
 void MusicLeds::FFTcode(void * parameter)
 {
   MusicLeds *this_task = (MusicLeds *) parameter;
@@ -564,7 +553,11 @@ void MusicLeds::FFTcode(void * parameter)
     xEventGroupSetBits(this_task->event_group_, EventGroupBits::TASK_RUNNING);
 
     this_task->microphone_->start();
-    temp_ring_buffer->reset();
+    audio_buffer->clear_buffered_data();
+
+    // see https://www.freertos.org/vtaskdelayuntil.html
+    const TickType_t xFrequency = FFT_MIN_CYCLE * portTICK_PERIOD_MS;
+    TickType_t xLastWakeTime = xTaskGetTickCount();
 
     while (!(xEventGroupGetBits(this_task->event_group_) & EventGroupBits::COMMAND_STOP)) {
       // Only run the FFT computing code if microphone running
@@ -574,30 +567,8 @@ void MusicLeds::FFTcode(void * parameter)
         continue;
       }
       this_task->status_clear_warning();
-
-      audio_buffer->transfer_data_from_source(pdMS_TO_TICKS(DATA_TIMEOUT_MS));
-      if (audio_buffer->available() < BUFFER_SIZE) {
-        // Insufficient data for processing, read more next iteration
-        continue;
-      }
-
-      // Get a fresh batch of samples from microphone
-      // Intermediary sample storage
-      I2S_datatype *newSamples = reinterpret_cast<I2S_datatype *>(audio_buffer->get_buffer_start());
-
-      // Store samples in sample buffer and update DC offset
-      for (int i = 0; i < SAMPLES_FFT; i++) {
-        newSamples[i] = postProcessSample(newSamples[i]);  // perform postprocessing (needed for ADC samples)
-        float currSample = 0.0f;
-#ifdef I2S_SAMPLE_DOWNSCALE_TO_16BIT
-        currSample = (float) newSamples[i] / 65536.0f;     // 32bit input -> 16bit; keeping lower 16bits as decimal places
-#else
-        currSample = (float) newSamples[i];                // 16bit input -> use as-is
-#endif
-        vReal[i] = currSample;
-        // vReal[i] *= _sampleScale;                       // scale samples float _sampleScale{1.0f}; // pre-scaling factor for I2S samples
-      }
-      audio_buffer->decrease_buffer_length(BUFFER_SIZE);   // Remove the processed samples from audio_buffer
+  
+      this_task->getSamples(audio_buffer, vReal);
       memset(vImag, 0, SAMPLES_FFT * sizeof(float));       // Set imaginary parts to 0
 
       #ifdef USE_BANDPASSFILTER
@@ -612,16 +583,14 @@ void MusicLeds::FFTcode(void * parameter)
         // pick our  our current mic sample - we take the max value from all samples that go into FFT
         // skip extreme values - normally these are artefacts
         if ((vReal[i] <= (INT16_MAX - 1024)) && (vReal[i] >= (INT16_MIN + 1024))) {
-          float cSample = fabsf(vReal[i]);
-          if (cSample > maxSample) {
-            maxSample = cSample;
-          }
+          if (fabsf((float)vReal[i]) > maxSample) maxSample = fabsf((float)vReal[i]);
         }
       }
 
       // release highest sample to volume reactive effects early - not strictly necessary here - could also be done at the end of the function
       // early release allows the filters (getSample() and agcAvg()) to work with fresh values - we will have matching gain and noise gate values when we want to process the FFT results.
       micDataReal = maxSample;
+
       if (sampleAvg > 0.25f) { // noise gate open means that FFT results will be used. Don't run FFT if results are not needed.
         // run FFT (takes 3-5ms on ESP32, ~12ms on ESP32-S2)
         FFT.dcRemoval();                                            // remove DC offset
@@ -629,10 +598,16 @@ void MusicLeds::FFTcode(void * parameter)
         //FFT.windowing(FFTWindow::Blackman_Harris, FFTDirection::Forward);  // Weigh data using "Blackman- Harris" window - sharp peaks due to excellent sideband rejection
         FFT.compute(FFTDirection::Forward);                         // Compute FFT
         FFT.complexToMagnitude();                                   // Compute magnitudes
+
+        //
+        // vReal[3 .. 255] contain useful data, each a 20Hz interval (60Hz - 5120Hz).
+        // There could be interesting data at bins 0 to 2, but there are too many artifacts.
+        //
         vReal[0] = 0;   // The remaining DC offset on the signal produces a strong spike on position 0 that should be eliminated to avoid issues.
 
         FFT.majorPeak(&FFT_MajorPeak, &FFT_Magnitude);              // let the effects know which freq was most dominant
         FFT_MajorPeak = constrain(FFT_MajorPeak, 1.0f, 11025.0f);   // restrict value to range expected by effects
+        FFT_Magnitude = fabsf(FFT_Magnitude);
       } else { // noise gate closed - only clear results as FFT was skipped. MIC samples are still valid when we do this.
         memset(vReal, 0, SAMPLES_FFT * sizeof(float));
         FFT_MajorPeak = 1;
@@ -699,6 +674,8 @@ void MusicLeds::FFTcode(void * parameter)
       autoResetPeak();
       detectSamplePeak();
       xEventGroupSetBits(this_task->event_group_, EventGroupBits::TASK_INFO);
+
+      vTaskDelayUntil(&xLastWakeTime, xFrequency);
     } // while (!(xEventGroupGetBits(this_task->event_group_) & COMMAND_STOP))
 
     xEventGroupSetBits(this_task->event_group_, EventGroupBits::TASK_STOPPING);
@@ -829,7 +806,7 @@ void MusicLeds::getSample() {
 
   this->micIn = int(micDataReal);  // micDataSm = ((micData * 3) + micData)/4;
 
-  this->micLev += (micDataReal-this->micLev) / 12288.0f;
+  this->micLev += (micDataReal - this->micLev) / 12288.0f;
   if(this->micIn < this->micLev) {
     this->micLev = ((this->micLev * 31.0f) + micDataReal) / 32.0f;       // align MicLev to lowest input signal
   }
@@ -856,7 +833,7 @@ void MusicLeds::getSample() {
   if ((this->sampleMax < this->sampleReal) && (this->sampleReal > 0.5f)) {
     this->sampleMax = this->sampleMax + 0.5f * (this->sampleReal - this->sampleMax);  // new peak - with some filtering
     // another simple way to detect samplePeak - cannot detect beats, but reacts on peak volume
-    if (((binNum < 12) || ((maxVol < 1))) && (millis() - timeOfPeak > 80) && (sampleAvg > 1)) {
+    if (((binNum < 12) || ((maxVol < 1))) && (millis() - timeOfPeak > 80) && (sampleAvg > 1.0f)) {
       samplePeak    = true;
       timeOfPeak    = millis();
     }
@@ -864,7 +841,7 @@ void MusicLeds::getSample() {
     if ((multAgc*this->sampleMax > agcZoneStop[AGC_preset]) && (soundAgc > 0))
       this->sampleMax += 0.5f * (this->sampleReal - this->sampleMax);        // over AGC Zone - get back quickly
     else
-      this->sampleMax *= agcSampleDecay[AGC_preset];             // signal to zero --> 5-8sec
+      this->sampleMax *= agcSampleDecay[AGC_preset];                         // signal to zero --> 5-8sec
   }
   if (this->sampleMax < 0.5f) this->sampleMax = 0.0f;
 

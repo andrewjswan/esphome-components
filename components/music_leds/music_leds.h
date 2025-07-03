@@ -1,12 +1,10 @@
 #pragma once
 
-#include "esphome/components/audio/audio_transfer_buffer.h"
 #include "esphome/components/light/addressable_light.h"
 #include "esphome/components/microphone/microphone_source.h"
 
 #include "esphome/core/color.h"
 #include "esphome/core/component.h"
-#include "esphome/core/ring_buffer.h"
 
 #define FASTLED_INTERNAL  // remove annoying pragma messages
 
@@ -18,14 +16,17 @@ namespace music_leds {
 static const char *const TAG = "music_leds";
 static const char *const MUSIC_LEDS_VERSION = "2025.6.1";
 
-enum PLAYMODE { MODE_GRAV, MODE_GRAVICENTER, MODE_GRAVICENTRIC, MODE_GRAVIMETER, MODE_PIXELS, MODE_JUNGLES, MODE_MIDNOISE };
-
-enum State : uint8_t {
-  STOPPED = 0,
-  STARTING,
-  RUNNING,
-  STOPPING
+enum PLAYMODE {
+  MODE_GRAV,
+  MODE_GRAVICENTER,
+  MODE_GRAVICENTRIC,
+  MODE_GRAVIMETER,
+  MODE_PIXELS,
+  MODE_JUNGLES,
+  MODE_MIDNOISE
 };
+
+enum State : uint8_t { STOPPED = 0, STARTING, RUNNING, STOPPING };
 
 class MusicLeds : public Component {
  public:
@@ -52,16 +53,14 @@ class MusicLeds : public Component {
 
   bool microphone_is_running() { return this->microphone_->is_running(); }
 
-protected:
+ protected:
   microphone::Microphone *microphone_{nullptr};
-
-  std::weak_ptr<RingBuffer> ring_buffer_;
 
   void on_start();
   void on_loop();
   void on_stop();
 
-  void getSamples(std::unique_ptr<audio::AudioSourceTransferBuffer> & audio_buffer, float *buffer);
+  void getSamples(float *buffer);
   static void FFTcode(void *params);
   TaskHandle_t FFT_Task{nullptr};
 
@@ -72,43 +71,46 @@ protected:
   EventGroupHandle_t event_group_;
 
   // variables used by getSample() and agcAvg()
-  int16_t micIn{0};                // Current sample starts with negative values and large values, which is why it's 16 bit signed
-  double sampleMax{0.0};           // Max sample over a few seconds. Needed for AGC controller.
-  double micLev{0.0};              // Used to convert returned value to have '0' as minimum. A leveller
-  float expAdjF{0.0f};             // Used for exponential filter.
-  float sampleReal{0.0f};          // "sampleRaw" as float, to provide bits that are lost otherwise (before amplification by sampleGain or inputLevel). Needed for AGC.
-  int16_t sampleRaw{0};            // Current sample. Must only be updated ONCE!!! (amplified mic value by sampleGain and inputLevel)
-  int16_t rawSampleAgc{0};         // not smoothed AGC sample
+  int16_t micIn{0};         // Current sample starts with negative values and large values,
+                            // which is why it's 16 bit signed
+  double sampleMax{0.0};    // Max sample over a few seconds. Needed for AGC controller.
+  double micLev{0.0};       // Used to convert returned value to have '0' as minimum. A leveller
+  float expAdjF{0.0f};      // Used for exponential filter.
+  float sampleReal{0.0f};   // "sampleRaw" as float, to provide bits that are lost otherwise (before amplification by
+                            // sampleGain or inputLevel). Needed for AGC.
+  int16_t sampleRaw{0};     // Current sample. Must only be updated ONCE!!!
+                            // (amplified mic value by sampleGain and inputLevel)
+  int16_t rawSampleAgc{0};  // not smoothed AGC sample
 
   void agcAvg(unsigned long the_time);
   void getSample();
-  #ifdef USE_SOUND_DYNAMICS_LIMITER  
+#ifdef USE_SOUND_DYNAMICS_LIMITER
   void limitSampleDynamics(void);
-  #endif
+#endif
 
   // Used for AGC
   int last_soundAgc{-1};           // used to detect AGC mode change (for resetting AGC internal error buffers)
   double control_integrated{0.0};  // persistent across calls to agcAvg(); "integrator control" = accumulated error
 
   // Variables used in effects
-  float volumeSmth{0.0f};          // Either sampleAvg or sampleAgc depending on soundAgc; smoothed sample
-  int16_t volumeRaw{0};            // Either sampleRaw or rawSampleAgc depending on soundAgc
-  float my_magnitude{0.0f};        // FFT_Magnitude, scaled by multAgc
+  float volumeSmth{0.0f};    // Either sampleAvg or sampleAgc depending on soundAgc; smoothed sample
+  int16_t volumeRaw{0};      // Either sampleRaw or rawSampleAgc depending on soundAgc
+  float my_magnitude{0.0f};  // FFT_Magnitude, scaled by multAgc
 
-  CRGB main_color;                 // SEGCOLOR(0) - First Color in WLED
-  CRGB back_color;                 // SEGCOLOR(1) - Second Color in WLED (Background)
+  CRGB main_color;  // SEGCOLOR(0) - First Color in WLED
+  CRGB back_color;  // SEGCOLOR(1) - Second Color in WLED (Background)
 
-  uint16_t leds_num{0};            // Count of Leds
-  uint8_t speed{128};              // Speed
-  uint8_t variant{128};            // Variant
-  bool start_effect_{false};       // Effect start?
-  byte *data;                      // Effect data pointer
-  unsigned _dataLen;               // Data length
+  uint16_t leds_num{0};       // Count of Leds
+  uint8_t speed{128};         // Speed
+  uint8_t variant{128};       // Variant
+  bool start_effect_{false};  // Effect start?
+  byte *data;                 // Effect data pointer
+  unsigned _dataLen;          // Data length
 
   bool allocateData(size_t len);
   void deallocateData();
 
-#if defined(DEF_GRAV) || defined(DEF_GRAVICENTER) || defined (DEF_GRAVICENTRIC) || defined(DEF_GRAVIMETER)
+#if defined(DEF_GRAV) || defined(DEF_GRAVICENTER) || defined(DEF_GRAVICENTRIC) || defined(DEF_GRAVIMETER)
   void mode_gravcenter_base(unsigned mode, CRGB *physic_leds);
 #endif
 

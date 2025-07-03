@@ -96,7 +96,6 @@ microphone:
 
 music_leds:
   id: music_light
-  mic_id: adc_mic
 
 uart:
   - id: cm1106_uart
@@ -249,5 +248,5 @@ light:
     variant: 800KBPS
     effects:
       - music_leds_effect:
-          name: Binmap with Music
-          mode: BINMAP
+          name: Pixels with Music
+          mode: PIXELS

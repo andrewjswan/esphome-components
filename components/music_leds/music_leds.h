@@ -14,7 +14,7 @@ namespace esphome {
 namespace music_leds {
 
 static const char *const TAG = "music_leds";
-static const char *const MUSIC_LEDS_VERSION = "2025.6.1";
+static const char *const MUSIC_LEDS_VERSION = "2025.7.1";
 
 enum PLAYMODE {
   MODE_GRAV,

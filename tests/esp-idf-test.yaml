@@ -52,7 +52,7 @@ external_components:
   - source:
       type: local
       path: ../components
-    components: [shadow, cm1106]
+    components: [shadow]
 
 script:
   - id: some_script
@@ -65,18 +65,6 @@ shadow:
   script_id: some_script
   interval: 60
 
-uart:
-  - id: cm1106_uart
-    rx_pin: 16
-    tx_pin: 17
-    baud_rate: 9600
-
-i2c:
-  - id: pm25_bus
-    sda: 23
-    scl: 22
-    scan: true
-
 sensor:
   - platform: uptime
     name: "${friendly_name} Uptime"
@@ -86,12 +74,6 @@ sensor:
     name: "${friendly_name} WiFi Signal"
     entity_category: diagnostic
     icon: mdi:signal
-
-  - platform: cm1106
-    co2:
-      name: "${name} CO2"
-      id: co2sensor
-    id: cm1106_sensor
 
 button:
   - platform: restart

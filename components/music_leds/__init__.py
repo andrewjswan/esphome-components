@@ -58,6 +58,15 @@ MUSIC_LEDS_EFFECTS = {
     "PIXELS": PlayMode.MODE_PIXELS,
     "JUNGLES": PlayMode.MODE_JUNGLES,
     "MIDNOISE": PlayMode.MODE_MIDNOISE,
+    "RIPPLEPEAK": PlayMode.MODE_RIPPLEPEAK,
+    "MATRIPIX": PlayMode.MODE_MATRIPIX,
+    "NOISEFIRE": PlayMode.MODE_NOISEFIRE,
+    "PIXELWAVE": PlayMode.MODE_PIXELWAVE,
+    "PLASMOID": PlayMode.MODE_PLASMOID,
+    "PUDDLEPEAK": PlayMode.MODE_PUDDLEPEAK,
+    "PUDDLES": PlayMode.MODE_PUDDLES,
+    "DJLIGHT": PlayMode.MODE_DJLIGHT,
+    "WATERFALL": PlayMode.MODE_WATERFALL,
 }
 
 MUSIC_LEDS_SCHEMA = cv.Schema(
@@ -188,7 +197,7 @@ async def to_code(config) -> None:
     "Music Leds",
     {
         cv.GenerateID(CONF_MUSIC_LEDS_ID): cv.use_id(MUSIC_LEDS),
-        cv.Optional(CONF_MODE, default="GRAVICENTRIC"): cv.enum(MUSIC_LEDS_EFFECTS, upper=True),
+        cv.Optional(CONF_MODE, default="PIXELS"): cv.enum(MUSIC_LEDS_EFFECTS, upper=True),
     },
 )
 async def music_leds_light_effect_to_code(config, effect_id) -> AddressableLightEffect:

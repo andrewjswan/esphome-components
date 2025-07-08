@@ -102,6 +102,73 @@ static void fade_out(CRGB *physic_leds, uint16_t _leds_num, uint8_t rate, CRGB b
 }
 
 // *****************************************************************************************************************************************************************
+// 16-bit, integer based Bhaskara I's sine approximation: 16*x*(pi - x) / (5*pi^2 - 4*x*(pi - x))
+// input is 16bit unsigned (0-65535), output is 16bit signed (-32767 to +32767)
+// optimized integer implementation by @dedehai
+static int16_t sin16_t(uint16_t theta) {
+  int scale = 1;
+  if (theta > 0x7FFF) {
+    theta = 0xFFFF - theta;
+    scale = -1;  // second half of the sine function is negative (pi - 2*pi)
+  }
+  uint32_t precal = theta * (0x7FFF - theta);
+  uint64_t numerator = (uint64_t) precal * (4 * 0x7FFF);  // 64bit required
+  int32_t denominator = 1342095361 - precal;              // 1342095361 is 5 * 0x7FFF^2 / 4
+  int16_t result = numerator / denominator;
+  return result * scale;
+}
+
+static int16_t cos16_t(uint16_t theta) {
+  return sin16_t(theta + 0x4000);  // cos(x) = sin(x+pi/2)
+}
+
+static uint8_t sin8_t(uint8_t theta) {
+  int32_t sin16 = sin16_t((uint16_t) theta * 257);  // 255 * 257 = 0xFFFF
+  sin16 += 0x7FFF + 128;                            // shift result to range 0-0xFFFF, +128 for rounding
+  return min(sin16, int32_t(0xFFFF)) >> 8;          // min performs saturation, and prevents overflow
+}
+
+static uint8_t cos8_t(uint8_t theta) {
+  return sin8_t(theta + 64);  // cos(x) = sin(x+pi/2)
+}
+
+// *****************************************************************************************************************************************************************
+
+// fastled beatsin: 1:1 replacements to remove the use of fastled sin16()
+// Generates a 16-bit sine wave at a given BPM that oscillates within a given range. see fastled for details.
+static uint16_t beatsin88_t(accum88 beats_per_minute_88, uint16_t lowest, uint16_t highest, uint32_t timebase,
+                            uint16_t phase_offset) {
+  uint16_t beat = beat88(beats_per_minute_88, timebase);
+  uint16_t beatsin = (sin16_t(beat + phase_offset) + 32768);
+  uint16_t rangewidth = highest - lowest;
+  uint16_t scaledbeat = scale16(beatsin, rangewidth);
+  uint16_t result = lowest + scaledbeat;
+  return result;
+}
+
+// Generates a 16-bit sine wave at a given BPM that oscillates within a given range. see fastled for details.
+static uint16_t beatsin16_t(accum88 beats_per_minute, uint16_t lowest, uint16_t highest, uint32_t timebase,
+                            uint16_t phase_offset) {
+  uint16_t beat = beat16(beats_per_minute, timebase);
+  uint16_t beatsin = (sin16_t(beat + phase_offset) + 32768);
+  uint16_t rangewidth = highest - lowest;
+  uint16_t scaledbeat = scale16(beatsin, rangewidth);
+  uint16_t result = lowest + scaledbeat;
+  return result;
+}
+
+// Generates an 8-bit sine wave at a given BPM that oscillates within a given range. see fastled for details.
+static uint8_t beatsin8_t(accum88 beats_per_minute, uint8_t lowest, uint8_t highest, uint32_t timebase,
+                          uint8_t phase_offset) {
+  uint8_t beat = beat8(beats_per_minute, timebase);
+  uint8_t beatsin = sin8_t(beat + phase_offset);
+  uint8_t rangewidth = highest - lowest;
+  uint8_t scaledbeat = scale8(beatsin, rangewidth);
+  uint8_t result = lowest + scaledbeat;
+  return result;
+}
+
+// *****************************************************************************************************************************************************************
 /*
  * Fixed point integer based Perlin noise functions by @dedehai
  * Note: optimized for speed and to mimic fastled inoise functions, not for accuracy or best randomness
@@ -284,6 +351,36 @@ static uint8_t perlin8(uint16_t x, uint16_t y, uint16_t z) {
   return (((perlin3D_raw((uint32_t) x << 8, (uint32_t) y << 8, (uint32_t) z << 8, true) * 2015) >> 10) + 33168) >>
          8;  // scale to 16 bit, offset, then scale to 8bit
 }
+
+// fast (true) random numbers using hardware RNG, all functions return values in the range lowerlimit to upperlimit-1
+// note: for true random numbers with high entropy, do not call faster than every 200ns (5MHz)
+// tests show it is still highly random reading it quickly in a loop (better than fastled PRNG)
+// for 8bit and 16bit random functions: no limit check is done for best speed
+// 32bit inputs are used for speed and code size, limits don't work if inverted or out of range
+// inlining does save code size except for random(a,b) and 32bit random with limits
+#ifdef ESP8266
+#define HW_RND_REGISTER RANDOM_REG32
+#else  // ESP32 family
+#include "soc/wdev_reg.h"
+#define HW_RND_REGISTER REG_READ(WDEV_RND_REG)
+#endif
+inline uint32_t hw_random() { return HW_RND_REGISTER; };
+uint32_t hw_random(uint32_t upperlimit);  // not inlined for code size
+int32_t hw_random(int32_t lowerlimit, int32_t upperlimit);
+inline uint16_t hw_random16() { return HW_RND_REGISTER; };
+inline uint16_t hw_random16(uint32_t upperlimit) {
+  return (hw_random16() * upperlimit) >> 16;
+};  // input range 0-65535 (uint16_t)
+inline int16_t hw_random16(int32_t lowerlimit, int32_t upperlimit) {
+  int32_t range = upperlimit - lowerlimit;
+  return lowerlimit + hw_random16(range);
+};  // signed limits, use int16_t ranges
+inline uint8_t hw_random8() { return HW_RND_REGISTER; };
+inline uint8_t hw_random8(uint32_t upperlimit) { return (hw_random8() * upperlimit) >> 8; };  // input range 0-255
+inline uint8_t hw_random8(uint32_t lowerlimit, uint32_t upperlimit) {
+  uint32_t range = upperlimit - lowerlimit;
+  return lowerlimit + hw_random8(range);
+};  // input range 0-255
 
 #ifdef PALETTES
 

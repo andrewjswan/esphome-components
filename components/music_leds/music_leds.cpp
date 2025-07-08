@@ -1115,6 +1115,51 @@ void MusicLeds::ShowFrame(PLAYMODE CurrentMode, esphome::Color current_color, li
       this->visualize_midnoise(fastled_helper::leds);
 #endif
       break;
+    case MODE_RIPPLEPEAK:
+#ifdef DEF_RIPPLEPEAK
+      this->visualize_ripplepeak(fastled_helper::leds);
+#endif
+      break;
+    case MODE_MATRIPIX:
+#ifdef DEF_MATRIPIX
+      this->visualize_matripix(fastled_helper::leds);
+#endif
+      break;
+    case MODE_NOISEFIRE:
+#ifdef DEF_NOISEFIRE
+      this->visualize_noisefire(fastled_helper::leds);
+#endif
+      break;
+    case MODE_PIXELWAVE:
+#ifdef DEF_PIXELWAVE
+      this->visualize_pixelwave(fastled_helper::leds);
+#endif
+      break;
+    case MODE_PLASMOID:
+#ifdef DEF_PLASMOID
+      this->visualize_plasmoid(fastled_helper::leds);
+#endif
+      break;
+    case MODE_PUDDLEPEAK:
+#ifdef DEF_PUDDLEPEAK
+      this->visualize_puddlepeak(fastled_helper::leds);
+#endif
+      break;
+    case MODE_PUDDLES:
+#ifdef DEF_PUDDLES
+      this->visualize_puddles(fastled_helper::leds);
+#endif
+      break;
+    case MODE_DJLIGHT:
+#ifdef DEF_DJLIGHT
+      this->visualize_DJLight(fastled_helper::leds);
+#endif
+      break;
+    case MODE_WATERFALL:
+#ifdef DEF_WATERFALL
+      this->visualize_waterfall(fastled_helper::leds);
+#endif
+      break;
   }
 
   for (int i = 0; i < p_it->size(); i++) {
@@ -1277,7 +1322,7 @@ void MusicLeds::visualize_pixels(CRGB *physic_leds)  // Pixels. By Andrew Tuline
   fastled_helper::fade_out(physic_leds, this->leds_num, 64 + (this->speed >> 1), this->back_color);
 
   for (int i = 0; i < (int) this->variant / 8; i++) {
-    uint16_t segLoc = random16(this->leds_num);  // 16 bit for larger strands of LED's.
+    uint16_t segLoc = fastled_helper::hw_random16(this->leds_num);  // 16 bit for larger strands of LED's.
     physic_leds[segLoc] = fastled_helper::color_blend(
         this->back_color, fastled_helper::color_from_palette(myVals[i % 32] + i * 4, this->main_color),
         this->volumeSmth);
@@ -1328,6 +1373,270 @@ void MusicLeds::visualize_midnoise(CRGB *physic_leds)  // Midnoise. By Andrew Tu
   y = y + beatsin8(4, 0, 10);
 }  // visualize_midnoise()
 #endif
+
+#ifdef DEF_RIPPLEPEAK
+typedef struct Ripple {
+  uint8_t state;
+  uint8_t color;
+  uint16_t pos;
+} ripple;
+
+
+void MusicLeds::visualize_ripplepeak(CRGB *physic_leds)  // Ripple peak. By Andrew Tuline.
+{                                                        // This currently has no controls.
+  #define MAXSTEPS 16                                    // Case statement wouldn't allow a variable.
+
+  unsigned maxRipples = 16;
+  unsigned dataSize = sizeof(Ripple) * maxRipples;
+  if (!this->allocateData(dataSize)) {
+    return;  // allocation failed
+  }
+  Ripple* ripples = reinterpret_cast<Ripple*>(this->data);
+
+  // Lower frame rate means less effective fading than FastLED
+  // 225 should be the same as 240 applied twice
+  fastled_helper::fade_out(physic_leds, this->leds_num, 225, this->back_color);
+
+  for (int i = 0; i < this->variant / 16; i++) {  // Limit the number of ripples.
+    if (samplePeak) ripples[i].state = 255;
+
+    switch (ripples[i].state) {
+      case 254:                                   // Inactive mode
+        break;
+
+      case 255:                                   // Initialize ripple variables.
+        ripples[i].pos = fastled_helper::hw_random16(this->leds_num);
+        if (FFT_MajorPeak > 1)                    // log10(0) is "forbidden" (throws exception)
+          ripples[i].color = (int)(log10f(FFT_MajorPeak) * 128);
+        else 
+          ripples[i].color = 0;
+        ripples[i].state = 0;
+        break;
+
+      case 0:
+        physic_leds[ripples[i].pos] = fastled_helper::color_from_palette(ripples[i].color, this->main_color);
+        ripples[i].state++;
+        break;
+
+      case MAXSTEPS:                              // At the end of the ripples. 254 is an inactive mode.
+        ripples[i].state = 254;
+        break;
+
+      default:                                    // Middle of the ripples.
+        physic_leds[(ripples[i].pos + ripples[i].state + this->leds_num) % this->leds_num] = fastled_helper::color_blend(this->back_color, fastled_helper::color_from_palette(ripples[i].color, this->main_color), uint8_t(2 * 255 / ripples[i].state));
+        physic_leds[(ripples[i].pos - ripples[i].state + this->leds_num) % this->leds_num] = fastled_helper::color_blend(this->back_color, fastled_helper::color_from_palette(ripples[i].color, this->main_color), uint8_t(2 * 255 / ripples[i].state));
+        ripples[i].state++;                       // Next step.
+        break;
+    } // switch step
+  } // for i
+}  // visualize_ripplepeak()
+#endif
+
+#ifdef DEF_MATRIPIX
+void MusicLeds::visualize_matripix(CRGB *physic_leds)  // Matripix. By Andrew Tuline.
+{
+  // effect can work on single pixels, we just lose the shifting effect
+  unsigned dataSize = sizeof(CRGB) * this->leds_num;
+  if (!this->allocateData(dataSize)) {
+    return;  // allocation failed
+  }
+  CRGB* pixels = reinterpret_cast<CRGB*>(this->data);
+
+  uint8_t secondHand = micros() / (256 - this->speed) / 500 % 16;
+  if(this->store != secondHand) {
+    this->store = secondHand;
+
+    uint16_t pixBri = volumeRaw * this->variant / 64;
+    unsigned k = this->leds_num - 1;
+    // loop will not execute if SEGLEN equals 1
+    for (unsigned i = 0; i < k; i++) {
+      pixels[i] = pixels[i + 1]; // shift left
+      physic_leds[i] = pixels[i];
+    }
+    pixels[k] = fastled_helper::color_blend(this->back_color, fastled_helper::color_from_palette(millis(), this->main_color), pixBri);
+    physic_leds[k] = pixels[k];
+  }
+}  // visualize_matripix()
+#endif
+
+#ifdef DEF_NOISEFIRE
+// I am the god of hellfire. . . Volume (only) reactive fire routine. Oh, look how short this is.
+void MusicLeds::visualize_noisefire(CRGB *physic_leds)  // Noisefire. By Andrew Tuline.
+{
+  // Fire palette definition. Lower value = darker.
+  CRGBPalette16 myPal = CRGBPalette16(CHSV(0,255,2),    CHSV(0,255,4),    CHSV(0,255,8), CHSV(0, 255, 8),
+                                      CHSV(0, 255, 16), CRGB::Red,        CRGB::Red,     CRGB::Red,
+                                      CRGB::DarkOrange, CRGB::DarkOrange, CRGB::Orange,  CRGB::Orange,
+                                      CRGB::Yellow,     CRGB::Orange,     CRGB::Yellow,  CRGB::Yellow);
+
+  for (unsigned i = 0; i < this->leds_num; i++) {
+    // X location is constant, but we move along the Y at the rate of millis(). By Andrew Tuline.
+    unsigned index = fastled_helper::perlin8(i * this->speed / 64, millis() * this->speed / 64 * this->leds_num / 255);
+    // Now we need to scale index so that it gets blacker as we get close to one of the ends.
+    // This is a simple y=mx+b equation that's been scaled. index/128 is another scaling.
+    index = (255 - i * 256 / this->leds_num) * index / (256 - this->variant);                             
+
+    physic_leds[i] = ColorFromPalette(myPal, index, volumeSmth * 2, LINEARBLEND); // Use my own palette.
+  }
+}  // visualize_noisefire()
+#endif
+
+#ifdef DEF_PIXELWAVE
+void MusicLeds::visualize_pixelwave(CRGB *physic_leds)  // Pixelwave. By Andrew Tuline.
+{
+  uint8_t secondHand = micros() / (256 - this->speed) / 500 + 1 % 16;
+  if(this->store != secondHand) {
+    this->store = secondHand;
+
+    uint8_t pixBri = volumeRaw * this->variant / 64;
+
+    physic_leds[this->leds_num / 2] = fastled_helper::color_blend(this->back_color, fastled_helper::color_from_palette(millis(), this->main_color), pixBri);
+    for (unsigned i = this->leds_num - 1; i > this->leds_num / 2; i--) {
+      physic_leds[i] = physic_leds[i-1];    //move to the left
+    }
+    for (unsigned i = 0; i < this->leds_num / 2; i++) {
+      physic_leds[i] = physic_leds[i + 1];  // move to the right
+    }
+  }
+
+}  // visualize_pixelwave()
+#endif
+
+#ifdef DEF_PLASMOID
+typedef struct Plasphase {
+  int16_t    thisphase;
+  int16_t    thatphase;
+} plasphase;
+
+void MusicLeds::visualize_plasmoid(CRGB *physic_leds)  // Plasmoid. By Andrew Tuline.
+{
+  if (!this->allocateData(sizeof(plasphase))) {
+    return;  // allocation failed
+  }
+  Plasphase* plasmoip = reinterpret_cast<Plasphase*>(this->data);
+
+  fastled_helper::fade_out(physic_leds, this->leds_num, 32, this->back_color);
+
+  plasmoip->thisphase += beatsin8(6, -4, 4);       // You can change direction and speed individually.
+  plasmoip->thatphase += beatsin8(7, -4, 4);       // Two phase values to make a complex pattern. By Andrew Tuline.
+
+  for (unsigned i = 0; i < this->leds_num; i++) {  // For each of the LED's in the strand, set a brightness based on a wave as follows.
+    // updated, similar to "plasma" effect - softhack007
+    uint8_t thisbright = cubicwave8(((i*(1 + (3 * this->speed/32))) + plasmoip->thisphase) & 0xFF) / 2;
+    // Let's munge the brightness a bit and animate it all with the phases.
+    thisbright += fastled_helper::cos8_t(((i * (97 + (5 * this->speed / 32))) + plasmoip->thatphase) & 0xFF) / 2;
+
+    uint8_t colorIndex = thisbright;
+    if (volumeSmth * this->variant / 64 < thisbright) {
+      thisbright = 0;
+    }
+
+    physic_leds[i] = fastled_helper::color_blend(this->back_color, fastled_helper::color_from_palette(colorIndex, this->main_color), thisbright);
+  }
+}  // visualize_plasmoid()
+#endif
+
+#if defined(DEF_PUDDLES) || defined(DEF_PUDDLEPEAK)
+// Puddles / Puddlepeak By Andrew Tuline.
+void MusicLeds::puddles_base(CRGB *physic_leds, bool peakdetect) {
+  unsigned size = 0;
+
+  uint8_t fadeVal = map(this->speed, 0, 255, 224, 254);
+  unsigned pos = fastled_helper::hw_random16(this->leds_num);  // Set a random starting position.
+  fastled_helper::fade_out(physic_leds, this->leds_num, fadeVal, this->back_color);
+
+  if(peakdetect) {                                             // Puddles peak
+    if (samplePeak == 1) {
+      size = volumeSmth * this->variant / 256 / 4 + 1;         // Determine size of the flash based on the volume.
+      if (pos + size >= this->leds_num) size = this->leds_num - pos;
+    }
+  }
+  else {                                                       // Puddles
+    if (volumeRaw > 1) {
+      size = volumeRaw * this->variant / 256 / 8 + 1;          // Determine size of the flash based on the volume.
+      if (pos + size >= this->leds_num) size = this->leds_num - pos;
+    } 
+  }
+
+  for (unsigned i=0; i < size; i++) {                          // Flash the LED's.
+    physic_leds[pos + i] = fastled_helper::color_from_palette(millis(), this->main_color);
+  }
+}  // puddles_base()
+#endif
+
+#ifdef DEF_PUDDLEPEAK
+void MusicLeds::visualize_puddlepeak(CRGB *physic_leds)  // Puddlepeak. By Andrew Tuline.
+{
+  puddles_base(physic_leds, true);
+}  // visualize_puddlepeak()
+#endif
+
+#ifdef DEF_PUDDLES
+void MusicLeds::visualize_puddles(CRGB *physic_leds)  // Puddles. By Andrew Tuline.
+{
+  puddles_base(physic_leds, false);
+}  // visualize_puddles()
+#endif
+
+#ifdef DEF_DJLIGHT
+void MusicLeds::visualize_DJLight(CRGB *physic_leds)  // DJLight. Written by ??? Adapted by Will Tatam.
+{
+  // No need to prevent from executing on single led strips, only mid will be set (mid = 0)
+  const int mid = this->leds_num / 2;
+
+  uint8_t secondHand = micros() / (256-this->speed) / 500 + 1 % 64;
+  if(this->store != secondHand) {
+    this->store = secondHand;
+
+    CRGB color = CRGB(fftResult[15] / 2, fftResult[5] / 2, fftResult[0] / 2);   // 16-> 15 as 16 is out of bounds
+    physic_leds[mid] = color.fadeToBlackBy(map(fftResult[4], 0, 255, 255, 4));  // TODO - Update
+
+    for (int i = this->leds_num - 1; i > mid; i--) {
+      physic_leds[i] = physic_leds[i - 1];  // move to the left
+    }
+    for (int i = 0; i < mid; i++) {
+      physic_leds[i] = physic_leds[i + 1];  // move to the right
+    }
+  }
+} // visualize_DJLight()
+#endif
+
+#ifdef DEF_WATERFALL
+// Combines peak detection with FFT_MajorPeak and FFT_Magnitude.
+void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew Tuline
+{
+  unsigned dataSize = sizeof(CRGB) * this->leds_num;
+  if (!this->allocateData(dataSize)) {
+    return;  // allocation failed
+  }
+  CRGB* pixels = reinterpret_cast<CRGB*>(this->data);
+
+  if (FFT_MajorPeak < 1) FFT_MajorPeak = 1;                            // log10(0) is "forbidden" (throws exception)
+
+  uint8_t secondHand = micros() / (256 - this->speed) / 500 + 1 % 16;
+  if (this->store != secondHand) {                                     // Triggered millis timing.
+    this->store = secondHand;
+
+    // uint8_t pixCol = (log10f((float)FFT_MajorPeak) - 2.26f) * 177;  // 10Khz sampling - log10 frequency range is from 2.26 (182hz) to 3.7 (5012hz). Let's scale accordingly.
+    uint8_t pixCol = (log10f(FFT_MajorPeak) - 2.26f) * 150;            // 22Khz sampling - log10 frequency range is from 2.26 (182hz) to 3.967 (9260hz). Let's scale accordingly.
+    if (FFT_MajorPeak < 182.0f) pixCol = 0;                            // handle underflow
+
+    unsigned k = this->leds_num - 1;
+    if (samplePeak) {
+      pixels[k] = CRGB(CHSV(92, 92, 92));
+    } else {
+      pixels[k] = fastled_helper::color_blend(this->back_color, fastled_helper::color_from_palette(pixCol + this->variant, this->main_color), (uint8_t)(my_magnitude / 8.0f));
+    }
+    physic_leds[k] = pixels[k];
+
+    for (unsigned i = 0; i < k; i++) {
+      pixels[i] = pixels[i + 1];  // shift left
+      physic_leds[i] = pixels[i];
+    }
+  }
+} // visualize_waterfall()
+#endif
+
 
 }  // namespace music_leds
 }  // namespace esphome

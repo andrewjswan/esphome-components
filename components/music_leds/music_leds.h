@@ -23,7 +23,16 @@ enum PLAYMODE {
   MODE_GRAVIMETER,
   MODE_PIXELS,
   MODE_JUNGLES,
-  MODE_MIDNOISE
+  MODE_MIDNOISE,
+  MODE_RIPPLEPEAK,
+  MODE_MATRIPIX,
+  MODE_NOISEFIRE,
+  MODE_PIXELWAVE,
+  MODE_PLASMOID,
+  MODE_PUDDLEPEAK,
+  MODE_PUDDLES,
+  MODE_DJLIGHT,
+  MODE_WATERFALL
 };
 
 enum State : uint8_t { STOPPED = 0, STARTING, RUNNING, STOPPING };
@@ -106,12 +115,17 @@ class MusicLeds : public Component {
   bool start_effect_{false};  // Effect start?
   byte *data;                 // Effect data pointer
   unsigned _dataLen;          // Data length
+  uint8_t store{0};           // Internal storage
 
   bool allocateData(size_t len);
   void deallocateData();
 
 #if defined(DEF_GRAV) || defined(DEF_GRAVICENTER) || defined(DEF_GRAVICENTRIC) || defined(DEF_GRAVIMETER)
   void mode_gravcenter_base(unsigned mode, CRGB *physic_leds);
+#endif
+
+#if defined(DEF_PUDDLES) || defined(DEF_PUDDLEPEAK)
+  void puddles_base(CRGB *physic_leds, bool peakdetect);
 #endif
 
 #ifdef DEF_GRAV
@@ -134,6 +148,33 @@ class MusicLeds : public Component {
 #endif
 #ifdef DEF_MIDNOISE
   void visualize_midnoise(CRGB *physic_leds);
+#endif
+#ifdef DEF_RIPPLEPEAK
+  void visualize_ripplepeak(CRGB *physic_leds);
+#endif
+#ifdef DEF_MATRIPIX
+  void visualize_matripix(CRGB *physic_leds);
+#endif
+#ifdef DEF_NOISEFIRE
+  void visualize_noisefire(CRGB *physic_leds);
+#endif
+#ifdef DEF_PIXELWAVE
+  void visualize_pixelwave(CRGB *physic_leds);
+#endif
+#ifdef DEF_PLASMOID
+  void visualize_plasmoid(CRGB *physic_leds);
+#endif
+#ifdef DEF_PUDDLEPEAK
+  void visualize_puddlepeak(CRGB *physic_leds);
+#endif
+#ifdef DEF_PUDDLES
+  void visualize_puddles(CRGB *physic_leds);
+#endif
+#ifdef DEF_DJLIGHT
+  void visualize_DJLight(CRGB *physic_leds);
+#endif
+#ifdef DEF_WATERFALL
+  void visualize_waterfall(CRGB *physic_leds);
 #endif
 };
 

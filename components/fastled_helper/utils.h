@@ -102,6 +102,73 @@ static void fade_out(CRGB *physic_leds, uint16_t _leds_num, uint8_t rate, CRGB b
 }
 
 // *****************************************************************************************************************************************************************
+// 16-bit, integer based Bhaskara I's sine approximation: 16*x*(pi - x) / (5*pi^2 - 4*x*(pi - x))
+// input is 16bit unsigned (0-65535), output is 16bit signed (-32767 to +32767)
+// optimized integer implementation by @dedehai
+static int16_t sin16_t(uint16_t theta) {
+  int scale = 1;
+  if (theta > 0x7FFF) {
+    theta = 0xFFFF - theta;
+    scale = -1; // second half of the sine function is negative (pi - 2*pi)
+  }
+  uint32_t precal = theta * (0x7FFF - theta);
+  uint64_t numerator = (uint64_t)precal * (4 * 0x7FFF); // 64bit required
+  int32_t denominator = 1342095361 - precal; // 1342095361 is 5 * 0x7FFF^2 / 4
+  int16_t result = numerator / denominator;
+  return result * scale;
+}
+
+static int16_t cos16_t(uint16_t theta) {
+  return sin16_t(theta + 0x4000); //cos(x) = sin(x+pi/2)
+}
+
+static uint8_t sin8_t(uint8_t theta) {
+  int32_t sin16 = sin16_t((uint16_t)theta * 257); // 255 * 257 = 0xFFFF
+  sin16 += 0x7FFF + 128; //shift result to range 0-0xFFFF, +128 for rounding
+  return min(sin16, int32_t(0xFFFF)) >> 8; // min performs saturation, and prevents overflow
+}
+
+static uint8_t cos8_t(uint8_t theta) {
+  return sin8_t(theta + 64); //cos(x) = sin(x+pi/2)
+}
+
+// *****************************************************************************************************************************************************************
+
+// fastled beatsin: 1:1 replacements to remove the use of fastled sin16()
+// Generates a 16-bit sine wave at a given BPM that oscillates within a given range. see fastled for details.
+static uint16_t beatsin88_t(accum88 beats_per_minute_88, uint16_t lowest, uint16_t highest, uint32_t timebase, uint16_t phase_offset)
+{
+    uint16_t beat = beat88(beats_per_minute_88, timebase);
+    uint16_t beatsin = (sin16_t(beat + phase_offset) + 32768);
+    uint16_t rangewidth = highest - lowest;
+    uint16_t scaledbeat = scale16(beatsin, rangewidth);
+    uint16_t result = lowest + scaledbeat;
+    return result;
+}
+
+// Generates a 16-bit sine wave at a given BPM that oscillates within a given range. see fastled for details.
+static uint16_t beatsin16_t(accum88 beats_per_minute, uint16_t lowest, uint16_t highest, uint32_t timebase, uint16_t phase_offset)
+{
+    uint16_t beat = beat16(beats_per_minute, timebase);
+    uint16_t beatsin = (sin16_t(beat + phase_offset) + 32768);
+    uint16_t rangewidth = highest - lowest;
+    uint16_t scaledbeat = scale16(beatsin, rangewidth);
+    uint16_t result = lowest + scaledbeat;
+    return result;
+}
+
+// Generates an 8-bit sine wave at a given BPM that oscillates within a given range. see fastled for details.
+static uint8_t beatsin8_t(accum88 beats_per_minute, uint8_t lowest, uint8_t highest, uint32_t timebase, uint8_t phase_offset)
+{
+    uint8_t beat = beat8(beats_per_minute, timebase);
+    uint8_t beatsin = sin8_t(beat + phase_offset);
+    uint8_t rangewidth = highest - lowest;
+    uint8_t scaledbeat = scale8(beatsin, rangewidth);
+    uint8_t result = lowest + scaledbeat;
+    return result;
+}
+
+// *****************************************************************************************************************************************************************
 /*
  * Fixed point integer based Perlin noise functions by @dedehai
  * Note: optimized for speed and to mimic fastled inoise functions, not for accuracy or best randomness
@@ -110,10 +177,11 @@ static void fade_out(CRGB *physic_leds, uint16_t _leds_num, uint8_t rate, CRGB b
 
 // calculate gradient for corner from hash value
 static inline __attribute__((always_inline)) int32_t hashToGradient(uint32_t h) {
-  // using more steps yields more "detailed" perlin noise but looks less like the original fastled version (adjust
-  // PERLIN_SHIFT to compensate, also changes range and needs proper adustment) return (h & 0xFF) - 128; // use
-  // PERLIN_SHIFT 7 return (h & 0x0F) - 8; // use PERLIN_SHIFT 3 return (h & 0x07) - 4; // use PERLIN_SHIFT 2
-  return (h & 0x03) - 2;  // use PERLIN_SHIFT 1 -> closest to original fastled version
+  // using more steps yields more "detailed" perlin noise but looks less like the original fastled version (adjust PERLIN_SHIFT to compensate, also changes range and needs proper adustment)
+  // return (h & 0xFF) - 128; // use PERLIN_SHIFT 7
+  // return (h & 0x0F) - 8; // use PERLIN_SHIFT 3
+  // return (h & 0x07) - 4; // use PERLIN_SHIFT 2
+  return (h & 0x03) - 2; // use PERLIN_SHIFT 1 -> closest to original fastled version
 }
 
 // Gradient functions for 1D, 2D and 3D Perlin noise  note: forcing inline produces smaller code and makes it 3x faster!
@@ -131,32 +199,28 @@ static inline __attribute__((always_inline)) int32_t gradient2D(uint32_t x0, int
   h ^= h >> 15;
   h *= 0x92C3412B;
   h ^= h >> 13;
-  return (hashToGradient(h) * dx + hashToGradient(h >> PERLIN_SHIFT) * dy) >> (1 + PERLIN_SHIFT);
+  return (hashToGradient(h) * dx + hashToGradient(h>>PERLIN_SHIFT) * dy) >> (1 + PERLIN_SHIFT);
 }
 
-static inline __attribute__((always_inline)) int32_t gradient3D(uint32_t x0, int32_t dx, uint32_t y0, int32_t dy,
-                                                                uint32_t z0, int32_t dz) {
+static inline __attribute__((always_inline)) int32_t gradient3D(uint32_t x0, int32_t dx, uint32_t y0, int32_t dy, uint32_t z0, int32_t dz) {
   // fast and good entropy hash from corner coordinates
   uint32_t h = (x0 * 0x27D4EB2D) ^ (y0 * 0xB5297A4D) ^ (z0 * 0x1B56C4E9);
   h ^= h >> 15;
   h *= 0x92C3412B;
   h ^= h >> 13;
-  return ((hashToGradient(h) * dx + hashToGradient(h >> (1 + PERLIN_SHIFT)) * dy +
-           hashToGradient(h >> (1 + 2 * PERLIN_SHIFT)) * dz) *
-          85) >>
-         (8 + PERLIN_SHIFT);  // scale to 16bit, x*85 >> 8 = x/3
+  return ((hashToGradient(h) * dx + hashToGradient(h>>(1+PERLIN_SHIFT)) * dy + hashToGradient(h>>(1 + 2*PERLIN_SHIFT)) * dz) * 85) >> (8 + PERLIN_SHIFT); // scale to 16bit, x*85 >> 8 = x/3
 }
 
 // fast cubic smoothstep: t*(3 - 2t²), optimized for fixed point, scaled to avoid overflows
 static uint32_t smoothstep(const uint32_t t) {
   uint32_t t_squared = (t * t) >> 16;
   uint32_t factor = (3 << 16) - ((t << 1));
-  return (t_squared * factor) >> 18;  // scale to avoid overflows and give best resolution
+  return (t_squared * factor) >> 18; // scale to avoid overflows and give best resolution
 }
 
 // simple linear interpolation for fixed-point values, scaled for perlin noise use
 static inline int32_t lerpPerlin(int32_t a, int32_t b, int32_t t) {
-  return a + (((b - a) * t) >> 14);  // match scaling with smoothstep to yield 16.16bit values
+    return a + (((b - a) * t) >> 14); // match scaling with smoothstep to yield 16.16bit values
 }
 
 // 1D Perlin noise function that returns a value in range of -24691 to 24689
@@ -164,8 +228,7 @@ static int32_t perlin1D_raw(uint32_t x, bool is16bit = false) {
   // integer and fractional part coordinates
   int32_t x0 = x >> 16;
   int32_t x1 = x0 + 1;
-  if (is16bit)
-    x1 = x1 & 0xFF;  // wrap back to zero at 0xFF instead of 0xFFFF
+  if(is16bit) x1 = x1 & 0xFF; // wrap back to zero at 0xFF instead of 0xFFFF
 
   int32_t dx0 = x & 0xFFFF;
   int32_t dx1 = dx0 - 0x10000;
@@ -185,8 +248,8 @@ static int32_t perlin2D_raw(uint32_t x, uint32_t y, bool is16bit = false) {
   int32_t x1 = x0 + 1;
   int32_t y1 = y0 + 1;
 
-  if (is16bit) {
-    x1 = x1 & 0xFF;  // wrap back to zero at 0xFF instead of 0xFFFF
+  if(is16bit) {
+    x1 = x1 & 0xFF; // wrap back to zero at 0xFF instead of 0xFFFF
     y1 = y1 & 0xFF;
   }
 
@@ -219,8 +282,8 @@ static int32_t perlin3D_raw(uint32_t x, uint32_t y, uint32_t z, bool is16bit = f
   int32_t y1 = y0 + 1;
   int32_t z1 = z0 + 1;
 
-  if (is16bit) {
-    x1 = x1 & 0xFF;  // wrap back to zero at 0xFF instead of 0xFFFF
+  if(is16bit) {
+    x1 = x1 & 0xFF; // wrap back to zero at 0xFF instead of 0xFFFF
     y1 = y1 & 0xFF;
     z1 = z1 & 0xFF;
   }
@@ -258,32 +321,50 @@ static int32_t perlin3D_raw(uint32_t x, uint32_t y, uint32_t z, bool is16bit = f
 
 // scaling functions for fastled replacement
 static uint16_t perlin16(uint32_t x) {
-  return ((perlin1D_raw(x) * 1159) >> 10) + 32803;  // scale to 16bit and offset (fastled range: about 4838 to 60766)
+  return ((perlin1D_raw(x) * 1159) >> 10) + 32803; //scale to 16bit and offset (fastled range: about 4838 to 60766)
 }
 
 static uint16_t perlin16(uint32_t x, uint32_t y) {
-  return ((perlin2D_raw(x, y) * 1537) >> 10) + 32725;  // scale to 16bit and offset (fastled range: about 1748 to 63697)
+ return ((perlin2D_raw(x, y) * 1537) >> 10) + 32725; //scale to 16bit and offset (fastled range: about 1748 to 63697)
 }
 
 static uint16_t perlin16(uint32_t x, uint32_t y, uint32_t z) {
-  return ((perlin3D_raw(x, y, z) * 1731) >> 10) +
-         33147;  // scale to 16bit and offset (fastled range: about 4766 to 60840)
+  return ((perlin3D_raw(x, y, z) * 1731) >> 10) + 33147; //scale to 16bit and offset (fastled range: about 4766 to 60840)
 }
 
 static uint8_t perlin8(uint16_t x) {
-  return (((perlin1D_raw((uint32_t) x << 8, true) * 1353) >> 10) + 32769) >>
-         8;  // scale to 16 bit, offset, then scale to 8bit
+  return (((perlin1D_raw((uint32_t)x << 8, true) * 1353) >> 10) + 32769) >> 8; //scale to 16 bit, offset, then scale to 8bit
 }
 
 static uint8_t perlin8(uint16_t x, uint16_t y) {
-  return (((perlin2D_raw((uint32_t) x << 8, (uint32_t) y << 8, true) * 1620) >> 10) + 32771) >>
-         8;  // scale to 16 bit, offset, then scale to 8bit
+  return (((perlin2D_raw((uint32_t)x << 8, (uint32_t)y << 8, true) * 1620) >> 10) + 32771) >> 8; //scale to 16 bit, offset, then scale to 8bit
 }
 
 static uint8_t perlin8(uint16_t x, uint16_t y, uint16_t z) {
-  return (((perlin3D_raw((uint32_t) x << 8, (uint32_t) y << 8, (uint32_t) z << 8, true) * 2015) >> 10) + 33168) >>
-         8;  // scale to 16 bit, offset, then scale to 8bit
+  return (((perlin3D_raw((uint32_t)x << 8, (uint32_t)y << 8, (uint32_t)z << 8, true) * 2015) >> 10) + 33168) >> 8; //scale to 16 bit, offset, then scale to 8bit
 }
+
+// fast (true) random numbers using hardware RNG, all functions return values in the range lowerlimit to upperlimit-1
+// note: for true random numbers with high entropy, do not call faster than every 200ns (5MHz)
+// tests show it is still highly random reading it quickly in a loop (better than fastled PRNG)
+// for 8bit and 16bit random functions: no limit check is done for best speed
+// 32bit inputs are used for speed and code size, limits don't work if inverted or out of range
+// inlining does save code size except for random(a,b) and 32bit random with limits
+#ifdef ESP8266
+#define HW_RND_REGISTER RANDOM_REG32
+#else // ESP32 family
+#include "soc/wdev_reg.h"
+#define HW_RND_REGISTER REG_READ(WDEV_RND_REG)
+#endif
+inline uint32_t hw_random() { return HW_RND_REGISTER; };
+uint32_t hw_random(uint32_t upperlimit); // not inlined for code size
+int32_t hw_random(int32_t lowerlimit, int32_t upperlimit);
+inline uint16_t hw_random16() { return HW_RND_REGISTER; };
+inline uint16_t hw_random16(uint32_t upperlimit) { return (hw_random16() * upperlimit) >> 16; }; // input range 0-65535 (uint16_t)
+inline int16_t hw_random16(int32_t lowerlimit, int32_t upperlimit) { int32_t range = upperlimit - lowerlimit; return lowerlimit + hw_random16(range); }; // signed limits, use int16_t ranges
+inline uint8_t hw_random8() { return HW_RND_REGISTER; };
+inline uint8_t hw_random8(uint32_t upperlimit) { return (hw_random8() * upperlimit) >> 8; }; // input range 0-255
+inline uint8_t hw_random8(uint32_t lowerlimit, uint32_t upperlimit) { uint32_t range = upperlimit - lowerlimit; return lowerlimit + hw_random8(range); }; // input range 0-255
 
 #ifdef PALETTES
 

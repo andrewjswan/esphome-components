@@ -90,9 +90,6 @@ light:
     variant: 800KBPS  # WS2812 (same as 800KBPS)
     effects:
       - music_leds_effect:
-          name: Binmap with Music
-          mode: BINMAP
-      - music_leds_effect:
           name: Grav with Music
           mode: GRAV
       - music_leds_effect:
@@ -104,9 +101,3 @@ light:
       - music_leds_effect:
           name: Pixels with Music
           mode: PIXELS
-      - music_leds_effect:
-          name: Jungles with Music
-          mode: JUNGLES
-      - music_leds_effect:
-          name: Midnoise with Music
-          mode: MIDNOISE

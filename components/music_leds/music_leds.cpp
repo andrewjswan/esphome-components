@@ -1434,7 +1434,7 @@ void MusicLeds::visualize_ripplepeak(CRGB *physic_leds)  // Ripple peak. By Andr
         ripples[i].state++;  // Next step.
         break;
     }  // switch step
-  }  // for i
+  }    // for i
 }  // visualize_ripplepeak()
 #endif
 

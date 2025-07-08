@@ -76,7 +76,6 @@ microphone:
 
 music_leds:
   id: music_light
-  mic_id: adc_mic
 
 light:
   # Neopixel with Music Leds / Sound Reactive

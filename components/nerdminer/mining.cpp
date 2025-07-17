@@ -96,8 +96,9 @@ bool checkPoolInactivity(unsigned int keepAliveTime, unsigned long inactivityTim
 
   // If no shares sent to pool
   // send something to pool to hold socket oppened
-  if (time_now < mLastTXtoPool)  // 32bit wrap
+  if (time_now < mLastTXtoPool) {  // 32bit wrap
     mLastTXtoPool = time_now;
+  }
   if (time_now > mLastTXtoPool + keepAliveTime) {
     mLastTXtoPool = time_now;
     ESP_LOGD(TAG, "Sending: KeepAlive - suggest_difficulty");
@@ -106,8 +107,9 @@ bool checkPoolInactivity(unsigned int keepAliveTime, unsigned long inactivityTim
 
   if (elapsedKHs == 0) {
     // Check if hashrate is 0 during inactivityTIme
-    if (mStart0Hashrate == 0)
+    if (mStart0Hashrate == 0) {
       mStart0Hashrate = time_now;
+    }
     if ((time_now - mStart0Hashrate) > inactivityTime) {
       mStart0Hashrate = 0;
       return true;

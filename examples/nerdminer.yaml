@@ -1,5 +1,6 @@
 substitutions:
-  name: "esp-nerdminer"
+  device: "esp_nerdminer"
+  name: "nerdminer"
   friendly_name: "NerdMiner Component"
   project_name: "ajs.component-nedrminer"
   project_version: "1.5.0"
@@ -7,9 +8,10 @@ substitutions:
 
 esphome:
   name: "${name}"
+  friendly_name: "${friendly_name}"
   name_add_mac_suffix: true
   comment: $comment
-  build_path: ./.build/$name
+  build_path: ./.build/$device
   project:
     name: "${project_name}"
     version: "${project_version}"
@@ -27,6 +29,11 @@ api:
 
 ota:
   - platform: esphome
+    on_begin:
+      then:
+        - lambda: |-
+            id(esp_miner)->stop();
+  - platform: web_server
     on_begin:
       then:
         - lambda: |-
@@ -67,7 +74,7 @@ nerdminer:
 
 binary_sensor:
   - platform: template
-    name: "${friendly_name} State"
+    name: "State"
     id: miner_state
     icon: mdi:lan-connect
     lambda: |-
@@ -77,7 +84,7 @@ binary_sensor:
 
 sensor:
   - platform: template
-    name: "${friendly_name} Valid Blocks"
+    name: "Valid Blocks"
     icon: mdi:trophy-award
     lambda: |-
       return id(esp_miner).getValidBlocks();
@@ -87,7 +94,7 @@ sensor:
       sorting_weight: 2
 
   - platform: template
-    name: "${friendly_name} Block Templates"
+    name: "Block Templates"
     icon: mdi:code-block-brackets
     lambda: |-
       return id(esp_miner).getBlockTemplates();
@@ -97,7 +104,7 @@ sensor:
       sorting_weight: 3
 
   - platform: template
-    name: "${friendly_name} Best Difficulty"
+    name: "Best Difficulty"
     icon: mdi:vector-difference
     lambda: |-
       return id(esp_miner).getBestDiff();
@@ -107,7 +114,7 @@ sensor:
       sorting_weight: 4
 
   - platform: template
-    name: "${friendly_name} 32Bit Shares"
+    name: "32Bit Shares"
     icon: mdi:cpu-32-bit
     lambda: |-
       return id(esp_miner).get32BitShares();
@@ -117,7 +124,7 @@ sensor:
       sorting_weight: 5
 
   - platform: template
-    name: "${friendly_name} Speed"
+    name: "Speed"
     icon: mdi:speedometer
     lambda: |-
       return id(esp_miner).getHashrate();
@@ -128,7 +135,7 @@ sensor:
       sorting_weight: 6
 
   - platform: template
-    name: "${friendly_name} Hashes"
+    name: "Hashes"
     icon: mdi:pound-box-outline
     lambda: |-
       return id(esp_miner).getTotalHashes();
@@ -139,53 +146,53 @@ sensor:
       sorting_weight: 7
 
   - platform: internal_temperature
-    name: ${friendly_name} Device Temperature
+    name: Device Temperature
     id: device_temperature
     icon: mdi:thermometer
     device_class: temperature
     entity_category: diagnostic
 
   - platform: uptime
-    name: "${friendly_name} Uptime"
+    name: "Uptime"
     entity_category: diagnostic
 
   - platform: wifi_signal
-    name: "${friendly_name} WiFi Signal"
+    name: "WiFi Signal"
     entity_category: diagnostic
     icon: mdi:signal
 
 button:
   - platform: restart
-    name: "${friendly_name} Restart"
+    name: "Restart"
     id: Restart
     entity_category: diagnostic
     icon: mdi:restart
 
   - platform: factory_reset
-    name: "${friendly_name} Restart with Factory Default Settings"
+    name: "Restart with Factory Default Settings"
     id: Reset
     entity_category: diagnostic
     disabled_by_default: true
 
 text_sensor:
   - platform: version
-    name: ${friendly_name} ESPHome Version
+    name: ESPHome Version
     hide_timestamp: true
     entity_category: diagnostic
 
   - platform: wifi_info
     ip_address:
-      name: "${friendly_name} IP Address"
+      name: "IP Address"
       disabled_by_default: true
       entity_category: diagnostic
       icon: mdi:ip
     ssid:
-      name: "${friendly_name} Connected SSID"
+      name: "Connected SSID"
       disabled_by_default: true
       entity_category: diagnostic
       icon: mdi:access-point-network
     mac_address:
-      name: "${friendly_name} Mac Address"
+      name: "Mac Address"
       disabled_by_default: true
       entity_category: diagnostic
       icon: mdi:console-network

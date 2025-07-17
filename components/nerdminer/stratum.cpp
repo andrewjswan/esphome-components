@@ -13,7 +13,7 @@
 namespace esphome {
 namespace nerdminer {
 
-StaticJsonDocument<BUFFER_JSON_DOC> doc;
+JsonDocument doc;
 unsigned long id = 1;
 
 // Get next JSON RPC Id
@@ -35,8 +35,8 @@ bool verifyPayload(String *line) {
   return true;
 }
 
-bool checkError(const StaticJsonDocument<BUFFER_JSON_DOC> doc) {
-  if (!doc.containsKey("error"))
+bool checkError(const JsonDocument doc) {
+  if (!doc["error"].is<JsonVariant>())
     return false;
   if (doc["error"].size() == 0)
     return false;
@@ -76,7 +76,6 @@ bool tx_mining_subscribe(WiFiClient &client, mining_subscribe &mSubscribe) {
     ESP_LOGD(TAG, "[STRATUM] >>>>>>>>> Work aborted.");
     ESP_LOGD(TAG, "    extranonce1 length: %u", mSubscribe.extranonce1.length());
     doc.clear();
-    doc.garbageCollect();
     return false;
   }
   return true;
@@ -91,7 +90,7 @@ bool parse_mining_subscribe(String line, mining_subscribe &mSubscribe) {
 
   if (error || checkError(doc))
     return false;
-  if (!doc.containsKey("result"))
+  if (!doc["result"].is<JsonVariant>())
     return false;
 
   mSubscribe.sub_details = String((const char *) doc["result"][0][0][1]);
@@ -140,7 +139,7 @@ stratum_method parse_mining_method(String line) {
   if (error || checkError(doc))
     return STRATUM_PARSE_ERROR;
 
-  if (!doc.containsKey("method")) {
+  if (!doc["method"].is<JsonVariant>()) {
     // "error":null means success
     if (doc["error"].isNull())
       return STRATUM_SUCCESS;
@@ -166,7 +165,7 @@ bool parse_mining_notify(String line, mining_job &mJob) {
   DeserializationError error = deserializeJson(doc, line);
   if (error)
     return false;
-  if (!doc.containsKey("params"))
+  if (!doc["params"].is<JsonVariant>())
     return false;
 
   mJob.job_id = String((const char *) doc["params"][0]);
@@ -225,7 +224,7 @@ bool parse_mining_set_difficulty(String line, double &difficulty) {
   DeserializationError error = deserializeJson(doc, line);
   if (error)
     return false;
-  if (!doc.containsKey("params"))
+  if (!doc["params"].is<JsonVariant>())
     return false;
 
   difficulty = (double) doc["params"][0];
@@ -250,7 +249,7 @@ unsigned long parse_extract_id(const String &line) {
     return 0;
   }
 
-  if (!doc.containsKey("id")) {
+  if (!doc["id"].is<JsonVariant>()) {
     return 0;
   }
 

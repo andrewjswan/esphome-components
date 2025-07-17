@@ -1,5 +1,6 @@
 substitutions:
-  name: "esp-nerdminer"
+  device: "esp_music_led"
+  name: "muisc-led"
   friendly_name: "Music Led Component"
   project_name: "ajs.Light - Music Led - Sound Reactive"
   project_version: "1.5.5"
@@ -11,9 +12,10 @@ substitutions:
 
 esphome:
   name: "${name}"
+  friendly_name: "${friendly_name}"
   name_add_mac_suffix: true
   comment: $comment
-  build_path: ./.build/$name
+  build_path: ./.build/$device
   project:
     name: "${project_name}"
     version: "${project_version}"
@@ -31,6 +33,7 @@ api:
 
 ota:
   - platform: esphome
+  - platform: web_server
 
 logger:
   level: INFO

@@ -16,13 +16,19 @@
 namespace esphome {
 namespace nerdminer {
 
+esp_task_wdt_config_t twdt_config = {
+    .timeout_ms = WDT_MINER_TIMEOUT,
+    .idle_core_mask = (1 << CONFIG_FREERTOS_NUMBER_OF_CORES) - 1,  // Bitmask of all cores
+    .trigger_panic = true,
+};
+
 void NerdMiner::setup() {
   ESP_LOGCONFIG(TAG, "Setting up NerdMiner...");
   this->start();
 }  // setup()
 
 void NerdMiner::start() {
-  esp_task_wdt_init(WDT_MINER_TIMEOUT, true);
+  esp_task_wdt_init(&twdt_config);
 
   BaseType_t res1 = xTaskCreatePinnedToCore(runMonitor, "Monitor", 10000, (void *) "Monitor", 5, &monitor_handle, 1);
   BaseType_t res2 =

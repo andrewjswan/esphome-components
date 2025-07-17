@@ -12,7 +12,6 @@
 #define COINBASE_SIZE 100
 #define COINBASE2_SIZE 128
 
-#define BUFFER_JSON_DOC 4096
 #define BUFFER 1024
 
 namespace esphome {
@@ -50,7 +49,7 @@ typedef enum {
 
 unsigned long getNextId(unsigned long id);
 bool verifyPayload(String *line);
-bool checkError(const StaticJsonDocument<BUFFER_JSON_DOC> doc);
+bool checkError(const JsonDocument doc);
 
 // Method Mining.Subscribe
 mining_subscribe init_mining_subscribe(void);

@@ -14,9 +14,7 @@ DEPENDENCIES = ["wifi", "http_request"]
 
 AUTO_LOAD = ["nerdminer"]
 
-logging.info("")
 logging.info("Load NerdMiner component https://github.com/andrewjswan/esphome-components")
-logging.info("")
 
 nerdminer_ns = cg.esphome_ns.namespace("nerdminer")
 NERDMINER_ = nerdminer_ns.class_("NerdMiner", cg.Component)

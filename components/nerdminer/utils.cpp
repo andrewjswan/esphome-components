@@ -241,13 +241,13 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   byte interResult[32];  // 256 bit
   byte shaResult[32];    // 256 bit
 
-  mbedtls_sha256_starts_ret(&ctx, 0);
-  mbedtls_sha256_update_ret(&ctx, bytearray, str_len);
-  mbedtls_sha256_finish_ret(&ctx, interResult);
+  mbedtls_sha256_starts(&ctx, 0);
+  mbedtls_sha256_update(&ctx, bytearray, str_len);
+  mbedtls_sha256_finish(&ctx, interResult);
 
-  mbedtls_sha256_starts_ret(&ctx, 0);
-  mbedtls_sha256_update_ret(&ctx, interResult, 32);
-  mbedtls_sha256_finish_ret(&ctx, shaResult);
+  mbedtls_sha256_starts(&ctx, 0);
+  mbedtls_sha256_update(&ctx, interResult, 32);
+  mbedtls_sha256_finish(&ctx, shaResult);
   mbedtls_sha256_free(&ctx);
 
 #ifdef DEBUG_MINING
@@ -279,13 +279,13 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
 
     mbedtls_sha256_context ctx;
     mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts_ret(&ctx, 0);
-    mbedtls_sha256_update_ret(&ctx, merkle_concatenated, 64);
-    mbedtls_sha256_finish_ret(&ctx, interResult);
+    mbedtls_sha256_starts(&ctx, 0);
+    mbedtls_sha256_update(&ctx, merkle_concatenated, 64);
+    mbedtls_sha256_finish(&ctx, interResult);
 
-    mbedtls_sha256_starts_ret(&ctx, 0);
-    mbedtls_sha256_update_ret(&ctx, interResult, 32);
-    mbedtls_sha256_finish_ret(&ctx, mMiner.merkle_result);
+    mbedtls_sha256_starts(&ctx, 0);
+    mbedtls_sha256_update(&ctx, interResult, 32);
+    mbedtls_sha256_finish(&ctx, mMiner.merkle_result);
     mbedtls_sha256_free(&ctx);
 
 #ifdef DEBUG_MINING

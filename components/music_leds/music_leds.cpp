@@ -1629,11 +1629,10 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
   if (this->store != secondHand) {  // Triggered millis timing.
     this->store = secondHand;
 
-    // uint8_t pixCol = (log10f((float)FFT_MajorPeak) - 2.26f) * 177;  // 10Khz sampling - log10 frequency range is
-    // from 2.26 (182hz) to 3.7 (5012hz). Let's scale accordingly.
-    uint8_t pixCol =
-        (log10f(FFT_MajorPeak) - 2.26f) *
-        150;  // 22Khz sampling - log10 frequency range is from 2.26 (182hz) to 3.967 (9260hz). Let's scale accordingly.
+    // 10Khz sampling - log10 frequency range is from 2.26 (182hz) to 3.7 (5012hz). Let's scale accordingly.
+    // uint8_t pixCol = (log10f((float)FFT_MajorPeak) - 2.26f) * 177;
+    // 22Khz sampling - log10 frequency range is from 2.26 (182hz) to 3.967 (9260hz). Let's scale accordingly.
+    uint8_t pixCol = (log10f(FFT_MajorPeak) - 2.26f) * 150;
     if (FFT_MajorPeak < 182.0f)
       pixCol = 0;  // handle underflow
 

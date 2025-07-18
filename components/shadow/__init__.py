@@ -37,6 +37,8 @@ async def to_code(config) -> None:
     """Code generation entry point."""
     var = cg.new_Pvariable(config[CONF_ID])
 
+    cg.add_define("USE_OTA_STATE_CALLBACK")
+
     shadow_script = await cg.get_variable(config[CONF_SCRIPT_ID])
     cg.add(var.set_script(shadow_script))
 

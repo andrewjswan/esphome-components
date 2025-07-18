@@ -6,6 +6,10 @@
 
 #include "esphome/core/log.h"
 
+#ifdef USE_OTA
+#include "esphome/components/ota/ota_backend.h"
+#endif
+
 #include <esp_task_wdt.h>
 #include <soc/soc_caps.h>
 
@@ -17,6 +21,16 @@ namespace nerdminer {
 
 void NerdMiner::setup() {
   ESP_LOGCONFIG(TAG, "Setting up NerdMiner...");
+
+#ifdef USE_OTA
+  ota::get_global_ota_callback()->add_on_state_callback(
+      [this](ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) {
+        if (state == ota::OTA_STARTED) {
+          this->stop();
+        }
+      });
+#endif
+
   this->start();
 }  // setup()
 

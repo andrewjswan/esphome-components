@@ -29,12 +29,7 @@ api:
 
 ota:
   - platform: esphome
-    on_begin:
-      then:
-        - lambda: |-
-            id(esp_shadow)->stop();
-        - lambda: |-
-            id(esp_miner)->stop();
+  - platform: web_server
 
 logger:
   level: INFO

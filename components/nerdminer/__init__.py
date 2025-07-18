@@ -42,6 +42,8 @@ CONFIG_SCHEMA = cv.All(NERDMINER_SCHEMA)
 async def to_code(config) -> None:
     """Code generation entry point."""
     var = cg.new_Pvariable(config[CONF_ID])
+    
+    cg.add_define("USE_OTA_STATE_CALLBACK")
 
     cg.add_define("NERDMINER_WALLETID", config[CONF_WALLETID])
     cg.add_define("NERDMINER_WORKER", config[CONF_WORKER])

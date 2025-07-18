@@ -63,13 +63,6 @@ shadow:
   id: esp_shadow
   script_id: some_script
   interval: 60
-
-ota:
-  - platform: esphome
-    on_begin:
-      then:
-        - lambda: |-
-            id(esp_shadow)->stop();
 ```
 
 ## NerdMiner
@@ -93,13 +86,6 @@ nerdminer:
   worker: "esphomeminer"
   pool: "public-pool.io"
   port: 21496
-
-ota:
-  - platform: esphome
-    on_begin:
-      then:
-        - lambda: |-
-            id(miner)->stop();
 ```
 
 > [!NOTE]

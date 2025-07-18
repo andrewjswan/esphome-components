@@ -1,3 +1,4 @@
+#include "esphome.h"
 #include "nerdminer.h"
 #include "mining.h"
 #include "monitor.h"
@@ -8,19 +9,11 @@
 #include <esp_task_wdt.h>
 #include <soc/soc_caps.h>
 
-// 3 seconds WDT
-#define WDT_TIMEOUT 3
 // 15 minutes WDT for miner task
-#define WDT_MINER_TIMEOUT 900
+#define WDT_MINER_TIMEOUT 900000
 
 namespace esphome {
 namespace nerdminer {
-
-esp_task_wdt_config_t twdt_config = {
-    .timeout_ms = WDT_MINER_TIMEOUT,
-    .idle_core_mask = (1 << CONFIG_FREERTOS_NUMBER_OF_CORES) - 1,  // Bitmask of all cores
-    .trigger_panic = true,
-};
 
 void NerdMiner::setup() {
   ESP_LOGCONFIG(TAG, "Setting up NerdMiner...");
@@ -28,7 +21,13 @@ void NerdMiner::setup() {
 }  // setup()
 
 void NerdMiner::start() {
-  esp_task_wdt_init(&twdt_config);
+  esp_task_wdt_config_t wdt_config = {
+      .timeout_ms = WDT_MINER_TIMEOUT,
+      .idle_core_mask = (1 << SOC_CPU_CORES_NUM) - 1,  // Bitmask of all cores
+      .trigger_panic = true,
+  };
+  esp_task_wdt_init(&wdt_config);
+  esp_task_wdt_reconfigure(&wdt_config);
 
   BaseType_t res1 = xTaskCreatePinnedToCore(runMonitor, "Monitor", 10000, (void *) "Monitor", 5, &monitor_handle, 1);
   BaseType_t res2 =

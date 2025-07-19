@@ -41,7 +41,6 @@ async def to_code(config) -> None:
 
     shadow_script = await cg.get_variable(config[CONF_SCRIPT_ID])
     cg.add(var.set_script(shadow_script))
-
-    cg.add_define("SHADOW_INTERVAL", config[CONF_INTERVAL])
+    cg.add(var.set_shadow_interval(config[CONF_INTERVAL]))
 
     await cg.register_component(var, config)

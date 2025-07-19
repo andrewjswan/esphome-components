@@ -1,4 +1,5 @@
-#include "esphome.h"
+#include "shadow.h"
+#include "esphome/core/log.h"
 
 #ifdef USE_OTA
 #include "esphome/components/ota/ota_backend.h"
@@ -37,7 +38,7 @@ void Shadow::start() {
 void Shadow::shadow_function(void *params) {
   Shadow *this_task = (Shadow *) params;
   for (;;) {
-    vTaskDelay(pdMS_TO_TICKS(SHADOW_INTERVAL * 1000));
+    vTaskDelay(pdMS_TO_TICKS(this_task->shadow_interval_ * 1000));
 
     if (this_task->script == nullptr) {
       ESP_LOGE(TAG, "The script came out of the shadow. Skip.");
@@ -72,7 +73,7 @@ void Shadow::set_script(script::Script<> *script) {
 
 void Shadow::dump_config() {
   ESP_LOGCONFIG(TAG, "Shadow version: %s", SHADOW_VERSION);
-  ESP_LOGCONFIG(TAG, "      Interval: %ds", SHADOW_INTERVAL);
+  ESP_LOGCONFIG(TAG, "      Interval: %ds", this->shadow_interval_);
 }  // dump_config()
 
 }  // namespace shadow

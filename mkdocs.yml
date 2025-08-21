@@ -28,7 +28,7 @@ theme:
   language: en
   font:
     text: Roboto
-    code: Roboto Mono  
+    code: Roboto Mono
   palette:
     # Palette toggle for automatic mode
     - media: "(prefers-color-scheme)"
@@ -40,7 +40,7 @@ theme:
 
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
-      scheme: default 
+      scheme: default
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
@@ -70,8 +70,8 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Components:
-    - Matrix Lamp: matrix-lamp.md
-    - Shadow: shadow.md
-    - Fastled Helper: fastled-helper.md
-    - NerdMiner: nerdminer.md
-    - Music Leds | Sound Reactive: music-leds.md
+      - Matrix Lamp: matrix-lamp.md
+      - Shadow: shadow.md
+      - Fastled Helper: fastled-helper.md
+      - NerdMiner: nerdminer.md
+      - Music Leds | Sound Reactive: music-leds.md

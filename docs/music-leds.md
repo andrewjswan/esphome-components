@@ -3,6 +3,8 @@
 
 Ported `Sound Reactive` from WLED to ESPHome
 
+### Configuration
+
 ```yaml
 external_components:
   - source:
@@ -38,6 +40,8 @@ light:
           name: Grav with Music
           mode: GRAV
 ```
+
+### ESPHome package
 
 > [!NOTE]
 > Full package: https://github.com/andrewjswan/esphome-config/blob/main/packages/neopixel_light_music_leds.yaml

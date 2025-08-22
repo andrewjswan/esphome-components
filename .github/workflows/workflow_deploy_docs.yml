@@ -7,16 +7,20 @@ on:
 
 jobs:
   deploy:
+    name: Deploy documentsation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Configure Git Credentials
+      - name: ⬇️ Check out Repo
+        uses: actions/checkout@v5
+      - name: 🎭 Configure Git Credentials
         run: |
           git config user.name "${GITHUB_ACTOR}"
           git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-      - uses: actions/setup-python@v5
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: 3.x
+      - name: ⚙️CC
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
       - uses: actions/cache@v4
         with:
@@ -25,4 +29,4 @@ jobs:
           restore-keys: |
             mkdocs-material-
       - run: pip install mkdocs-material
-      - run: mkdocs gh-deploy --force
+      - run: mkdocs gh-deploy --force -f .mkdocs.yml

@@ -4,6 +4,8 @@
 
 Allows you to run a script in a parallel thread (Task)
 
+### Configuration
+
 ```yaml
 external_components:
   - source:

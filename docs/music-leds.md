@@ -43,5 +43,5 @@ light:
 
 ### ESPHome package
 
-> [!NOTE]
-> Full package: https://github.com/andrewjswan/esphome-config/blob/main/packages/neopixel_light_music_leds.yaml
+!!! note
+    Full package: https://github.com/andrewjswan/esphome-config/blob/main/packages/neopixel_light_music_leds.yaml

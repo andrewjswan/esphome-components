@@ -9,7 +9,7 @@
 External components for ESPHome
 
 - [Matrix Lamp](https://andrewjswan.github.io/esphome-components/matrix-lamp/)
-- [Shadow]([#shadow](https://andrewjswan.github.io/esphome-components/shadow/))
+- [Shadow](https://andrewjswan.github.io/esphome-components/shadow/)
 - [Fastled Helper](https://andrewjswan.github.io/esphome-components/fastled-helper/)
 - [NerdMiner](https://andrewjswan.github.io/esphome-components/nerdminer/)
 - [Music Leds / Sound Reactive](https://andrewjswan.github.io/esphome-components/music-leds/)

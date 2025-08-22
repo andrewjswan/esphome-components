@@ -19,8 +19,9 @@ theme:
   features:
     - navigation.tabs
     - navigation.features
-    - toc.integrate
+    - navigation.path
     - navigation.top
+    - toc.integrate
     - search.suggest
     - search.hightlight
     - content.tabs.link
@@ -36,6 +37,8 @@ theme:
       toggle:
         icon: material/brightness-auto
         name: Switch to light mode
+      primary: indigo
+      accent: indigo
 
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
@@ -43,6 +46,8 @@ theme:
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
+      primary: indigo
+      accent: indigo
 
     # Palette toggle for dark mode
     - media: "(prefers-color-scheme: dark)"
@@ -50,6 +55,8 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to system preference
+      primary: indigo
+      accent: indigo
 
 markdown_extensions:
   - pymdownx.highlight:

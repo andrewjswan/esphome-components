@@ -8,6 +8,7 @@ site_description: >-
 # Repository
 repo_name: andrewjswan/esphome-components
 repo_url: https://github.com/andrewjswan/esphome-components
+remote_branch: documentation
 
 # Copyright
 copyright: Copyright &copy; Andrew J.Swan

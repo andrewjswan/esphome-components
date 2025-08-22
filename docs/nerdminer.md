@@ -4,6 +4,9 @@
 This component let you try to reach a bitcoin block with a small piece of hardware.
 
 The main aim of this component is to let you learn more about minery and to have a beautiful piece of hardware in your desktop.
+
+### Configuration
+
 ```yaml
 external_components:
   - source:
@@ -20,6 +23,8 @@ nerdminer:
   pool: "public-pool.io"
   port: 21496
 ```
+
+### Based
 
 > [!NOTE]
 > Based on [**NerdSoloMiner**](https://github.com/BitMaker-hub/NerdMiner_v2) by [BitMaker](https://github.com/BitMaker-hub)

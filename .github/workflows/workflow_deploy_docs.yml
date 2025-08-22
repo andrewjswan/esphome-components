@@ -37,7 +37,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           name: github-pages
-          path: "_site/"
+          path: site/
 
   deploy:
     name: Deploy documentsation

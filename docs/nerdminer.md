@@ -26,5 +26,5 @@ nerdminer:
 
 ### Based
 
-> [!NOTE]
-> Based on [**NerdSoloMiner**](https://github.com/BitMaker-hub/NerdMiner_v2) by [BitMaker](https://github.com/BitMaker-hub)
+!!! note
+    Based on [**NerdSoloMiner**](https://github.com/BitMaker-hub/NerdMiner_v2) by [BitMaker](https://github.com/BitMaker-hub)

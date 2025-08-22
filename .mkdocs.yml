@@ -70,3 +70,8 @@ nav:
       - Fastled Helper: fastled-helper.md
       - NerdMiner: nerdminer.md
       - Music Leds | Sound Reactive: music-leds.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github 
+      link: https://github.com/andrewjswan

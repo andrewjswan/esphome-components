@@ -3,6 +3,8 @@
 
 Helper providing a set of palettes, working with palettes and additional functions.
 
+### Configuration
+
 ```yaml
 external_components:
   - source:

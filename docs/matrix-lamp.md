@@ -4,6 +4,8 @@
 Component assembly of firmware adaptations based on the original idea of ​​Gyver Lamp, for ESPHome.
 Has a [separate repository](https://github.com/andrewjswan/matrix-lamp/).
 
+### Configuration
+
 ```yaml
 external_components:
   - source:

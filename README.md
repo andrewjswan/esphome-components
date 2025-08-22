@@ -8,11 +8,11 @@
 # ESPHome Components
 External components for ESPHome
 
-- [Matrix Lamp](#matrix-lamp)
-- [Shadow](#shadow)
-- [Fastled Helper](#fastled-helper)
-- [NerdMiner](#nerdminer)
-- [Music Leds / Sound Reactive](#music-leds--sound-reactive)
+- [Matrix Lamp](https://andrewjswan.github.io/esphome-components/matrix-lamp/)
+- [Shadow]([#shadow](https://andrewjswan.github.io/esphome-components/shadow/))
+- [Fastled Helper](https://andrewjswan.github.io/esphome-components/fastled-helper/)
+- [NerdMiner](https://andrewjswan.github.io/esphome-components/nerdminer/)
+- [Music Leds / Sound Reactive](https://andrewjswan.github.io/esphome-components/music-leds/)
 - [CUBIC CM1106 Single Beam NDIR CO2 Sensor Module](https://esphome.io/components/sensor/cm1106.html)
 - [CUBIC PM2005/PM2105 Laser Particle Sensor Module](https://esphome.io/components/sensor/pm2005.html)
 

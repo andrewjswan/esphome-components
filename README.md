@@ -16,6 +16,3 @@ External components for ESPHome
 - [CUBIC CM1106 Single Beam NDIR CO2 Sensor Module](https://esphome.io/components/sensor/cm1106.html)
 - [CUBIC PM2005/PM2105 Laser Particle Sensor Module](https://esphome.io/components/sensor/pm2005.html)
 
-## Documentation
-
-[Documentation](https://andrewjswan.github.io/esphome-components/)

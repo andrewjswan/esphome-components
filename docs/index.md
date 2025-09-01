@@ -13,5 +13,5 @@ External components for ESPHome
 - [Fastled Helper](fastled-helper.md)
 - [NerdMiner](nerdminer.md)
 - [Music Leds / Sound Reactive](music-leds.md)
-- [CUBIC CM1106 Single Beam NDIR CO2 Sensor Module](https://esphome.io/components/sensor/cm1106.html)
-- [CUBIC PM2005/PM2105 Laser Particle Sensor Module](https://esphome.io/components/sensor/pm2005.html)
+- [CUBIC CM1106 Single Beam NDIR CO2 Sensor Module](https://esphome.io/components/sensor/cm1106/)
+- [CUBIC PM2005/PM2105 Laser Particle Sensor Module](https://esphome.io/components/sensor/pm2005/)

@@ -68,6 +68,9 @@ markdown_extensions:
   - pymdownx.details
   - pymdownx.superfences
   - admonition
+  - attr_list
+  - codehilite
+  - md_in_html
 
 nav:
   - Home: index.md
@@ -77,6 +80,7 @@ nav:
       - Fastled Helper: fastled-helper.md
       - NerdMiner: nerdminer.md
       - Music Leds | Sound Reactive: music-leds.md
+  - Additionals: additionals.md
 
 extra:
   social:

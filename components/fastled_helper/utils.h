@@ -158,8 +158,8 @@ static uint16_t beatsin16_t(accum88 beats_per_minute, uint16_t lowest = 0, uint1
 }
 
 // Generates an 8-bit sine wave at a given BPM that oscillates within a given range. see fastled for details.
-static uint8_t beatsin8_t(accum88 beats_per_minute, uint8_t lowest = 0, uint8_t highest = 255,
-                          uint32_t timebase = 0, uint8_t phase_offset = 0) {
+static uint8_t beatsin8_t(accum88 beats_per_minute, uint8_t lowest = 0, uint8_t highest = 255, uint32_t timebase = 0,
+                          uint8_t phase_offset = 0) {
   uint8_t beat = beat8(beats_per_minute, timebase);
   uint8_t beatsin = sin8_t(beat + phase_offset);
   uint8_t rangewidth = highest - lowest;
@@ -497,3 +497,4 @@ static CRGB getCRGBForBand(int x, int pal) {
 
 }  // namespace fastled_helper
 }  // namespace esphome
+

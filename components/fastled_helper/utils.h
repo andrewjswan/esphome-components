@@ -497,5 +497,3 @@ static CRGB getCRGBForBand(int x, int pal) {
 
 }  // namespace fastled_helper
 }  // namespace esphome
-
-

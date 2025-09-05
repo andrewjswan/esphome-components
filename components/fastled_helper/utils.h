@@ -168,8 +168,7 @@ static uint8_t beatsin8_t(accum88 beats_per_minute, uint8_t lowest = 0, uint8_t 
   return result;
 }
 
-static uint8_t beatcos8_t(accum88 beats_per_minute, uint8_t lowest = 0, uint8_t highest = 255,
-                          uint32_t timebase = 0, uint8_t phase_offset = 0) {
+static uint8_t beatcos8_t(accum88 beats_per_minute, uint8_t lowest = 0, uint8_t highest = 255, uint32_t timebase = 0, uint8_t phase_offset = 0) {
   uint8_t beat = beat8(beats_per_minute, timebase);
   uint8_t beatcos = cos8_t(beat + phase_offset);
   uint8_t rangewidth = highest - lowest;
@@ -497,4 +496,5 @@ static CRGB getCRGBForBand(int x, int pal) {
 
 }  // namespace fastled_helper
 }  // namespace esphome
+
 

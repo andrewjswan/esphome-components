@@ -102,83 +102,6 @@ static void fade_out(CRGB *physic_leds, uint16_t _leds_num, uint8_t rate, CRGB b
 }
 
 // *****************************************************************************************************************************************************************
-// 16-bit, integer based Bhaskara I's sine approximation: 16*x*(pi - x) / (5*pi^2 - 4*x*(pi - x))
-// input is 16bit unsigned (0-65535), output is 16bit signed (-32767 to +32767)
-// optimized integer implementation by @dedehai
-static int16_t sin16_t(uint16_t theta) {
-  int scale = 1;
-  if (theta > 0x7FFF) {
-    theta = 0xFFFF - theta;
-    scale = -1;  // second half of the sine function is negative (pi - 2*pi)
-  }
-  uint32_t precal = theta * (0x7FFF - theta);
-  uint64_t numerator = (uint64_t) precal * (4 * 0x7FFF);  // 64bit required
-  int32_t denominator = 1342095361 - precal;              // 1342095361 is 5 * 0x7FFF^2 / 4
-  int16_t result = numerator / denominator;
-  return result * scale;
-}
-
-static int16_t cos16_t(uint16_t theta) {
-  return sin16_t(theta + 0x4000);  // cos(x) = sin(x+pi/2)
-}
-
-static uint8_t sin8_t(uint8_t theta) {
-  int32_t sin16 = sin16_t((uint16_t) theta * 257);  // 255 * 257 = 0xFFFF
-  sin16 += 0x7FFF + 128;                            // shift result to range 0-0xFFFF, +128 for rounding
-  return min(sin16, int32_t(0xFFFF)) >> 8;          // min performs saturation, and prevents overflow
-}
-
-static uint8_t cos8_t(uint8_t theta) {
-  return sin8_t(theta + 64);  // cos(x) = sin(x+pi/2)
-}
-
-// *****************************************************************************************************************************************************************
-
-// fastled beatsin: 1:1 replacements to remove the use of fastled sin16()
-// Generates a 16-bit sine wave at a given BPM that oscillates within a given range. see fastled for details.
-static uint16_t beatsin88_t(accum88 beats_per_minute_88, uint16_t lowest = 0, uint16_t highest = 65535,
-                            uint32_t timebase = 0, uint16_t phase_offset = 0) {
-  uint16_t beat = beat88(beats_per_minute_88, timebase);
-  uint16_t beatsin = (sin16_t(beat + phase_offset) + 32768);
-  uint16_t rangewidth = highest - lowest;
-  uint16_t scaledbeat = scale16(beatsin, rangewidth);
-  uint16_t result = lowest + scaledbeat;
-  return result;
-}
-
-// Generates a 16-bit sine wave at a given BPM that oscillates within a given range. see fastled for details.
-static uint16_t beatsin16_t(accum88 beats_per_minute, uint16_t lowest = 0, uint16_t highest = 65535,
-                            uint32_t timebase = 0, uint16_t phase_offset = 0) {
-  uint16_t beat = beat16(beats_per_minute, timebase);
-  uint16_t beatsin = (sin16_t(beat + phase_offset) + 32768);
-  uint16_t rangewidth = highest - lowest;
-  uint16_t scaledbeat = scale16(beatsin, rangewidth);
-  uint16_t result = lowest + scaledbeat;
-  return result;
-}
-
-// Generates an 8-bit sine wave at a given BPM that oscillates within a given range. see fastled for details.
-static uint8_t beatsin8_t(accum88 beats_per_minute, uint8_t lowest = 0, uint8_t highest = 255, uint32_t timebase = 0,
-                          uint8_t phase_offset = 0) {
-  uint8_t beat = beat8(beats_per_minute, timebase);
-  uint8_t beatsin = sin8_t(beat + phase_offset);
-  uint8_t rangewidth = highest - lowest;
-  uint8_t scaledbeat = scale8(beatsin, rangewidth);
-  uint8_t result = lowest + scaledbeat;
-  return result;
-}
-
-static uint8_t beatcos8_t(accum88 beats_per_minute, uint8_t lowest = 0, uint8_t highest = 255, uint32_t timebase = 0,
-                          uint8_t phase_offset = 0) {
-  uint8_t beat = beat8(beats_per_minute, timebase);
-  uint8_t beatcos = cos8_t(beat + phase_offset);
-  uint8_t rangewidth = highest - lowest;
-  uint8_t scaledbeat = scale8(beatcos, rangewidth);
-  uint8_t result = lowest + scaledbeat;
-  return result;
-}
-
-// *****************************************************************************************************************************************************************
 /*
  * Fixed point integer based Perlin noise functions by @dedehai
  * Note: optimized for speed and to mimic fastled inoise functions, not for accuracy or best randomness
@@ -497,3 +420,4 @@ static CRGB getCRGBForBand(int x, int pal) {
 
 }  // namespace fastled_helper
 }  // namespace esphome
+

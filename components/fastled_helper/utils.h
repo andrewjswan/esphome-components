@@ -102,6 +102,18 @@ static void fade_out(CRGB *physic_leds, uint16_t _leds_num, uint8_t rate, CRGB b
 }
 
 // *****************************************************************************************************************************************************************
+// Generates an 8-bit cosine wave at a given BPM that oscillates within a given range. see fastled for details.
+static uint8_t beatcos8(accum88 beats_per_minute, uint8_t lowest = 0, uint8_t highest = 255, uint32_t timebase = 0,
+                        uint8_t phase_offset = 0) {
+  uint8_t beat = beat8(beats_per_minute, timebase);
+  uint8_t beatcos = cos8(beat + phase_offset);
+  uint8_t rangewidth = highest - lowest;
+  uint8_t scaledbeat = scale8(beatcos, rangewidth);
+  uint8_t result = lowest + scaledbeat;
+  return result;
+}
+
+// *****************************************************************************************************************************************************************
 /*
  * Fixed point integer based Perlin noise functions by @dedehai
  * Note: optimized for speed and to mimic fastled inoise functions, not for accuracy or best randomness

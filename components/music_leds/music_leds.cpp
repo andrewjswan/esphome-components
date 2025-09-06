@@ -1080,86 +1080,86 @@ void MusicLeds::ShowFrame(PLAYMODE CurrentMode, esphome::Color current_color, li
   }
 
   switch (CurrentMode) {
-    case MODE_GRAV:
 #ifdef DEF_GRAV
+    case MODE_GRAV:
       this->visualize_gravfreq(fastled_helper::leds);
-#endif
       break;
-    case MODE_GRAVICENTER:
+#endif
 #ifdef DEF_GRAVICENTER
+    case MODE_GRAVICENTER:
       this->visualize_gravcenter(fastled_helper::leds);
-#endif
       break;
-    case MODE_GRAVICENTRIC:
+#endif
 #ifdef DEF_GRAVICENTRIC
+    case MODE_GRAVICENTRIC:
       this->visualize_gravcentric(fastled_helper::leds);
-#endif
       break;
-    case MODE_GRAVIMETER:
+#endif
 #ifdef DEF_GRAVIMETER
+    case MODE_GRAVIMETER:
       this->visualize_gravmeter(fastled_helper::leds);
-#endif
       break;
-    case MODE_PIXELS:
+#endif
 #ifdef DEF_PIXELS
+    case MODE_PIXELS:
       this->visualize_pixels(fastled_helper::leds);
-#endif
       break;
-    case MODE_JUNGLES:
+#endif
 #ifdef DEF_JUNGLES
+    case MODE_JUNGLES:
       this->visualize_juggles(fastled_helper::leds);
-#endif
       break;
-    case MODE_MIDNOISE:
+#endif
 #ifdef DEF_MIDNOISE
+    case MODE_MIDNOISE:
       this->visualize_midnoise(fastled_helper::leds);
-#endif
       break;
-    case MODE_RIPPLEPEAK:
+#endif
 #ifdef DEF_RIPPLEPEAK
+    case MODE_RIPPLEPEAK:
       this->visualize_ripplepeak(fastled_helper::leds);
-#endif
       break;
-    case MODE_MATRIPIX:
+#endif
 #ifdef DEF_MATRIPIX
+    case MODE_MATRIPIX:
       this->visualize_matripix(fastled_helper::leds);
-#endif
       break;
-    case MODE_NOISEFIRE:
+#endif
 #ifdef DEF_NOISEFIRE
+    case MODE_NOISEFIRE:
       this->visualize_noisefire(fastled_helper::leds);
-#endif
       break;
-    case MODE_PIXELWAVE:
+#endif
 #ifdef DEF_PIXELWAVE
+    case MODE_PIXELWAVE:
       this->visualize_pixelwave(fastled_helper::leds);
-#endif
       break;
-    case MODE_PLASMOID:
+#endif
 #ifdef DEF_PLASMOID
+    case MODE_PLASMOID:
       this->visualize_plasmoid(fastled_helper::leds);
-#endif
       break;
-    case MODE_PUDDLEPEAK:
+#endif
 #ifdef DEF_PUDDLEPEAK
+    case MODE_PUDDLEPEAK:
       this->visualize_puddlepeak(fastled_helper::leds);
-#endif
       break;
-    case MODE_PUDDLES:
+#endif
 #ifdef DEF_PUDDLES
+    case MODE_PUDDLES:
       this->visualize_puddles(fastled_helper::leds);
-#endif
       break;
-    case MODE_DJLIGHT:
+#endif
 #ifdef DEF_DJLIGHT
+    case MODE_DJLIGHT:
       this->visualize_DJLight(fastled_helper::leds);
-#endif
       break;
-    case MODE_WATERFALL:
+#endif
 #ifdef DEF_WATERFALL
+    case MODE_WATERFALL:
       this->visualize_waterfall(fastled_helper::leds);
-#endif
       break;
+#endif
   }
 
   for (int i = 0; i < p_it->size(); i++) {

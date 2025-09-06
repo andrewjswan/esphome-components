@@ -1533,7 +1533,7 @@ void MusicLeds::visualize_plasmoid(CRGB *physic_leds)  // Plasmoid. By Andrew Tu
     // updated, similar to "plasma" effect - softhack007
     uint8_t thisbright = cubicwave8(((i * (1 + (3 * this->speed / 32))) + plasmoip->thisphase) & 0xFF) / 2;
     // Let's munge the brightness a bit and animate it all with the phases.
-    thisbright += fastled_helper::cos8_t(((i * (97 + (5 * this->speed / 32))) + plasmoip->thatphase) & 0xFF) / 2;
+    thisbright += cos8(((i * (97 + (5 * this->speed / 32))) + plasmoip->thatphase) & 0xFF) / 2;
 
     uint8_t colorIndex = thisbright;
     if (volumeSmth * this->variant / 64 < thisbright) {

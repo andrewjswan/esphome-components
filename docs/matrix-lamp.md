@@ -22,6 +22,7 @@ matrix_lamp:
   scale_id: matrix_scale
   speed_id: matrix_speed
 ```
+
 !!! tip "More info"
     Matrix Lamp component [information](https://andrewjswan.github.io/matrix-lamp/matrix-lamp-component/)
 

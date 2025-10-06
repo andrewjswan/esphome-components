@@ -186,7 +186,7 @@ class MusicLeds : public Component {
 #endif
 
 #if defined(MUSIC_LEDS_TRIGGERS)
-    std::vector<MusicLedsSoundLoopTrigger *> on_sound_loop_triggers_;
+  std::vector<MusicLedsSoundLoopTrigger *> on_sound_loop_triggers_;
 #endif
 };
 

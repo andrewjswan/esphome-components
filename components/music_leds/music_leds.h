@@ -67,7 +67,7 @@ class MusicLeds : public Component {
   bool microphone_is_running() { return this->microphone_->is_running(); }
 
 #if defined(MUSIC_LEDS_TRIGGERS)
-    void add_on_sound_loop_trigger(MusicLedsSoundLoopTrigger *t) { this->on_sound_loop_triggers_.push_back(t); }
+  void add_on_sound_loop_trigger(MusicLedsSoundLoopTrigger *t) { this->on_sound_loop_triggers_.push_back(t); }
 #endif
 
  protected:

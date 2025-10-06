@@ -1434,7 +1434,7 @@ void MusicLeds::visualize_ripplepeak(CRGB *physic_leds)  // Ripple peak. By Andr
         ripples[i].state++;  // Next step.
         break;
     }  // switch step
-  }    // for i
+  }  // for i
 }  // visualize_ripplepeak()
 #endif
 
@@ -1483,7 +1483,7 @@ void MusicLeds::visualize_noisefire(CRGB *physic_leds)  // Noisefire. By Andrew 
     // This is a simple y=mx+b equation that's been scaled. index/128 is another scaling.
     index = (255 - i * 256 / this->leds_num) * index / (256 - this->variant);
 
-    physic_leds[i] = ColorFromPalette(myPal, index, volumeSmth * 2, LINEARBLEND);  // Use my own palette.
+    physic_leds[i] = ColorFromPalette(myPal, index, this->volumeSmth * 2, LINEARBLEND);  // Use my own palette.
   }
 }  // visualize_noisefire()
 #endif
@@ -1536,7 +1536,7 @@ void MusicLeds::visualize_plasmoid(CRGB *physic_leds)  // Plasmoid. By Andrew Tu
     thisbright += cos8(((i * (97 + (5 * this->speed / 32))) + plasmoip->thatphase) & 0xFF) / 2;
 
     uint8_t colorIndex = thisbright;
-    if (volumeSmth * this->variant / 64 < thisbright) {
+    if (this->volumeSmth * this->variant / 64 < thisbright) {
       thisbright = 0;
     }
 
@@ -1557,7 +1557,7 @@ void MusicLeds::puddles_base(CRGB *physic_leds, bool peakdetect) {
 
   if (peakdetect) {  // Puddles peak
     if (samplePeak == 1) {
-      size = volumeSmth * this->variant / 256 / 4 + 1;  // Determine size of the flash based on the volume.
+      size = this->volumeSmth * this->variant / 256 / 4 + 1;  // Determine size of the flash based on the volume.
       if (pos + size >= this->leds_num)
         size = this->leds_num - pos;
     }

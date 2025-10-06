@@ -17,6 +17,7 @@ from esphome.const import (
     CONF_NAME,
     CONF_PLATFORM,
     CONF_SAMPLE_RATE,
+    CONF_TRIGGER_ID,
 )
 
 from .const import (

@@ -1660,5 +1660,11 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
 }  // visualize_waterfall()
 #endif
 
+#if defined(MUSIC_LEDS_TRIGGERS)
+void MusicLedsSoundLoopTrigger::process(float volume_smth, int16_t volume_raw, float fft_major_peak, bool sample_peak) {
+  this->trigger(volume_smth, volume_raw, fft_major_peak, sample_peak);
+}
+#endif
+
 }  // namespace music_leds
 }  // namespace esphome

@@ -196,7 +196,6 @@ class MusicLedsSoundLoopTrigger : public Trigger<float, int16_t, float, bool> {
   explicit MusicLedsSoundLoopTrigger(MusicLeds *parent) { parent->add_on_effect_start_trigger(this); }
   void process(float, int16_t, float, bool);
 };  // class
-#endif
 
 }  // namespace music_leds
 }  // namespace esphome

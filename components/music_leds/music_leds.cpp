@@ -1010,7 +1010,7 @@ void MusicLeds::on_loop() {
   }
 #endif
 
-  #if defined(MUSIC_LEDS_TRIGGERS)
+#if defined(MUSIC_LEDS_TRIGGERS)
   for (auto *t : on_sound_loop_triggers_) {
     t->process(this->volumeSmth, this->volumeRaw, FFT_MajorPeak, samplePeak);
   }

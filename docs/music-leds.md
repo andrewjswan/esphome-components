@@ -63,7 +63,7 @@ This trigger is called on every sound loop. In lambda's you can use local variab
       on_sound_loop:
         - logger.log:
             format: "${friendly_name} Sound loop, %f %d %f %d"
-            args: 
+            args:
               - volume_smth
               - volume_raw
               - fft_major_peak

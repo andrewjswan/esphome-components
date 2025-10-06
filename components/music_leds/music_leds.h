@@ -3,6 +3,7 @@
 #include "esphome/components/light/addressable_light.h"
 #include "esphome/components/microphone/microphone_source.h"
 
+#include "esphome/core/automation.h"
 #include "esphome/core/color.h"
 #include "esphome/core/component.h"
 
@@ -188,14 +189,14 @@ class MusicLeds : public Component {
 #if defined(MUSIC_LEDS_TRIGGERS)
   std::vector<MusicLedsSoundLoopTrigger *> on_sound_loop_triggers_;
 #endif
-};
+};  // class MusicLeds
 
 #if defined(MUSIC_LEDS_TRIGGERS)
 class MusicLedsSoundLoopTrigger : public Trigger<float, int16_t, float, bool> {
  public:
   explicit MusicLedsSoundLoopTrigger(MusicLeds *parent) { parent->add_on_sound_loop_trigger(this); }
   void process(float, int16_t, float, bool);
-};  // class
+};  // class MusicLedsSoundLoopTrigger
 #endif
 
 }  // namespace music_leds

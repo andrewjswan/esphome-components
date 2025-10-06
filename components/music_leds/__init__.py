@@ -93,7 +93,7 @@ MUSIC_LEDS_SCHEMA = cv.Schema(
             {
                 cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(SoundLoopTrigger),
             },
-        ),        
+        ),
     },
 ).extend(
     {

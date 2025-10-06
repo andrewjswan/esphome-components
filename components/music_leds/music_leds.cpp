@@ -1556,7 +1556,7 @@ void MusicLeds::puddles_base(CRGB *physic_leds, bool peakdetect) {
   fastled_helper::fade_out(physic_leds, this->leds_num, fadeVal, this->back_color);
 
   if (peakdetect) {  // Puddles peak
-    if (samplePeak == 1) {
+    if (samplePeak) {
       size = this->volumeSmth * this->variant / 256 / 4 + 1;  // Determine size of the flash based on the volume.
       if (pos + size >= this->leds_num)
         size = this->leds_num - pos;

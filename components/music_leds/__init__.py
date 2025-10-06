@@ -208,10 +208,10 @@ async def to_code(config) -> None:
             await automation.build_automation(
                 trigger,
                 [
-                    (cg.float, "volume_smth"),
+                    (cg.float_, "volume_smth"),
                     (cg.int16, "volume_raw"),
-                    (cg.float, "fft_major_peak"),
-                    (cg.bool, "sample_peak"),
+                    (cg.float_, "fft_major_peak"),
+                    (cg.bool_, "sample_peak"),
                 ],
                 conf,
             )

@@ -1009,6 +1009,12 @@ void MusicLeds::on_loop() {
     xEventGroupClearBits(this->event_group_, EventGroupBits::TASK_INFO);
   }
 #endif
+
+  #if defined(MUSIC_LEDS_TRIGGERS)
+  for (auto *t : on_sound_loop_triggers_) {
+    t->process(this->volumeSmth, this->volumeRaw, FFT_MajorPeak, samplePeak);
+  }
+#endif
 }
 
 // *****************************************************************************

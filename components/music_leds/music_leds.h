@@ -193,7 +193,7 @@ class MusicLeds : public Component {
 #if defined(MUSIC_LEDS_TRIGGERS)
 class MusicLedsSoundLoopTrigger : public Trigger<float, int16_t, float, bool> {
  public:
-  explicit MusicLedsSoundLoopTrigger(MusicLeds *parent) { parent->add_on_effect_start_trigger(this); }
+  explicit MusicLedsSoundLoopTrigger(MusicLeds *parent) { parent->add_on_sound_loop_trigger(this); }
   void process(float, int16_t, float, bool);
 };  // class
 #endif

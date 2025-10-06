@@ -1452,7 +1452,7 @@ void MusicLeds::visualize_matripix(CRGB *physic_leds)  // Matripix. By Andrew Tu
   if (this->store != secondHand) {
     this->store = secondHand;
 
-    uint16_t pixBri = volumeRaw * this->variant / 64;
+    uint16_t pixBri = this->volumeRaw * this->variant / 64;
     unsigned k = this->leds_num - 1;
     // loop will not execute if SEGLEN equals 1
     for (unsigned i = 0; i < k; i++) {
@@ -1495,7 +1495,7 @@ void MusicLeds::visualize_pixelwave(CRGB *physic_leds)  // Pixelwave. By Andrew 
   if (this->store != secondHand) {
     this->store = secondHand;
 
-    uint8_t pixBri = volumeRaw * this->variant / 64;
+    uint8_t pixBri = this->volumeRaw * this->variant / 64;
 
     physic_leds[this->leds_num / 2] = fastled_helper::color_blend(
         this->back_color, fastled_helper::color_from_palette(millis(), this->main_color), pixBri);
@@ -1562,8 +1562,8 @@ void MusicLeds::puddles_base(CRGB *physic_leds, bool peakdetect) {
         size = this->leds_num - pos;
     }
   } else {  // Puddles
-    if (volumeRaw > 1) {
-      size = volumeRaw * this->variant / 256 / 8 + 1;  // Determine size of the flash based on the volume.
+    if (this->volumeRaw > 1) {
+      size = this->volumeRaw * this->variant / 256 / 8 + 1;  // Determine size of the flash based on the volume.
       if (pos + size >= this->leds_num)
         size = this->leds_num - pos;
     }

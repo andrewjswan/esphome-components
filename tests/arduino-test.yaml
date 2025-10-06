@@ -96,7 +96,7 @@ music_leds:
   on_sound_loop:
     - logger.log:
         format: "${friendly_name} Sound loop, %f %d %f %d"
-        args: 
+        args:
           - volume_smth
           - volume_raw
           - fft_major_peak

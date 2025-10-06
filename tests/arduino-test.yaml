@@ -93,6 +93,14 @@ microphone:
 
 music_leds:
   id: music_light
+  on_sound_loop:
+    - logger.log:
+        format: "${friendly_name} Sound loop, %f %d %f %d"
+        args: 
+          - volume_smth
+          - volume_raw
+          - fft_major_peak
+          - sample_peak
 
 binary_sensor:
   - platform: template

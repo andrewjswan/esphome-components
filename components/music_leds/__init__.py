@@ -143,6 +143,8 @@ async def to_code(config) -> None:
     cg.add_define("USE_MUSIC_LEDS")
     cg.add_define("USE_OTA_STATE_CALLBACK")
 
+    cg.add_define("FASTLED_USE_ADAFRUIT_NEOPIXEL")
+
     cg.add_build_flag("-Wno-narrowing")
 
     mic = await cg.get_variable(config[CONF_MICROPHONE])

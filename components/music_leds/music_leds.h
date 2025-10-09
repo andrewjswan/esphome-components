@@ -3,6 +3,7 @@
 #include "esphome/components/light/addressable_light.h"
 #include "esphome/components/microphone/microphone_source.h"
 
+#include "esphome/core/automation.h"
 #include "esphome/core/color.h"
 #include "esphome/core/component.h"
 
@@ -37,6 +38,10 @@ enum PLAYMODE {
 
 enum State : uint8_t { STOPPED = 0, STARTING, RUNNING, STOPPING };
 
+#if defined(MUSIC_LEDS_TRIGGERS)
+class MusicLedsSoundLoopTrigger;
+#endif
+
 class MusicLeds : public Component {
  public:
   float get_setup_priority() const override { return setup_priority::LATE; }
@@ -61,6 +66,10 @@ class MusicLeds : public Component {
   void ShowFrame(PLAYMODE CurrentMode, Color current_color, light::AddressableLight *p_it);
 
   bool microphone_is_running() { return this->microphone_->is_running(); }
+
+#if defined(MUSIC_LEDS_TRIGGERS)
+  void add_on_sound_loop_trigger(MusicLedsSoundLoopTrigger *t) { this->on_sound_loop_triggers_.push_back(t); }
+#endif
 
  protected:
   microphone::Microphone *microphone_{nullptr};
@@ -176,7 +185,19 @@ class MusicLeds : public Component {
 #ifdef DEF_WATERFALL
   void visualize_waterfall(CRGB *physic_leds);
 #endif
-};
+
+#if defined(MUSIC_LEDS_TRIGGERS)
+  std::vector<MusicLedsSoundLoopTrigger *> on_sound_loop_triggers_;
+#endif
+};  // class MusicLeds
+
+#if defined(MUSIC_LEDS_TRIGGERS)
+class MusicLedsSoundLoopTrigger : public Trigger<float, int16_t, float, bool> {
+ public:
+  explicit MusicLedsSoundLoopTrigger(MusicLeds *parent) { parent->add_on_sound_loop_trigger(this); }
+  void process(float, int16_t, float, bool);
+};  // class MusicLedsSoundLoopTrigger
+#endif
 
 }  // namespace music_leds
 }  // namespace esphome

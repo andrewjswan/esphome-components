@@ -961,6 +961,9 @@ void MusicLeds::on_stop() {
 
 void MusicLeds::on_loop() {
   static unsigned long lastUMRun = millis();
+#if defined(MUSIC_LEDS_TRIGGERS)
+  static unsigned long lastTrigger = millis();
+#endif
 
   if (soundAgc > AGC_NUM_PRESETS)
     soundAgc = 0;  // make sure that AGC preset is valid (to avoid array bounds violation)
@@ -1011,8 +1014,11 @@ void MusicLeds::on_loop() {
 #endif
 
 #if defined(MUSIC_LEDS_TRIGGERS)
-  for (auto *t : on_sound_loop_triggers_) {
-    t->process(this->volumeSmth, this->volumeRaw, FFT_MajorPeak, samplePeak);
+  if (t_now - lastTrigger > 200) {
+    for (auto *t : on_sound_loop_triggers_) {
+      t->process(this->volumeSmth, this->volumeRaw, FFT_MajorPeak, samplePeak);
+    }
+    lastTrigger = t_now;
   }
 #endif
 }

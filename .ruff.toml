@@ -1,4 +1,4 @@
-target-version = "py312"
+target-version = "py313"
 
 # Allow lines to be as long as 150.
 line-length = 150
@@ -9,7 +9,6 @@ select = [
 ]
 
 ignore = [
-    "ANN001", # Missing type annotation for function argument
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
     "D203", # no-blank-line-before-class (incompatible with formatter)
     "D212", # multi-line-summary-first-line (incompatible with formatter)

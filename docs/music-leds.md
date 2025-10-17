@@ -75,3 +75,4 @@ This trigger is called on every sound loop. In lambda's you can use local variab
 !!! note
     * [Music Leds](https://andrewjswan.github.io/esphome-config/music-leds/) configuration
     * Full package: [/esphome-config/packages/neopixel_light_music_leds.yaml](https://github.com/andrewjswan/esphome-config/blob/main/packages/neopixel_light_music_leds.yaml)
+    * ESPNow package: [/esphome-config/packages/neopixel_light_music_leds_espnow_master.yaml](https://github.com/andrewjswan/esphome-config/blob/main/packages/neopixel_light_music_leds_espnow_master.yaml)

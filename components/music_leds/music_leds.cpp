@@ -961,6 +961,9 @@ void MusicLeds::on_stop() {
 
 void MusicLeds::on_loop() {
   static unsigned long lastUMRun = millis();
+#if defined(MUSIC_LEDS_TRIGGERS)
+  static unsigned long lastTrigger = millis();
+#endif
 
   if (soundAgc > AGC_NUM_PRESETS)
     soundAgc = 0;  // make sure that AGC preset is valid (to avoid array bounds violation)
@@ -1007,6 +1010,15 @@ void MusicLeds::on_loop() {
       ESP_LOGE(TAG, "Samples: High: %f | volumeSmth: %f | sampleAgc: %f | sampleAvg: %f", micDataReal, this->volumeSmth,
                sampleAgc, sampleAvg);
     xEventGroupClearBits(this->event_group_, EventGroupBits::TASK_INFO);
+  }
+#endif
+
+#if defined(MUSIC_LEDS_TRIGGERS)
+  if (t_now - lastTrigger > 200) {
+    for (auto *t : on_sound_loop_triggers_) {
+      t->process(this->volumeSmth, this->volumeRaw, FFT_MajorPeak, samplePeak);
+    }
+    lastTrigger = t_now;
   }
 #endif
 }
@@ -1652,6 +1664,12 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
     }
   }
 }  // visualize_waterfall()
+#endif
+
+#if defined(MUSIC_LEDS_TRIGGERS)
+void MusicLedsSoundLoopTrigger::process(float volume_smth, int16_t volume_raw, float fft_major_peak, bool sample_peak) {
+  this->trigger(volume_smth, volume_raw, fft_major_peak, sample_peak);
+}
 #endif
 
 }  // namespace music_leds

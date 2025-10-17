@@ -10,6 +10,8 @@ CONF_SR_SQUELCH = "squelch value"
 CONF_TASK_CORE = "task_core"
 CONF_TASK_PRIORITY = "task_priority"
 
+CONF_ON_SOUND_LOOP = "on_sound_loop"
+
 SAMPLE_RATE_10 = 10240
 SAMPLE_RATE_16 = 16000
 SAMPLE_RATE_20 = 20480

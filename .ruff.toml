@@ -1,4 +1,4 @@
-target-version = "py312"
+target-version = "py313"
 
 # Allow lines to be as long as 150.
 line-length = 150

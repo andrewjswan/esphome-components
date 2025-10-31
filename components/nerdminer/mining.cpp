@@ -7,6 +7,7 @@
 #include "nerdminer.h"
 
 #include "esphome/core/log.h"
+#include "esphome/components/network/util.h"
 
 #include <ArduinoJson.h>
 #include <esp_task_wdt.h>
@@ -27,9 +28,11 @@
 namespace esphome {
 namespace nerdminer {
 
-// 10 Jobs per second
+// Jobs per second
 #define NONCE_PER_JOB_SW 4096
 #define NONCE_PER_JOB_HW 16 * 1024
+#define JOB_QUEUE_SIZE 4      // Normal queue size
+#define RESULT_QUEUE_SIZE 16  // Normal result queue
 
 #define RANDOM_NONCE_MASK 0xFFFFC000
 
@@ -211,8 +214,8 @@ void runStratumWorker(void *name) {
   uint32_t last_job_time = millis();
 
   while (true) {
-    if (WiFi.status() != WL_CONNECTED) {
-      // WiFi is disconnected, so wait for reconnect
+    if (!network::is_connected()) {
+      // Network is disconnected, so wait for reconnect
       mMonitor.NerdStatus = NM_Connecting;
       MiningJobStop(job_pool, s_submition_map);
       vTaskDelay(5000 / portTICK_PERIOD_MS);
@@ -242,7 +245,7 @@ void runStratumWorker(void *name) {
       strcpy(mWorker.wName, NERDMINER_POOL_WORKER);
       strcpy(mWorker.wPass, NERDMINER_POOL_PASS);
       tx_mining_auth(client, mWorker.wName, mWorker.wPass);  // Don't verifies authoritzation, TODO
-      // tx_mining_auth2(client, mWorker.wName, mWorker.wPass); //Don't verifies authoritzation, TODO
+      // tx_mining_auth2(client, mWorker.wName, mWorker.wPass); // Don't verifies authoritzation, TODO
 
       // STEP 3: Suggest pool difficulty
       tx_suggest_difficulty(client, currentPoolDifficulty);
@@ -422,7 +425,7 @@ void runStratumWorker(void *name) {
       job_result_list.insert(job_result_list.end(), s_job_result_list.begin(), s_job_result_list.end());
       s_job_result_list.clear();
 
-      while (s_job_request_list_sw.size() < 4) {
+      while (s_job_request_list_sw.size() < JOB_QUEUE_SIZE) {
         JobPush(s_job_request_list_sw, job_pool, nonce_pool, NONCE_PER_JOB_SW, currentPoolDifficulty,
                 mMiner.bytearray_blockheader, diget_mid, bake);
 
@@ -434,7 +437,7 @@ void runStratumWorker(void *name) {
       }
 
 #ifdef HARDWARE_SHA265
-      while (s_job_request_list_hw.size() < 4) {
+      while (s_job_request_list_hw.size() < JOB_QUEUE_SIZE) {
 #if defined(CONFIG_IDF_TARGET_ESP32)
         JobPush(s_job_request_list_hw, job_pool, nonce_pool, NONCE_PER_JOB_HW, currentPoolDifficulty, sha_buffer_swap,
                 hw_midstate, bake);
@@ -501,7 +504,7 @@ void minerWorkerSw(void *task_id) {
     {
       std::lock_guard<std::mutex> lock(s_job_mutex);
       if (result) {
-        if (s_job_result_list.size() < 16)
+        if (s_job_result_list.size() < RESULT_QUEUE_SIZE)
           s_job_result_list.push_back(result);
         result.reset();
       }
@@ -672,7 +675,7 @@ void minerWorkerHw(void *task_id) {
     {
       std::lock_guard<std::mutex> lock(s_job_mutex);
       if (result) {
-        if (s_job_result_list.size() < 16)
+        if (s_job_result_list.size() < RESULT_QUEUE_SIZE)
           s_job_result_list.push_back(result);
         result.reset();
       }
@@ -705,10 +708,12 @@ void minerWorkerHw(void *task_id) {
         REG_WRITE(SHA_CONTINUE_REG, 1);
 
         sha_ll_load(SHA2_256);
+
         nerd_sha_hal_wait_idle();
         nerd_sha_ll_fill_text_block_sha256_inter();
         REG_WRITE(SHA_START_REG, 1);
         sha_ll_load(SHA2_256);
+
         nerd_sha_hal_wait_idle();
         if (nerd_sha_ll_read_digest_if(hash)) {
           // ~5 per second
@@ -857,7 +862,7 @@ void minerWorkerHw(void *task_id) {
     {
       std::lock_guard<std::mutex> lock(s_job_mutex);
       if (result) {
-        if (s_job_result_list.size() < 16) {
+        if (s_job_result_list.size() < RESULT_QUEUE_SIZE) {
           s_job_result_list.push_back(result);
         }
         result.reset();
@@ -882,6 +887,7 @@ void minerWorkerHw(void *task_id) {
       memcpy(sha_buffer, job->sha_buffer, 80);
 
       esp_sha_lock_engine(SHA2_256);
+      uint32_t processed_nonces = 0;  // Track actually processed nonces
       for (uint32_t n = 0; n < job->nonce_count; ++n) {
         nerd_sha_ll_fill_text_block_sha256(sha_buffer);
         sha_ll_start_block(SHA2_256);
@@ -900,6 +906,8 @@ void minerWorkerHw(void *task_id) {
         nerd_sha_hal_wait_idle();
         sha_ll_load(SHA2_256);
         if (nerd_sha_ll_read_digest_swap_if(hash)) {
+          processed_nonces++;  // Only count successful hash operations
+
           // ~5 per second
           double diff_hash = diff_from_target(hash);
           if (diff_hash > result->difficulty) {
@@ -911,10 +919,12 @@ void minerWorkerHw(void *task_id) {
           }
         }
         if ((uint8_t) (n & 0xFF) == 0 && s_working_current_job_id != job_in_work) {
-          result->nonce_count = n + 1;
+          result->nonce_count = processed_nonces;  // Use actual processed count
           break;
         }
       }
+      // Update final count with actual processed nonces
+      result->nonce_count = processed_nonces;
       esp_sha_unlock_engine(SHA2_256);
     } else {
       vTaskDelay(2 / portTICK_PERIOD_MS);
@@ -971,7 +981,7 @@ void runMonitor(void *name) {
         ESP_LOGD(TAG,
                  ">>> [MONITOR] Miner: newJob>%s / inRun>%s) - Client: connected>%s / subscribed>%s / wificonnected>%s",
                  YESNO(true), YESNO(isMinerSuscribed), YESNO(client.connected()), YESNO(isMinerSuscribed),
-                 YESNO(WiFi.status() == WL_CONNECTED));
+                 YESNO(network::is_connected()));
       }
 
 #ifdef DEBUG_MEMORY

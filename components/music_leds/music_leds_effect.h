@@ -9,7 +9,7 @@ class MusicLeds;
 
 class MusicLedsLightEffect : public light::AddressableLightEffect {
  public:
-  MusicLedsLightEffect(const std::string &name);
+  MusicLedsLightEffect(const char *name);
 
   void start() override;
   void stop() override;

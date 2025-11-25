@@ -6,10 +6,10 @@
 namespace esphome {
 namespace music_leds {
 
-MusicLedsLightEffect::MusicLedsLightEffect(const std::string &name) : AddressableLightEffect(name) {}
+MusicLedsLightEffect::MusicLedsLightEffect(const char *name) : AddressableLightEffect(name) {}
 
 void MusicLedsLightEffect::start() {
-  ESP_LOGD(TAG, "Effect: %s", this->name_.c_str());
+  ESP_LOGD(TAG, "Effect: %s", this->get_name());
 
   if (this->music_leds_) {
     this->music_leds_->StartFrame();

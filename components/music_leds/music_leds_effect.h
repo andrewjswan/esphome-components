@@ -24,4 +24,3 @@ class MusicLedsLightEffect : public light::AddressableLightEffect {
 
 }  // namespace music_leds
 }  // namespace esphome
-

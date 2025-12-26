@@ -2,9 +2,12 @@
 
 #ifdef PALETTES
 
-#define FASTLED_INTERNAL  // remove annoying pragma messages
+#define FASTLED_INTERNAL
+#define FASTLED_NOSPI
 
-#include <FastLED.h>
+#include <pixeltypes.h>
+#include <colorutils.h>
+#include <colorpalettes.h>
 
 namespace esphome {
 namespace fastled_helper {

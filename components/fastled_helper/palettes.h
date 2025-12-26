@@ -2,6 +2,8 @@
 
 #ifdef PALETTES
 
+#include "esphome.h"
+
 #define FASTLED_INTERNAL
 #define FASTLED_NOSPI
 #define FASTLED_NO_PIN_INTERRUPTS

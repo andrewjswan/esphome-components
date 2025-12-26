@@ -2,7 +2,14 @@
 
 #define FASTLED_INTERNAL  // remove annoying pragma messages
 
-#include "FastLED.h"
+#define FASTLED_INTERNAL
+#define FASTLED_NOSPI
+#define FASTLED_NO_PIN_INTERRUPTS
+
+#include <pixeltypes.h>
+#include <lib8tion.h>
+#include <colorutils.h>
+
 #include "palettes.h"
 #include "esphome/core/color.h"
 
@@ -432,3 +439,4 @@ static CRGB getCRGBForBand(int x, int pal) {
 
 }  // namespace fastled_helper
 }  // namespace esphome
+

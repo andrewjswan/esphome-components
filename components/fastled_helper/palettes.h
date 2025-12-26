@@ -4,6 +4,7 @@
 
 #define FASTLED_INTERNAL
 #define FASTLED_NOSPI
+#define FASTLED_NO_PIN_INTERRUPTS
 
 #include <pixeltypes.h>
 #include <colorutils.h>

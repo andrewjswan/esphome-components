@@ -1,7 +1,5 @@
 #pragma once
 
-#define FASTLED_INTERNAL  // remove annoying pragma messages
-
 #define FASTLED_INTERNAL
 #define FASTLED_NOSPI
 #define FASTLED_NO_PIN_INTERRUPTS
@@ -439,4 +437,3 @@ static CRGB getCRGBForBand(int x, int pal) {
 
 }  // namespace fastled_helper
 }  // namespace esphome
-

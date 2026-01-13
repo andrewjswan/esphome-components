@@ -7,6 +7,7 @@
 [![StandWithUkraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md)
 
 # ESPHome Components
+
 External components for ESPHome
 
 - [Matrix Lamp](https://andrewjswan.github.io/esphome-components/matrix-lamp/)
@@ -16,4 +17,3 @@ External components for ESPHome
 - [Music Leds / Sound Reactive](https://andrewjswan.github.io/esphome-components/music-leds/)
 - [CUBIC CM1106 Single Beam NDIR CO2 Sensor Module](https://esphome.io/components/sensor/cm1106.html)
 - [CUBIC PM2005/PM2105 Laser Particle Sensor Module](https://esphome.io/components/sensor/pm2005.html)
-

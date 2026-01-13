@@ -646,14 +646,14 @@ void MusicLeds::FFTcode(void *parameter) {
         fftCalc[ 1] = 0.9f * fftAddAvg(4,5);
         fftCalc[ 2] = fftAddAvg(5,6);
         fftCalc[ 3] = fftAddAvg(6,7);
-        // don't use the last bins from 206 to 255. 
+        // don't use the last bins from 206 to 255.
         fftCalc[15] = fftAddAvg(165,205) * 0.75f;   // 40 7106 - 8828 high  -- with some damping
         #else
         fftCalc[ 0] = fftAddAvg(1,2);               // 1    43 - 86   sub-bass
         fftCalc[ 1] = fftAddAvg(2,3);               // 1    86 - 129  bass
         fftCalc[ 2] = fftAddAvg(3,5);               // 2   129 - 216  bass
         fftCalc[ 3] = fftAddAvg(5,7);               // 2   216 - 301  bass + midrange
-        // don't use the last bins from 216 to 255. They are usually contaminated by aliasing (aka noise) 
+        // don't use the last bins from 216 to 255. They are usually contaminated by aliasing (aka noise)
         fftCalc[15] = fftAddAvg(165,215) * 0.70f;   // 50 7106 - 9259 high  -- with some damping
         #endif
         fftCalc[ 4] = fftAddAvg(7,10);              // 3   301 - 430  midrange

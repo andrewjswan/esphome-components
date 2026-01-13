@@ -25,7 +25,7 @@ matrix_lamp:
 ```
 
 !!! tip "More info"
-  Matrix Lamp component [information](https://andrewjswan.github.io/matrix-lamp/matrix-lamp-component/)
+    Matrix Lamp component [information](https://andrewjswan.github.io/matrix-lamp/matrix-lamp-component/)
 
 ## Firmware
 

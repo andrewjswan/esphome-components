@@ -89,9 +89,8 @@ light:
     num_leds: ${num_leds}
     name: ${name} NeoPixel
     icon: mdi:string-lights
-    color_correct:
-      [$color_correct_bright, $color_correct_bright, $color_correct_bright]
-    variant: 800KBPS # WS2812 (same as 800KBPS)
+    color_correct: [$color_correct_bright, $color_correct_bright, $color_correct_bright]
+    variant: 800KBPS  # WS2812 (same as 800KBPS)
     effects:
       - music_leds_effect:
           name: Grav with Music

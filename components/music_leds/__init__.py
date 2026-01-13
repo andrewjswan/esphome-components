@@ -6,7 +6,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 import esphome.final_validate as fv
 from esphome import automation, core
-from esphome.components import microphone
+from esphome.components import microphone, ota
 from esphome.components.light.effects import register_addressable_effect
 from esphome.components.light.types import AddressableLightEffect
 from esphome.const import (
@@ -135,14 +135,14 @@ async def to_code(config) -> None:
     """Code generation entry point."""
     var = cg.new_Pvariable(config[CONF_ID])
 
+    ota.request_ota_state_listeners()
+
     cg.add_library("kosme/arduinoFFT", None)
     # Below options are forcing ArduinoFFT to use sqrtf() instead of sqrt()
     # #define sqrt_internal sqrtf // see https://github.com/kosme/arduinoFFT/pull/83 - since v2.0.0 this must be done in build_flags
     cg.add_define("sqrt_internal", "sqrtf")
 
     cg.add_define("USE_MUSIC_LEDS")
-    cg.add_define("USE_OTA_STATE_CALLBACK")
-
     cg.add_define("FASTLED_USE_ADAFRUIT_NEOPIXEL")
 
     cg.add_build_flag("-Wno-narrowing")

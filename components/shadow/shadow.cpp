@@ -1,27 +1,26 @@
 #include "shadow.h"
 #include "esphome/core/log.h"
 
-#ifdef USE_OTA
-#include "esphome/components/ota/ota_backend.h"
-#endif
-
 namespace esphome {
 namespace shadow {
 
 void Shadow::setup() {
   ESP_LOGCONFIG(TAG, "Setting up shadow...");
 
-#ifdef USE_OTA
-  ota::get_global_ota_callback()->add_on_state_callback(
-      [this](ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) {
-        if (state == ota::OTA_STARTED) {
-          this->stop();
-        }
-      });
+#ifdef USE_OTA_STATE_LISTENER
+  ota::get_global_ota_callback()->add_global_state_listener(this);
 #endif
 
   this->start();
 }  // setup()
+
+#ifdef USE_OTA_STATE_LISTENER
+void MicroWakeWord::on_ota_global_state(ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) {
+  if (state == ota::OTA_STARTED) {
+    this->stop();
+  }
+}
+#endif
 
 void Shadow::start() {
   xTaskCreatePinnedToCore(Shadow::shadow_function,  // Function to implement the task

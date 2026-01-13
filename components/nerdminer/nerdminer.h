@@ -1,6 +1,11 @@
 #pragma once
 
 #include "esphome/core/component.h"
+#include "esphome/core/defines.h"
+
+#ifdef USE_OTA_STATE_LISTENER
+#include "esphome/components/ota/ota_backend.h"
+#endif
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -11,7 +16,11 @@ namespace nerdminer {
 static const char *const TAG = "nerdminer";
 static const char *const NERDMINER_VERSION = "2025.7.1-1.7.0";
 
-class NerdMiner : public Component {
+class NerdMiner : public Component
+#ifdef USE_OTA_STATE_LISTENER
+  , public ota::OTAGlobalStateListener
+#endif
+{
  public:
   void setup() override;
   void start();
@@ -28,6 +37,10 @@ class NerdMiner : public Component {
   uint32_t getValidBlocks();
   double getHashrate();
   uint32_t getKHashes();
+
+#ifdef USE_OTA_STATE_LISTENER
+  void on_ota_global_state(ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) override;
+#endif
 
  protected:
   TaskHandle_t stratum_handle = nullptr;

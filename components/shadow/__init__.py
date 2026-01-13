@@ -4,7 +4,7 @@ import logging
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import script
+from esphome.components import script, ota
 from esphome.const import CONF_ID, CONF_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,8 +36,8 @@ CONFIG_SCHEMA = cv.All(SHADOW_SCHEMA)
 async def to_code(config) -> None:
     """Code generation entry point."""
     var = cg.new_Pvariable(config[CONF_ID])
-
-    cg.add_define("USE_OTA_STATE_CALLBACK")
+    
+    ota.request_ota_state_listeners()
 
     shadow_script = await cg.get_variable(config[CONF_SCRIPT_ID])
     cg.add(var.set_script(shadow_script))

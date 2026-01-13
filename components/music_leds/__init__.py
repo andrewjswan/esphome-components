@@ -135,14 +135,14 @@ async def to_code(config) -> None:
     """Code generation entry point."""
     var = cg.new_Pvariable(config[CONF_ID])
 
+    ota.request_ota_state_listeners()
+
     cg.add_library("kosme/arduinoFFT", None)
     # Below options are forcing ArduinoFFT to use sqrtf() instead of sqrt()
     # #define sqrt_internal sqrtf // see https://github.com/kosme/arduinoFFT/pull/83 - since v2.0.0 this must be done in build_flags
     cg.add_define("sqrt_internal", "sqrtf")
 
     cg.add_define("USE_MUSIC_LEDS")
-    ota.request_ota_state_listeners()
-
     cg.add_define("FASTLED_USE_ADAFRUIT_NEOPIXEL")
 
     cg.add_build_flag("-Wno-narrowing")

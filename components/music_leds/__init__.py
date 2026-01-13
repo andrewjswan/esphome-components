@@ -6,7 +6,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 import esphome.final_validate as fv
 from esphome import automation, core
-from esphome.components import microphone
+from esphome.components import microphone, ota
 from esphome.components.light.effects import register_addressable_effect
 from esphome.components.light.types import AddressableLightEffect
 from esphome.const import (
@@ -141,7 +141,7 @@ async def to_code(config) -> None:
     cg.add_define("sqrt_internal", "sqrtf")
 
     cg.add_define("USE_MUSIC_LEDS")
-    cg.add_define("USE_OTA_STATE_CALLBACK")
+    ota.request_ota_state_listeners()
 
     cg.add_define("FASTLED_USE_ADAFRUIT_NEOPIXEL")
 

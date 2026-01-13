@@ -15,7 +15,7 @@ void Shadow::setup() {
 }  // setup()
 
 #ifdef USE_OTA_STATE_LISTENER
-void MicroWakeWord::on_ota_global_state(ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) {
+void Shadow::on_ota_global_state(ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) {
   if (state == ota::OTA_STARTED) {
     this->stop();
   }

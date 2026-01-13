@@ -36,7 +36,7 @@ CONFIG_SCHEMA = cv.All(SHADOW_SCHEMA)
 async def to_code(config) -> None:
     """Code generation entry point."""
     var = cg.new_Pvariable(config[CONF_ID])
-    
+
     ota.request_ota_state_listeners()
 
     shadow_script = await cg.get_variable(config[CONF_SCRIPT_ID])

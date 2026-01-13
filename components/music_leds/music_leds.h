@@ -6,6 +6,11 @@
 #include "esphome/core/automation.h"
 #include "esphome/core/color.h"
 #include "esphome/core/component.h"
+#include "esphome/core/defines.h"
+
+#ifdef USE_OTA_STATE_LISTENER
+#include "esphome/components/ota/ota_backend.h"
+#endif
 
 #define FASTLED_INTERNAL  // remove annoying pragma messages
 
@@ -42,7 +47,11 @@ enum State : uint8_t { STOPPED = 0, STARTING, RUNNING, STOPPING };
 class MusicLedsSoundLoopTrigger;
 #endif
 
-class MusicLeds : public Component {
+class MusicLeds : public Component
+#ifdef USE_OTA_STATE_LISTENER
+  , public ota::OTAGlobalStateListener
+#endif
+{
  public:
   float get_setup_priority() const override { return setup_priority::LATE; }
 
@@ -69,6 +78,9 @@ class MusicLeds : public Component {
 
 #if defined(MUSIC_LEDS_TRIGGERS)
   void add_on_sound_loop_trigger(MusicLedsSoundLoopTrigger *t) { this->on_sound_loop_triggers_.push_back(t); }
+#endif
+#ifdef USE_OTA_STATE_LISTENER
+  void on_ota_global_state(ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) override;
 #endif
 
  protected:

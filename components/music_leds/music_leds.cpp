@@ -10,10 +10,6 @@
 #define FASTLED_INTERNAL  // remove annoying pragma messages
 #include <FastLED.h>
 
-#ifdef USE_OTA
-#include "esphome/components/ota/ota_backend.h"
-#endif
-
 #include <arduinoFFT.h>
 
 #if BITS_PER_SAMPLE == 16

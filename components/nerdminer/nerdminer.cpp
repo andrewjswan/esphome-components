@@ -22,15 +22,6 @@ void NerdMiner::setup() {
   ota::get_global_ota_callback()->add_global_state_listener(this);
 #endif
 
-#ifdef USE_OTA
-  ota::get_global_ota_callback()->add_on_state_callback(
-      [this](ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) {
-        if (state == ota::OTA_STARTED) {
-          this->stop();
-        }
-      });
-#endif
-
   this->start();
 }  // setup()
 

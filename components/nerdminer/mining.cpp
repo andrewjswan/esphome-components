@@ -69,9 +69,12 @@ bool checkPoolConnection(void) {
   ESP_LOGD(TAG, "Client not connected, trying to connect...");
 
   pool_socket = esphome::socket::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  auto addr = esphome::network::get_ip_address(NERDMINER_POOL);
-  if (!addr.has_value()) {
-    ESP_LOGE(TAG, "DNS Resolution failed for %s", NERDMINER_POOL);
+  auto addrs = esphome::network::get_ip_addresses(NERDMINER_POOL);
+  esphome::network::IPAddress addr;
+  if (!addrs.empty()) {
+    addr = addrs[0];
+  } else {
+    ESP_LOGE(TAG, "DNS resolution failed for %s", NERDMINER_POOL);
     return false;
   }
 

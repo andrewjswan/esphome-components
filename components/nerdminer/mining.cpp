@@ -7,6 +7,7 @@
 #include "nerdminer.h"
 
 #include "esphome/core/log.h"
+#include "esphome/components/network/dns_resolver.h"
 #include "esphome/components/network/util.h"
 
 #include <ArduinoJson.h>
@@ -68,21 +69,31 @@ bool checkPoolConnection(void) {
   isMinerSuscribed = false;
   ESP_LOGD(TAG, "Client not connected, trying to connect...");
 
-  pool_socket = esphome::socket::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  auto addrs = esphome::network::get_ip_addresses(NERDMINER_POOL);
-  esphome::network::IPAddress addr;
-  if (!addrs.empty()) {
-    addr = addrs[0];
-  } else {
-    ESP_LOGE(TAG, "DNS resolution failed for %s", NERDMINER_POOL);
-    return false;
+  auto resolver = std::make_unique<esphome::network::DNSResolver>(NERDMINER_POOL);
+  resolver->setup();
+  
+  uint32_t start = millis();
+  while (!resolver->get_ip_address().has_value()) {
+    if (millis() - start > 5000) { // Таймаут 5 секунд
+      ESP_LOGE(TAG, "DNS Resolution failed for %s", NERDMINER_POOL);
+      return false;
+    }
+    yield();
   }
+  auto addr = resolver->get_ip_address().value();  
 
   // Try connecting pool IP
+  pool_socket = esphome::socket::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if (pool_socket == nullptr) {
+    return false;
+  }
+  pool_socket->setblocking(false);   
+
   struct sockaddr_in s_addr;
+  memset(&s_addr, 0, sizeof(s_addr));
   s_addr.sin_family = AF_INET;
   s_addr.sin_port = htons(NERDMINER_POOL_PORT);
-  s_addr.sin_addr.s_addr = uint32_t(addr.value());
+  s_addr.sin_addr.s_addr = uint32_t(addr); 
 
   if (pool_socket->connect((struct sockaddr *)&s_addr, sizeof(s_addr)) != 0) {
     if (errno != EINPROGRESS) {

@@ -71,7 +71,7 @@ bool checkPoolConnection(void) {
 
   auto resolver = std::make_unique<esphome::network::DNSResolver>(NERDMINER_POOL);
   resolver->setup();
-  
+
   uint32_t start = millis();
   while (!resolver->get_ip_address().has_value()) {
     if (millis() - start > 5000) { // Таймаут 5 секунд
@@ -80,20 +80,20 @@ bool checkPoolConnection(void) {
     }
     yield();
   }
-  auto addr = resolver->get_ip_address().value();  
+  auto addr = resolver->get_ip_address().value();
 
   // Try connecting pool IP
   pool_socket = esphome::socket::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (pool_socket == nullptr) {
     return false;
   }
-  pool_socket->setblocking(false);   
+  pool_socket->setblocking(false);
 
   struct sockaddr_in s_addr;
   memset(&s_addr, 0, sizeof(s_addr));
   s_addr.sin_family = AF_INET;
   s_addr.sin_port = htons(NERDMINER_POOL_PORT);
-  s_addr.sin_addr.s_addr = uint32_t(addr); 
+  s_addr.sin_addr.s_addr = uint32_t(addr);
 
   if (pool_socket->connect((struct sockaddr *)&s_addr, sizeof(s_addr)) != 0) {
     if (errno != EINPROGRESS) {

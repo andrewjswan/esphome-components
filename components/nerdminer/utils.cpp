@@ -4,6 +4,7 @@
 #include "nerdminer.h"
 
 #include "mbedtls/sha256.h"
+#include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
 #include <string.h>
@@ -52,24 +53,43 @@ bool pool_available(esphome::socket::Socket *sock) {
 }
 
 std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
-    std::string result;
-    if (sock == nullptr) return result;
-
-    char c;
-    uint32_t start_time = millis();
-    while (millis() - start_time < 2000) { // Таймаут 2 сек
-        ssize_t res = sock->read(&c, 1);
-        if (res > 0) {
-            if (c == terminator) return result;
-            result += c;
-        } else if (res == 0) {
-            break;
-        } else if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            break;
-        }
-        yield();
-    }
+  std::string result;
+  if (sock == nullptr) {
     return result;
+  }
+
+  char c;
+  uint32_t start_time = millis();
+  const uint32_t timeout = 2000;
+
+  while (millis() - start_time < timeout) {
+    ssize_t res = sock->read(&c, 1);
+
+    if (res > 0) {
+      if (c == terminator) {
+        return result;
+      }
+      result += c;
+      start_time = millis(); 
+    } 
+    else if (res < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        yield();
+        continue;
+      }
+      ESP_LOGVV("read_until", "Socket read error: %d", errno);
+      break;
+    } 
+    else {
+      ESP_LOGD("read_until", "Socket closed by pool");
+      break;
+    }
+  }
+
+  if (millis() - start_time >= timeout) {
+    ESP_LOGD("read_until", "Read timeout reached");
+  }
+  return result;
 }
 
 uint32_t swab32(uint32_t v) { return bswap_32(v); }

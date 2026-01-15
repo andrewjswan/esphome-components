@@ -54,10 +54,20 @@ bool pool_available(esphome::socket::Socket *sock) {
 std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
     std::string result;
     if (sock == nullptr) return result;
+
     char c;
-    while (sock->read(&c, 1) > 0) {
-        if (c == terminator) break;
-        result += c;
+    uint32_t start_time = millis();
+    while (millis() - start_time < 2000) { // Таймаут 2 сек
+        ssize_t res = sock->read(&c, 1);
+        if (res > 0) {
+            if (c == terminator) return result;
+            result += c;
+        } else if (res == 0) {
+            break;
+        } else if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            break;
+        }
+        yield();
     }
     return result;
 }

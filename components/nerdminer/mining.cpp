@@ -557,7 +557,7 @@ void minerWorkerSw(void *task_id) {
 
 #if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
 
-static inline void nerd_sha_ll_fill_text_block_sha256(const void *input_text, uint32_t nonce) {
+static inline IRAM_ATTR void nerd_sha_ll_fill_text_block_sha256(const void *input_text, uint32_t nonce) {
   uint32_t *data_words = (uint32_t *) input_text;
   uint32_t *reg_addr_buf = (uint32_t *) (SHA_TEXT_BASE);
 
@@ -580,7 +580,7 @@ static inline void nerd_sha_ll_fill_text_block_sha256(const void *input_text, ui
   REG_WRITE(&reg_addr_buf[15], 0x80020000);
 }
 
-static inline void nerd_sha_ll_fill_text_block_sha256_inter() {
+static inline IRAM_ATTR void nerd_sha_ll_fill_text_block_sha256_inter() {
   uint32_t *reg_addr_buf = (uint32_t *) (SHA_TEXT_BASE);
 
   DPORT_INTERRUPT_DISABLE();
@@ -604,7 +604,7 @@ static inline void nerd_sha_ll_fill_text_block_sha256_inter() {
   REG_WRITE(&reg_addr_buf[15], 0x00010000);
 }
 
-static inline void nerd_sha_ll_read_digest(void *ptr) {
+static inline IRAM_ATTR void nerd_sha_ll_read_digest(void *ptr) {
   DPORT_INTERRUPT_DISABLE();
   ((uint32_t *) ptr)[0] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 0 * 4);
   ((uint32_t *) ptr)[1] = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 1 * 4);
@@ -617,7 +617,7 @@ static inline void nerd_sha_ll_read_digest(void *ptr) {
   DPORT_INTERRUPT_RESTORE();
 }
 
-static inline bool nerd_sha_ll_read_digest_if(void *ptr) {
+static inline IRAM_ATTR bool nerd_sha_ll_read_digest_if(void *ptr) {
   DPORT_INTERRUPT_DISABLE();
   uint32_t last = DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 7 * 4);
 
@@ -639,7 +639,7 @@ static inline bool nerd_sha_ll_read_digest_if(void *ptr) {
   return true;
 }
 
-static inline void nerd_sha_ll_write_digest(void *digest_state) {
+static inline IRAM_ATTR void nerd_sha_ll_write_digest(void *digest_state) {
   uint32_t *digest_state_words = (uint32_t *) digest_state;
   uint32_t *reg_addr_buf = (uint32_t *) (SHA_H_BASE);
 
@@ -653,7 +653,7 @@ static inline void nerd_sha_ll_write_digest(void *digest_state) {
   REG_WRITE(&reg_addr_buf[7], digest_state_words[7]);
 }
 
-static inline void nerd_sha_hal_wait_idle() {
+static inline IRAM_ATTR void nerd_sha_hal_wait_idle() {
   while (REG_READ(SHA_BUSY_REG)) {
   }
 }
@@ -749,7 +749,7 @@ void minerWorkerHw(void *task_id) {
 
 #if defined(CONFIG_IDF_TARGET_ESP32)
 
-static inline bool nerd_sha_ll_read_digest_swap_if(void *ptr) {
+static inline IRAM_ATTR bool nerd_sha_ll_read_digest_swap_if(void *ptr) {
   DPORT_INTERRUPT_DISABLE();
   uint32_t fin = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 7 * 4);
   if ((uint32_t) (fin & 0xFFFF) != 0) {
@@ -770,7 +770,7 @@ static inline bool nerd_sha_ll_read_digest_swap_if(void *ptr) {
   return true;
 }
 
-static inline void nerd_sha_ll_read_digest(void *ptr) {
+static inline IRAM_ATTR void nerd_sha_ll_read_digest(void *ptr) {
   DPORT_INTERRUPT_DISABLE();
 
   ((uint32_t *) ptr)[0] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 0 * 4);
@@ -785,12 +785,12 @@ static inline void nerd_sha_ll_read_digest(void *ptr) {
   DPORT_INTERRUPT_RESTORE();
 }
 
-static inline void nerd_sha_hal_wait_idle() {
+static inline IRAM_ATTR void nerd_sha_hal_wait_idle() {
   while (DPORT_REG_READ(SHA_256_BUSY_REG)) {
   }
 }
 
-static inline void nerd_sha_ll_fill_text_block_sha256(const void *input_text) {
+static inline IRAM_ATTR void nerd_sha_ll_fill_text_block_sha256(const void *input_text) {
   uint32_t *data_words = (uint32_t *) input_text;
   uint32_t *reg_addr_buf = (uint32_t *) (SHA_TEXT_BASE);
 
@@ -812,7 +812,7 @@ static inline void nerd_sha_ll_fill_text_block_sha256(const void *input_text) {
   reg_addr_buf[15] = data_words[15];
 }
 
-static inline void nerd_sha_ll_fill_text_block_sha256_upper(const void *input_text, uint32_t nonce) {
+static inline IRAM_ATTR void nerd_sha_ll_fill_text_block_sha256_upper(const void *input_text, uint32_t nonce) {
   uint32_t *data_words = (uint32_t *) input_text;
   uint32_t *reg_addr_buf = (uint32_t *) (SHA_TEXT_BASE);
 
@@ -835,7 +835,7 @@ static inline void nerd_sha_ll_fill_text_block_sha256_upper(const void *input_te
   reg_addr_buf[15] = 0x00000280;
 }
 
-static inline void nerd_sha_ll_fill_text_block_sha256_double() {
+static inline IRAM_ATTR void nerd_sha_ll_fill_text_block_sha256_double() {
   uint32_t *reg_addr_buf = (uint32_t *) (SHA_TEXT_BASE);
 
   reg_addr_buf[8] = 0x80000000;

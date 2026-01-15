@@ -79,7 +79,7 @@ bool checkPoolConnection(void) {
   s_addr.sin_addr.s_addr = uint32_t(addr.value());
 
   if (pool_socket->connect((struct sockaddr *)&s_addr, sizeof(s_addr)) != 0) {
-    if (errno != EINPROGRESS) { 
+    if (errno != EINPROGRESS) {
       ESP_LOGW(TAG, "Imposible to connect to: %s", NERDMINER_POOL);
       pool_socket = nullptr;
       return false;

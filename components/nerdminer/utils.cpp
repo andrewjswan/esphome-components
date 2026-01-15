@@ -40,7 +40,7 @@ bool pool_connected(esphome::socket::Socket *sock) {
 
     uint8_t dummy;
     ssize_t res = sock->read(&dummy, 1, MSG_PEEK);
-    if (res == 0) return false; 
+    if (res == 0) return false;
     if (res < 0 && errno != EAGAIN && errno != EWOULDBLOCK) return false;
     return true;
 }

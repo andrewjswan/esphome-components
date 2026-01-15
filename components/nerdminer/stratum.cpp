@@ -52,9 +52,9 @@ bool checkError(const JsonDocument doc) {
 // - https://github.com/aeternity/protocol/blob/master/STRATUM.md#mining-subscribe
 bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSubscribe) {
   char payload[BUFFER] = {0};
-  
+
   if (client == nullptr) return false;
-  
+
   // Subscribe
   id = 1;  // Initialize id messages
   sprintf(payload, "{\"id\": %u, \"method\": \"mining.subscribe\", \"params\": [\"NerdMinerV2/%s\"]}\n", id,
@@ -65,7 +65,7 @@ bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSub
   client->write(payload, strlen(payload));
 
   std::string line = pool_read_until(client, '\n');
-  if (line.empty()) return false; 
+  if (line.empty()) return false;
   if (!parse_mining_subscribe(line.c_str(), mSubscribe)) {
     return false;
   }
@@ -116,9 +116,9 @@ mining_subscribe init_mining_subscribe(void) {
 // STEP 2: Pool server auth (authorize)
 bool tx_mining_auth(esphome::socket::Socket *client, const char *user, const char *pass) {
   char payload[BUFFER] = {0};
-  
+
   if (client == nullptr) return false;
-  
+
   // Authorize
   id = getNextId(id);
   sprintf(payload, "{\"params\": [\"%s\", \"%s\"], \"id\": %u, \"method\": \"mining.authorize\"}\n", user, pass, id);
@@ -206,9 +206,9 @@ bool parse_mining_notify(String line, mining_job &mJob) {
 bool tx_mining_submit(esphome::socket::Socket *client, mining_subscribe mWorker, mining_job mJob, unsigned long nonce,
                       unsigned long &submit_id) {
   char payload[BUFFER] = {0};
-  
+
   if (client == nullptr) return false;
-  
+
   // Submit
   id = getNextId(id);
   submit_id = id;
@@ -246,7 +246,7 @@ bool tx_suggest_difficulty(esphome::socket::Socket *client, double difficulty) {
 
   id = getNextId(id);
   sprintf(payload, "{\"id\": %d, \"method\": \"mining.suggest_difficulty\", \"params\": [%.10g]}\n", id, difficulty);
-  
+
   ESP_LOGD(TAG, "  Sending: %s", payload);
   return client->write(payload, strlen(payload)) > 0;
 }

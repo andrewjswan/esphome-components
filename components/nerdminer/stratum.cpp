@@ -28,7 +28,7 @@ unsigned long getNextId(unsigned long id) {
 // Verify Payload doesn't has zero lenght
 bool verifyPayload(std::string &line) {
   const char* whitespace = " \t\n\r\f\v";
-  
+
   line.erase(0, line.find_first_not_of(whitespace));
   size_t last = line.find_last_not_of(whitespace);
   if (last != std::string::npos) {
@@ -217,13 +217,13 @@ bool tx_mining_submit(esphome::socket::Socket *client, mining_subscribe mWorker,
   // Submit
   id = getNextId(id);
   submit_id = id;
-  snprintf(payload, sizeof(payload), 
+  snprintf(payload, sizeof(payload),
          "{\"id\": %u, \"method\": \"mining.submit\", \"params\": [\"%s\",\"%s\",\"%s\",\"%s\",\"%08x\"]}\n",
          id,
          mWorker.wName,
-         mJob.job_id.c_str(), 
-         mWorker.extranonce2.c_str(), 
-         mJob.ntime.c_str(), 
+         mJob.job_id.c_str(),
+         mWorker.extranonce2.c_str(),
+         mJob.ntime.c_str(),
          nonce);
   ESP_LOGD(TAG, "  Sending: %s", payload);
   client->write(payload, strlen(payload));

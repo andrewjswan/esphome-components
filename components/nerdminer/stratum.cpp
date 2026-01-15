@@ -50,9 +50,11 @@ bool checkError(const JsonDocument doc) {
 // Docs:
 // - https://cs.braiins.com/stratum-v1/docs
 // - https://github.com/aeternity/protocol/blob/master/STRATUM.md#mining-subscribe
-bool tx_mining_subscribe(WiFiClient &client, mining_subscribe &mSubscribe) {
+bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSubscribe) {
   char payload[BUFFER] = {0};
-
+  
+  if (client == nullptr) return false;
+  
   // Subscribe
   id = 1;  // Initialize id messages
   sprintf(payload, "{\"id\": %u, \"method\": \"mining.subscribe\", \"params\": [\"NerdMinerV2/%s\"]}\n", id,
@@ -60,13 +62,21 @@ bool tx_mining_subscribe(WiFiClient &client, mining_subscribe &mSubscribe) {
 
   ESP_LOGD(TAG, "[STRATUM] ==> Mining subscribe");
   ESP_LOGD(TAG, "  Sending: %s", payload);
-  client.print(payload);
-
-  vTaskDelay(200 / portTICK_PERIOD_MS);  // Small delay
-
-  String line = client.readStringUntil('\n');
-  if (!parse_mining_subscribe(line, mSubscribe))
+  client->write(payload, strlen(payload));
+  
+  std::string line;
+  char c;
+  uint32_t start = millis();
+  while (millis() - start < 2000) {
+    if (client->read(&c, 1) > 0) {
+      if (c == '\n') break;
+      line += c;
+    }
+    yield();
+  }
+  if (!parse_mining_subscribe(line.c_str(), mSubscribe)) {
     return false;
+  }
 
   ESP_LOGD(TAG, "    sub_details: %s", mSubscribe.sub_details.c_str());
   ESP_LOGD(TAG, "    extranonce1: %s", mSubscribe.extranonce1.c_str());
@@ -112,16 +122,18 @@ mining_subscribe init_mining_subscribe(void) {
 }
 
 // STEP 2: Pool server auth (authorize)
-bool tx_mining_auth(WiFiClient &client, const char *user, const char *pass) {
+bool tx_mining_auth(esphome::socket::Socket *client, const char *user, const char *pass) {
   char payload[BUFFER] = {0};
-
+  
+  if (client == nullptr) return false;
+  
   // Authorize
   id = getNextId(id);
   sprintf(payload, "{\"params\": [\"%s\", \"%s\"], \"id\": %u, \"method\": \"mining.authorize\"}\n", user, pass, id);
 
   ESP_LOGD(TAG, "[STRATUM] ==> Autorize work");
   ESP_LOGD(TAG, "  Sending: %s", payload);
-  client.print(payload);
+  client->write(payload, strlen(payload));
 
   vTaskDelay(200 / portTICK_PERIOD_MS);  // Small delay
 
@@ -199,10 +211,12 @@ bool parse_mining_notify(String line, mining_job &mJob) {
   return true;
 }
 
-bool tx_mining_submit(WiFiClient &client, mining_subscribe mWorker, mining_job mJob, unsigned long nonce,
+bool tx_mining_submit(esphome::socket::Socket *client, mining_subscribe mWorker, mining_job mJob, unsigned long nonce,
                       unsigned long &submit_id) {
   char payload[BUFFER] = {0};
-
+  
+  if (client == nullptr) return false;
+  
   // Submit
   id = getNextId(id);
   submit_id = id;
@@ -211,7 +225,7 @@ bool tx_mining_submit(WiFiClient &client, mining_subscribe mWorker, mining_job m
           mWorker.wName,  //"bc1qvv469gmw4zz6qa4u4dsezvrlmqcqszwyfzhgwj", //mWorker.name,
           mJob.job_id.c_str(), mWorker.extranonce2.c_str(), mJob.ntime.c_str(), String(nonce, HEX).c_str());
   ESP_LOGD(TAG, "  Sending: %s", payload);
-  client.print(payload);
+  client->write(payload, strlen(payload));
 
   return true;
 }
@@ -233,14 +247,16 @@ bool parse_mining_set_difficulty(String line, double &difficulty) {
   return true;
 }
 
-bool tx_suggest_difficulty(WiFiClient &client, double difficulty) {
+bool tx_suggest_difficulty(esphome::socket::Socket *client, double difficulty) {
   char payload[BUFFER] = {0};
+
+  if (client == nullptr) return false;
 
   id = getNextId(id);
   sprintf(payload, "{\"id\": %d, \"method\": \"mining.suggest_difficulty\", \"params\": [%.10g]}\n", id, difficulty);
-
+  
   ESP_LOGD(TAG, "  Sending: %s", payload);
-  return client.print(payload);
+  return client->write(payload, strlen(payload)) > 0;
 }
 
 unsigned long parse_extract_id(const String &line) {

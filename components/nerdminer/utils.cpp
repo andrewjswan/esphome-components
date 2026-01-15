@@ -26,9 +26,27 @@
 namespace esphome {
 namespace nerdminer {
 
+#include "utils.h"
+
+void pool_close(std::unique_ptr<esphome::socket::Socket> &sock) {
+    if (sock != nullptr) {
+        sock->close();
+        sock.reset();
+    }
+}
+
+bool pool_connected(esphome::socket::Socket *sock) {
+    if (sock == nullptr) return false;
+
+    uint8_t dummy;
+    ssize_t res = sock->read(&dummy, 1, MSG_PEEK);
+    if (res == 0) return false; 
+    if (res < 0 && errno != EAGAIN && errno != EWOULDBLOCK) return false;
+    return true;
+}
+
 bool pool_available(esphome::socket::Socket *sock) {
     if (sock == nullptr) return false;
-    
     uint8_t dummy;
     return sock->read(&dummy, 1, MSG_PEEK) > 0;
 }
@@ -36,7 +54,6 @@ bool pool_available(esphome::socket::Socket *sock) {
 std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
     std::string result;
     if (sock == nullptr) return result;
-
     char c;
     while (sock->read(&c, 1) > 0) {
         if (c == terminator) break;

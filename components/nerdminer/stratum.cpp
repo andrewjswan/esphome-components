@@ -63,17 +63,9 @@ bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSub
   ESP_LOGD(TAG, "[STRATUM] ==> Mining subscribe");
   ESP_LOGD(TAG, "  Sending: %s", payload);
   client->write(payload, strlen(payload));
-  
-  std::string line;
-  char c;
-  uint32_t start = millis();
-  while (millis() - start < 2000) {
-    if (client->read(&c, 1) > 0) {
-      if (c == '\n') break;
-      line += c;
-    }
-    yield();
-  }
+
+  std::string line = pool_read_until(client, '\n');
+  if (line.empty()) return false; 
   if (!parse_mining_subscribe(line.c_str(), mSubscribe)) {
     return false;
   }

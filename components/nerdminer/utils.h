@@ -6,6 +6,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "esphome/components/socket/socket.h"
+#include <string>
+
 // General byte order swapping functions.
 
 #define bswap16(x) __bswap16(x)
@@ -24,6 +27,9 @@ bool isSha256Valid(const void *sha256);
 miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob);
 bool checkValid(unsigned char *hash, unsigned char *target);
 void suffix_string(double val, char *buf, size_t bufsiz, int sigdigits);
+
+bool pool_available(esphome::socket::Socket *sock);
+std::string pool_read_until(esphome::socket::Socket *sock, char terminator);
 
 uint32_t crc32_reset();
 uint32_t crc32_add(uint32_t crc32, const void *data, size_t size);

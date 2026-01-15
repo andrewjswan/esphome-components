@@ -2,6 +2,7 @@
 
 #include "cJSON.h"
 
+#include "esphome/components/socket/socket.h"
 #include "esphome/components/wifi/wifi_component.h"
 
 #include <stdint.h>
@@ -53,20 +54,20 @@ bool checkError(const JsonDocument doc);
 
 // Method Mining.Subscribe
 mining_subscribe init_mining_subscribe(void);
-bool tx_mining_subscribe(WiFiClient &client, mining_subscribe &mSubscribe);
+bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSubscribe);
 bool parse_mining_subscribe(String line, mining_subscribe &mSubscribe);
 
 // Method Mining.Authorise
-bool tx_mining_auth(WiFiClient &client, const char *user, const char *pass);
+bool tx_mining_auth(esphome::socket::Socket *client, const char *user, const char *pass);
 stratum_method parse_mining_method(String line);
 bool parse_mining_notify(String line, mining_job &mJob);
 
 // Method Mining.Submit
-bool tx_mining_submit(WiFiClient &client, mining_subscribe mWorker, mining_job mJob, unsigned long nonce,
+bool tx_mining_submit(esphome::socket::Socket *client, mining_subscribe mWorker, mining_job mJob, unsigned long nonce,
                       unsigned long &submit_id);
 
 // Difficulty Methods
-bool tx_suggest_difficulty(WiFiClient &client, double difficulty);
+bool tx_suggest_difficulty(esphome::socket::Socket *client, double difficulty);
 bool parse_mining_set_difficulty(String line, double &difficulty);
 
 // ID Methods

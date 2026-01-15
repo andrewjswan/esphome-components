@@ -70,8 +70,8 @@ std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
         return result;
       }
       result += c;
-      start_time = millis(); 
-    } 
+      start_time = millis();
+    }
     else if (res < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         yield();
@@ -79,7 +79,7 @@ std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
       }
       ESP_LOGVV("read_until", "Socket read error: %d", errno);
       break;
-    } 
+    }
     else {
       ESP_LOGD("read_until", "Socket closed by pool");
       break;

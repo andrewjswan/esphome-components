@@ -26,13 +26,18 @@ unsigned long getNextId(unsigned long id) {
 }
 
 // Verify Payload doesn't has zero lenght
-bool verifyPayload(String *line) {
-  if (line->length() == 0)
-    return false;
-  line->trim();
-  if (line->isEmpty())
-    return false;
-  return true;
+bool verifyPayload(std::string &line) {
+  const char* whitespace = " \t\n\r\f\v";
+  
+  line.erase(0, line.find_first_not_of(whitespace));
+  size_t last = line.find_last_not_of(whitespace);
+  if (last != std::string::npos) {
+    line.erase(last + 1);
+  } else {
+    line.clear();
+  }
+
+  return !line.empty();
 }
 
 bool checkError(const JsonDocument doc) {
@@ -83,8 +88,8 @@ bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSub
   return true;
 }
 
-bool parse_mining_subscribe(String line, mining_subscribe &mSubscribe) {
-  if (!verifyPayload(&line))
+bool parse_mining_subscribe(std::string line, mining_subscribe &mSubscribe) {
+  if (!verifyPayload(line))
     return false;
   ESP_LOGD(TAG, "  Receiving: %s", line.c_str());
 
@@ -95,8 +100,8 @@ bool parse_mining_subscribe(String line, mining_subscribe &mSubscribe) {
   if (!doc["result"].is<JsonVariant>())
     return false;
 
-  mSubscribe.sub_details = String((const char *) doc["result"][0][0][1]);
-  mSubscribe.extranonce1 = String((const char *) doc["result"][1]);
+  mSubscribe.sub_details = doc["result"][0][0][1].as<std::string>();
+  mSubscribe.extranonce1 = doc["result"][1].as<std::string>();
   mSubscribe.extranonce2_size = doc["result"][2];
 
   return true;
@@ -134,8 +139,8 @@ bool tx_mining_auth(esphome::socket::Socket *client, const char *user, const cha
   return true;
 }
 
-stratum_method parse_mining_method(String line) {
-  if (!verifyPayload(&line))
+stratum_method parse_mining_method(std::string line) {
+  if (!verifyPayload(line))
     return STRATUM_PARSE_ERROR;
   ESP_LOGD(TAG, "  Receiving: %s", line.c_str());
 
@@ -161,9 +166,9 @@ stratum_method parse_mining_method(String line) {
   return result;
 }
 
-bool parse_mining_notify(String line, mining_job &mJob) {
+bool parse_mining_notify(std::string line, mining_job &mJob) {
   ESP_LOGD(TAG, "    Parsing Method [MINING NOTIFY]");
-  if (!verifyPayload(&line))
+  if (!verifyPayload(line))
     return false;
 
   DeserializationError error = deserializeJson(doc, line);
@@ -172,14 +177,14 @@ bool parse_mining_notify(String line, mining_job &mJob) {
   if (!doc["params"].is<JsonVariant>())
     return false;
 
-  mJob.job_id = String((const char *) doc["params"][0]);
-  mJob.prev_block_hash = String((const char *) doc["params"][1]);
-  mJob.coinb1 = String((const char *) doc["params"][2]);
-  mJob.coinb2 = String((const char *) doc["params"][3]);
+  mJob.job_id = doc["params"][0].as<std::string>();
+  mJob.prev_block_hash = doc["params"][1].as<std::string>();
+  mJob.coinb1 = doc["params"][2].as<std::string>();
+  mJob.coinb2 = doc["params"][3].as<std::string>();
   mJob.merkle_branch = doc["params"][4];
-  mJob.version = String((const char *) doc["params"][5]);
-  mJob.nbits = String((const char *) doc["params"][6]);
-  mJob.ntime = String((const char *) doc["params"][7]);
+  mJob.version = doc["params"][5].as<std::string>();
+  mJob.nbits = doc["params"][6].as<std::string>();
+  mJob.ntime = doc["params"][7].as<std::string>();
   mJob.clean_jobs = doc["params"][8];  // bool
 
 #ifdef DEBUG_MINING
@@ -212,19 +217,23 @@ bool tx_mining_submit(esphome::socket::Socket *client, mining_subscribe mWorker,
   // Submit
   id = getNextId(id);
   submit_id = id;
-  sprintf(payload, "{\"id\": %u, \"method\": \"mining.submit\", \"params\": [\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"]}\n",
-          id,
-          mWorker.wName,  //"bc1qvv469gmw4zz6qa4u4dsezvrlmqcqszwyfzhgwj", //mWorker.name,
-          mJob.job_id.c_str(), mWorker.extranonce2.c_str(), mJob.ntime.c_str(), String(nonce, HEX).c_str());
+  snprintf(payload, sizeof(payload), 
+         "{\"id\": %u, \"method\": \"mining.submit\", \"params\": [\"%s\",\"%s\",\"%s\",\"%s\",\"%08x\"]}\n",
+         id,
+         mWorker.wName,
+         mJob.job_id.c_str(), 
+         mWorker.extranonce2.c_str(), 
+         mJob.ntime.c_str(), 
+         nonce);
   ESP_LOGD(TAG, "  Sending: %s", payload);
   client->write(payload, strlen(payload));
 
   return true;
 }
 
-bool parse_mining_set_difficulty(String line, double &difficulty) {
+bool parse_mining_set_difficulty(std::string line, double &difficulty) {
   ESP_LOGD(TAG, "    Parsing Method [SET DIFFICULTY]");
-  if (!verifyPayload(&line))
+  if (!verifyPayload(line))
     return false;
 
   DeserializationError error = deserializeJson(doc, line);
@@ -251,18 +260,20 @@ bool tx_suggest_difficulty(esphome::socket::Socket *client, double difficulty) {
   return client->write(payload, strlen(payload)) > 0;
 }
 
-unsigned long parse_extract_id(const String &line) {
+unsigned long parse_extract_id(const std::string &line) {
   DeserializationError error = deserializeJson(doc, line);
   if (error) {
     return 0;
   }
 
-  if (!doc["id"].is<JsonVariant>()) {
+  if (doc["id"].isNull()) {
+    return 0;
+  }
+  if (!doc["id"].is<unsigned long>()) {
     return 0;
   }
 
-  unsigned long id = doc["id"];
-  return id;
+  return doc["id"].as<unsigned long>();
 }
 
 }  // namespace nerdminer

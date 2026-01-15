@@ -70,7 +70,10 @@ bool checkPoolConnection(void) {
 
   pool_socket = esphome::socket::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   auto addr = esphome::network::get_ip_address(NERDMINER_POOL);
-  if (!addr.has_value()) return false;
+  if (!addr.has_value()) {
+    ESP_LOGE(TAG, "DNS Resolution failed for %s", NERDMINER_POOL);
+    return false;
+  }
 
   // Try connecting pool IP
   struct sockaddr_in s_addr;

@@ -26,6 +26,25 @@
 namespace esphome {
 namespace nerdminer {
 
+bool pool_available(esphome::socket::Socket *sock) {
+    if (sock == nullptr) return false;
+    
+    uint8_t dummy;
+    return sock->read(&dummy, 1, MSG_PEEK) > 0;
+}
+
+std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
+    std::string result;
+    if (sock == nullptr) return result;
+
+    char c;
+    while (sock->read(&c, 1) > 0) {
+        if (c == terminator) break;
+        result += c;
+    }
+    return result;
+}
+
 uint32_t swab32(uint32_t v) { return bswap_32(v); }
 
 uint8_t hex(char ch) {

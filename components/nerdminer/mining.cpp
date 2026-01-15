@@ -7,6 +7,7 @@
 #include "nerdminer.h"
 
 #include "esphome/core/log.h"
+#include "esphome/components/network/dns_resolver.h"
 #include "esphome/components/network/util.h"
 
 #include <ArduinoJson.h>
@@ -52,7 +53,7 @@ double best_diff = 0.0;
 IPAddress serverIP(1, 1, 1, 1);  // Temporally save poolIPaddres
 
 // Global work data
-static WiFiClient client;
+static std::unique_ptr<esphome::socket::Socket> pool_socket;
 static miner_data mMiner;  // Global miner data (Create a miner class TODO)
 mining_subscribe mWorker;
 mining_job mJob;
@@ -61,28 +62,46 @@ static bool volatile isMinerSuscribed = false;
 unsigned long mLastTXtoPool = millis();
 
 bool checkPoolConnection(void) {
-  if (client.connected()) {
+  if (pool_socket != nullptr) {
     return true;
   }
 
   isMinerSuscribed = false;
   ESP_LOGD(TAG, "Client not connected, trying to connect...");
 
-  // Resolve first time pool DNS and save IP
-  if (serverIP == IPAddress(1, 1, 1, 1)) {
-    WiFi.hostByName(NERDMINER_POOL, serverIP);
-    ESP_LOGD(TAG, "Resolved DNS and save ip (first time) got: %s", serverIP.toString().c_str());
+  auto resolver = std::make_unique<esphome::network::DNSResolver>(NERDMINER_POOL);
+  resolver->setup();
+  
+  uint32_t start = millis();
+  while (!resolver->get_ip_address().has_value()) {
+    if (millis() - start > 5000) { // Таймаут 5 секунд
+      ESP_LOGE(TAG, "DNS Resolution failed for %s", NERDMINER_POOL);
+      return false;
+    }
+    yield();
   }
+  auto addr = resolver->get_ip_address().value();  
 
   // Try connecting pool IP
-  if (!client.connect(serverIP, NERDMINER_POOL_PORT)) {
-    ESP_LOGW(TAG, "Imposible to connect to: %s", NERDMINER_POOL);
-    WiFi.hostByName(NERDMINER_POOL, serverIP);
-    ESP_LOGD(TAG, "Resolved DNS got: %s", serverIP.toString().c_str());
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  pool_socket = esphome::socket::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if (pool_socket == nullptr) {
     return false;
   }
+  pool_socket->setblocking(false);   
 
+  struct sockaddr_in s_addr;
+  memset(&s_addr, 0, sizeof(s_addr));
+  s_addr.sin_family = AF_INET;
+  s_addr.sin_port = htons(NERDMINER_POOL_PORT);
+  s_addr.sin_addr.s_addr = uint32_t(addr); 
+
+  if (pool_socket->connect((struct sockaddr *)&s_addr, sizeof(s_addr)) != 0) {
+    if (errno != EINPROGRESS) {
+      ESP_LOGW(TAG, "Imposible to connect to: %s", NERDMINER_POOL);
+      pool_socket = nullptr;
+      return false;
+    }
+  }
   return true;
 }
 
@@ -105,7 +124,7 @@ bool checkPoolInactivity(unsigned int keepAliveTime, unsigned long inactivityTim
   if (time_now > mLastTXtoPool + keepAliveTime) {
     mLastTXtoPool = time_now;
     ESP_LOGD(TAG, "Sending: KeepAlive - suggest_difficulty");
-    tx_suggest_difficulty(client, DEFAULT_DIFFICULTY);
+    tx_suggest_difficulty(pool_socket.get(), DEFAULT_DIFFICULTY);
   }
 
   if (elapsedKHs == 0) {
@@ -235,8 +254,8 @@ void runStratumWorker(void *name) {
       mWorker = init_mining_subscribe();
 
       // STEP 1: Pool server connection (SUBSCRIBE)
-      if (!tx_mining_subscribe(client, mWorker)) {
-        client.stop();
+      if (!tx_mining_subscribe(pool_socket.get(), mWorker)) {
+        pool_close(pool_socket);
         MiningJobStop(job_pool, s_submition_map);
         continue;
       }
@@ -244,11 +263,11 @@ void runStratumWorker(void *name) {
       // STEP 2: Pool authorize work (Block Info)
       strcpy(mWorker.wName, NERDMINER_POOL_WORKER);
       strcpy(mWorker.wPass, NERDMINER_POOL_PASS);
-      tx_mining_auth(client, mWorker.wName, mWorker.wPass);  // Don't verifies authoritzation, TODO
-      // tx_mining_auth2(client, mWorker.wName, mWorker.wPass); // Don't verifies authoritzation, TODO
+      tx_mining_auth(pool_socket.get(), mWorker.wName, mWorker.wPass);  // Don't verifies authoritzation, TODO
+      // tx_mining_auth2(pool_socket.get(), mWorker.wName, mWorker.wPass); // Don't verifies authoritzation, TODO
 
       // STEP 3: Suggest pool difficulty
-      tx_suggest_difficulty(client, currentPoolDifficulty);
+      tx_suggest_difficulty(pool_socket.get(), currentPoolDifficulty);
 
       isMinerSuscribed = true;
       uint32_t time_now = millis();
@@ -260,7 +279,7 @@ void runStratumWorker(void *name) {
     if (checkPoolInactivity(KEEPALIVE_TIME_ms, POOLINACTIVITY_TIME_ms)) {
       // Restart connection
       ESP_LOGI(TAG, "Detected more than 2 min without data form stratum server. Closing socket and reopening...");
-      client.stop();
+      pool_close(pool_socket);
       isMinerSuscribed = false;
       MiningJobStop(job_pool, s_submition_map);
       continue;
@@ -272,7 +291,7 @@ void runStratumWorker(void *name) {
         last_job_time = time_now;
       if (time_now >= last_job_time + 10 * 60 * 1000)  // 10 minutes without job
       {
-        client.stop();
+        pool_close(pool_socket);
         isMinerSuscribed = false;
         MiningJobStop(job_pool, s_submition_map);
         continue;
@@ -287,9 +306,9 @@ void runStratumWorker(void *name) {
 #endif
 
     // Read pending messages from pool
-    while (client.connected() && client.available()) {
+    while (pool_socket != nullptr && pool_available(pool_socket.get())) {
       ESP_LOGD(TAG, "Received message from pool...");
-      String line = client.readStringUntil('\n');
+      std::string line = pool_read_until(pool_socket.get(), '\n');
       stratum_method result = parse_mining_method(line);
       switch (result) {
         case MINING_NOTIFY: {
@@ -376,7 +395,7 @@ void runStratumWorker(void *name) {
             }
           } else {
             ESP_LOGD(TAG, "Parsing error, need restart");
-            client.stop();
+            pool_close(pool_socket);
             isMinerSuscribed = false;
             MiningJobStop(job_pool, s_submition_map);
           }
@@ -461,11 +480,11 @@ void runStratumWorker(void *name) {
 
       hashes += res->nonce_count;
       if (res->difficulty > currentPoolDifficulty && job_pool == res->id && res->nonce != 0xFFFFFFFF) {
-        if (!client.connected())
+        if (pool_socket == nullptr)
           break;
 
         unsigned long sumbit_id = 0;
-        tx_mining_submit(client, mWorker, mJob, res->nonce, sumbit_id);
+        tx_mining_submit(pool_socket.get(), mWorker, mJob, res->nonce, sumbit_id);
         ESP_LOGD(TAG, "  - Current diff share: %d", res->difficulty);
         ESP_LOGD(TAG, "  - Current pool diff : %d", currentPoolDifficulty);
         ESP_LOGD(TAG, "  - TX SHARE: %s", format_hex_pretty(res->hash, 32).c_str());
@@ -958,7 +977,7 @@ void runMonitor(void *name) {
   while (1) {
     unsigned long now_millis = millis();
 
-    mMonitor.Status = client.connected() && isMinerSuscribed;
+    mMonitor.Status = (pool_socket != nullptr) && isMinerSuscribed;
 
     unsigned long mElapsed = now_millis - mLastCheck;
     if (mElapsed >= 1000) {
@@ -980,7 +999,7 @@ void runMonitor(void *name) {
       if (elapsedKHs == 0) {
         ESP_LOGD(TAG,
                  ">>> [MONITOR] Miner: newJob>%s / inRun>%s) - Client: connected>%s / subscribed>%s / wificonnected>%s",
-                 YESNO(true), YESNO(isMinerSuscribed), YESNO(client.connected()), YESNO(isMinerSuscribed),
+                 YESNO(true), YESNO(isMinerSuscribed), YESNO((pool_socket != nullptr)), YESNO(isMinerSuscribed),
                  YESNO(network::is_connected()));
       }
 

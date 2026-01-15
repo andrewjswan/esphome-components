@@ -28,6 +28,8 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob);
 bool checkValid(unsigned char *hash, unsigned char *target);
 void suffix_string(double val, char *buf, size_t bufsiz, int sigdigits);
 
+void pool_close(std::unique_ptr<esphome::socket::Socket> &sock);
+bool pool_connected(esphome::socket::Socket *sock);
 bool pool_available(esphome::socket::Socket *sock);
 std::string pool_read_until(esphome::socket::Socket *sock, char terminator);
 

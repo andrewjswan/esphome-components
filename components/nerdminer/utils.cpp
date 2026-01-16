@@ -44,7 +44,7 @@ bool pool_connected(esphome::socket::Socket *sock) {
     if (fd < 0) {
       return false;
     }
-    
+
     ssize_t res = ::recv(fd, &dummy, 1, MSG_PEEK);
 
     if (res == 0) {

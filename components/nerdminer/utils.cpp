@@ -275,7 +275,7 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   char target[TARGET_BUFFER_SIZE + 1];
   memset(target, '0', TARGET_BUFFER_SIZE);
   int zeros = (int) strtol(mJob.nbits.substr(0, 2).c_str(), 0, 16) - 3;
-  memcpy(target + zeros - 2, mJob.nbits.substr(2).c_str(), mJob.nbits.length() - 2);
+  memcpy(target + zeros - 2, mJob.nbits.substr(2).c_str(), mJob.nbits.size() - 2);
   target[TARGET_BUFFER_SIZE] = 0;
   ESP_LOGD(TAG, "    target: %s", target);
 
@@ -307,9 +307,9 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   // mWorker.extranonce2 = "00000002";
 
   // get coinbase - coinbase_hash_bin = hashlib.sha256(hashlib.sha256(binascii.unhexlify(coinbase)).digest()).digest()
-  String coinbase = mJob.coinb1 + mWorker.extranonce1 + mWorker.extranonce2 + mJob.coinb2;
+  std::string coinbase = mJob.coinb1 + mWorker.extranonce1 + mWorker.extranonce2 + mJob.coinb2;
   ESP_LOGD(TAG, "    coinbase: %s", coinbase.c_str());
-  size_t str_len = coinbase.length() / 2;
+  size_t str_len = coinbase.size() / 2;
   uint8_t bytearray[str_len];
 
   size_t res = to_byte_array(coinbase.c_str(), str_len * 2, bytearray);
@@ -389,7 +389,7 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   // calculate blockheader
   // j.block_header = ''.join([j.version, j.prevhash, merkle_root, j.ntime, j.nbits])
   String blockheader = mJob.version + mJob.prev_block_hash + String(merkle_root) + mJob.ntime + mJob.nbits + "00000000";
-  str_len = blockheader.length() / 2;
+  str_len = blockheader.size() / 2;
 
   // uint8_t bytearray_blockheader[str_len];
   res = to_byte_array(blockheader.c_str(), str_len * 2, mMiner.bytearray_blockheader);

@@ -4,6 +4,7 @@
 #include "nerdminer.h"
 
 #include "mbedtls/sha256.h"
+#include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
 #include <string.h>
@@ -25,6 +26,90 @@
 
 namespace esphome {
 namespace nerdminer {
+
+#include "utils.h"
+
+void pool_close(std::unique_ptr<esphome::socket::Socket> &sock) {
+    if (sock != nullptr) {
+        sock->close();
+        sock.reset();
+    }
+}
+
+bool pool_connected(esphome::socket::Socket *sock) {
+    if (sock == nullptr) return false;
+
+    uint8_t dummy;
+    int fd = sock->get_fd();
+    if (fd < 0) {
+      return false;
+    }
+    
+    ssize_t res = ::recv(fd, &dummy, 1, MSG_PEEK);
+
+    if (res == 0) {
+      return false;
+    }
+    if (res < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        return true;
+      }
+      return false;
+    }
+    return true;
+}
+
+bool pool_available(esphome::socket::Socket *sock) {
+    if (sock == nullptr) return false;
+
+    int fd = sock->get_fd();
+    if (fd < 0) {
+      return false;
+    }
+
+    uint8_t dummy;
+    return ::recv(fd, &dummy, 1, MSG_PEEK) > 0;
+}
+
+std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
+  std::string result;
+  if (sock == nullptr) {
+    return result;
+  }
+
+  char c;
+  uint32_t start_time = millis();
+  const uint32_t timeout = 2000;
+
+  while (millis() - start_time < timeout) {
+    ssize_t res = sock->read(&c, 1);
+
+    if (res > 0) {
+      if (c == terminator) {
+        return result;
+      }
+      result += c;
+      start_time = millis();
+    }
+    else if (res < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        yield();
+        continue;
+      }
+      ESP_LOGVV("read_until", "Socket read error: %d", errno);
+      break;
+    }
+    else {
+      ESP_LOGD("read_until", "Socket closed by pool");
+      break;
+    }
+  }
+
+  if (millis() - start_time >= timeout) {
+    ESP_LOGD("read_until", "Read timeout reached");
+  }
+  return result;
+}
 
 uint32_t swab32(uint32_t v) { return bswap_32(v); }
 

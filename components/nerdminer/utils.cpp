@@ -274,8 +274,8 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
 
   char target[TARGET_BUFFER_SIZE + 1];
   memset(target, '0', TARGET_BUFFER_SIZE);
-  int zeros = (int) strtol(mJob.nbits.substring(0, 2).c_str(), 0, 16) - 3;
-  memcpy(target + zeros - 2, mJob.nbits.substring(2).c_str(), mJob.nbits.length() - 2);
+  int zeros = (int) strtol(mJob.nbits.substr(0, 2).c_str(), 0, 16) - 3;
+  memcpy(target + zeros - 2, mJob.nbits.substr(2).c_str(), mJob.nbits.length() - 2);
   target[TARGET_BUFFER_SIZE] = 0;
   ESP_LOGD(TAG, "    target: %s", target);
 

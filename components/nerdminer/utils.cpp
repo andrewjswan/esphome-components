@@ -41,23 +41,34 @@ bool pool_connected(esphome::socket::Socket *sock) {
 
     uint8_t dummy;
     int fd = sock->get_fd();
-    if (fd < 0) return false;
-
+    if (fd < 0) {
+      return false;
+    }
+    
     ssize_t res = ::recv(fd, &dummy, 1, MSG_PEEK);
 
-    if (res == 0) return false;
-    if (res < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) return true;
-        return false;
+    if (res == 0) {
+      return false;
     }
-
+    if (res < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        return true;
+      }
+      return false;
+    }
     return true;
 }
 
 bool pool_available(esphome::socket::Socket *sock) {
     if (sock == nullptr) return false;
+
+    int fd = sock->get_fd();
+    if (fd < 0) {
+      return false;
+    }
+
     uint8_t dummy;
-    return sock->read(&dummy, 1, MSG_PEEK) > 0;
+    return ::recv(fd, &dummy, 1, MSG_PEEK) > 0;
 }
 
 std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {

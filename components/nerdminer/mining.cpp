@@ -98,10 +98,10 @@ bool checkPoolConnection(void) {
   s_addr.sin_family = AF_INET;
   s_addr.sin_port = htons(NERDMINER_POOL_PORT);
   struct sockaddr_in *res_addr = (struct sockaddr_in *)res->ai_addr;
-  s_addr.sin_addr.s_addr = res_addr->sin_addr.s_addr; 
-  
+  s_addr.sin_addr.s_addr = res_addr->sin_addr.s_addr;
+
   freeaddrinfo(res);
-  
+
   if (pool_socket->connect((struct sockaddr *)&s_addr, sizeof(s_addr)) != 0) {
     if (errno != EINPROGRESS) {
       ESP_LOGW(TAG, "Imposible to connect to: %s", NERDMINER_POOL);

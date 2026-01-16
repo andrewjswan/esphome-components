@@ -7,7 +7,6 @@
 #include "nerdminer.h"
 
 #include "esphome/core/log.h"
-#include "esphome/components/network/dns_resolver.h"
 #include "esphome/components/network/util.h"
 
 #include <ArduinoJson.h>
@@ -15,6 +14,8 @@
 #include <mutex>
 #include <list>
 #include <map>
+
+#include <lwip/netdb.h>
 
 #ifdef HARDWARE_SHA265
 #include <sha/sha_dma.h>
@@ -50,8 +51,6 @@ volatile uint32_t valids;  // increased if blockhash <= target
 // Track best diff
 double best_diff = 0.0;
 
-IPAddress serverIP(1, 1, 1, 1);  // Temporally save poolIPaddres
-
 // Global work data
 static std::unique_ptr<esphome::socket::Socket> pool_socket;
 static miner_data mMiner;  // Global miner data (Create a miner class TODO)
@@ -69,32 +68,40 @@ bool checkPoolConnection(void) {
   isMinerSuscribed = false;
   ESP_LOGD(TAG, "Client not connected, trying to connect...");
 
-  auto resolver = std::make_unique<esphome::network::DNSResolver>(NERDMINER_POOL);
-  resolver->setup();
+  struct addrinfo hints;
+  struct addrinfo *res = nullptr;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
 
-  uint32_t start = millis();
-  while (!resolver->get_ip_address().has_value()) {
-    if (millis() - start > 5000) { // Таймаут 5 секунд
-      ESP_LOGE(TAG, "DNS Resolution failed for %s", NERDMINER_POOL);
-      return false;
+  int err = getaddrinfo(NERDMINER_POOL, NULL, &hints, &res);
+  if (err != 0 || res == nullptr) {
+    ESP_LOGW(TAG, "DNS Resolution failed for %s, error: %d", NERDMINER_POOL, err);
+    if (res != nullptr) {
+      freeaddrinfo(res);
     }
-    yield();
+    return false;
   }
-  auto addr = resolver->get_ip_address().value();
 
   // Try connecting pool IP
   pool_socket = esphome::socket::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (pool_socket == nullptr) {
+    ESP_LOGD(TAG, "Failed to create socket (errno: %d)", errno);
+    freeaddrinfo(res);
     return false;
   }
+
   pool_socket->setblocking(false);
 
   struct sockaddr_in s_addr;
   memset(&s_addr, 0, sizeof(s_addr));
   s_addr.sin_family = AF_INET;
   s_addr.sin_port = htons(NERDMINER_POOL_PORT);
-  s_addr.sin_addr.s_addr = uint32_t(addr);
-
+  struct sockaddr_in *res_addr = (struct sockaddr_in *)res->ai_addr;
+  s_addr.sin_addr.s_addr = res_addr->sin_addr.s_addr; 
+  
+  freeaddrinfo(res);
+  
   if (pool_socket->connect((struct sockaddr *)&s_addr, sizeof(s_addr)) != 0) {
     if (errno != EINPROGRESS) {
       ESP_LOGW(TAG, "Imposible to connect to: %s", NERDMINER_POOL);

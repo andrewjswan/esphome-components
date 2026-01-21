@@ -49,7 +49,8 @@ class MusicLedsSoundLoopTrigger;
 
 class MusicLeds : public Component
 #ifdef USE_OTA_STATE_LISTENER
-  , public ota::OTAGlobalStateListener
+    ,
+                  public ota::OTAGlobalStateListener
 #endif
 {
  public:

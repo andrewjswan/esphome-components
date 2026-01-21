@@ -4,6 +4,7 @@ import logging
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
+from esphome.components import ota
 from esphome.const import CONF_ID
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ async def to_code(config) -> None:
     """Code generation entry point."""
     var = cg.new_Pvariable(config[CONF_ID])
 
-    cg.add_define("USE_OTA_STATE_CALLBACK")
+    ota.request_ota_state_listeners()
 
     cg.add_define("NERDMINER_WALLETID", config[CONF_WALLETID])
     cg.add_define("NERDMINER_WORKER", config[CONF_WORKER])

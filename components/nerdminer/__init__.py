@@ -4,8 +4,8 @@ import logging
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.const import CONF_ID
 from esphome.components import ota
+from esphome.const import CONF_ID
 
 _LOGGER = logging.getLogger(__name__)
 

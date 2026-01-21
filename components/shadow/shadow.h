@@ -33,7 +33,7 @@ class Shadow : public Component
   void on_ota_global_state(ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) override;
 #endif
 
-protected:
+ protected:
   TaskHandle_t shadow_handle{nullptr};
   script::Script<> *script{nullptr};
   uint8_t shadow_interval_{60};

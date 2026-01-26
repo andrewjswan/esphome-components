@@ -81,7 +81,7 @@ std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
                 yield();
                 continue;
             }
-            break; 
+            break;
         } else {
           break;
         }

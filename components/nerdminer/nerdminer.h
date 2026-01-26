@@ -14,7 +14,7 @@ namespace esphome {
 namespace nerdminer {
 
 static const char *const TAG = "nerdminer";
-static const char *const NERDMINER_VERSION = "2025.7.1-1.7.0";
+static const char *const NERDMINER_VERSION = "2026.1.1-1.7.0";
 
 class NerdMiner : public Component
 #ifdef USE_OTA_STATE_LISTENER

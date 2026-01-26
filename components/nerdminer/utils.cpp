@@ -3,12 +3,14 @@
 #include "stratum.h"
 #include "nerdminer.h"
 
+#include <string.h>
+#include <stdio.h>
+
+#include <lwip/sockets.h>
+#include <lwip/netdb.h>
 #include "mbedtls/sha256.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
-
-#include <string.h>
-#include <stdio.h>
 
 // clang-format off
 #ifndef bswap_16
@@ -29,86 +31,90 @@ namespace nerdminer {
 
 #include "utils.h"
 
-void pool_close(std::unique_ptr<esphome::socket::Socket> &sock) {
-    if (sock != nullptr) {
-        sock->close();
-        sock.reset();
-    }
-}
-
 bool pool_connected(esphome::socket::Socket *sock) {
-    if (sock == nullptr) return false;
+    if (sock == nullptr || sock->get_fd() < 0) {
+      return false;
+    }
 
     uint8_t dummy;
     int fd = sock->get_fd();
-    if (fd < 0) {
-      return false;
-    }
 
-    ssize_t res = ::recv(fd, &dummy, 1, MSG_PEEK);
-
+    ssize_t res = lwip_recv(fd, &dummy, 1, MSG_PEEK | MSG_DONTWAIT);
     if (res == 0) {
-      return false;
+        return false;
     }
+    
     if (res < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        return true;
-      }
-      return false;
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return true;
+        }
+        return false;
     }
     return true;
 }
 
 bool pool_available(esphome::socket::Socket *sock) {
-    if (sock == nullptr) return false;
-
-    int fd = sock->get_fd();
-    if (fd < 0) {
+    if (sock == nullptr || sock->get_fd() < 0) {
       return false;
     }
-
-    uint8_t dummy;
-    return ::recv(fd, &dummy, 1, MSG_PEEK) > 0;
+  
+    char dummy;
+    int res = lwip_recv(sock->get_fd(), &dummy, 1, MSG_PEEK | MSG_DONTWAIT);
+    return res > 0;
 }
 
 std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
-  std::string result;
-  if (sock == nullptr) {
+    std::string result;
+    if (sock == nullptr) return result;
+
+    uint32_t start = millis();
+    while (millis() - start < 2000) {
+        char c;
+        ssize_t res = sock->read(&c, 1);
+
+        if (res > 0) {
+            if (c == terminator) return result;
+            result += c;
+        } else if (res < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                yield();
+                continue;
+            }
+            break;
+        } else {
+          break;
+        }
+    }
     return result;
-  }
+}
 
-  char c;
-  uint32_t start_time = millis();
-  const uint32_t timeout = 2000;
+void pool_send(esphome::socket::Socket *sock, const std::string &data) {
+    if (sock == nullptr) return;
+  
+    const char* buf = data.c_str();
+    size_t len = data.size();
+    size_t total_sent = 0;
 
-  while (millis() - start_time < timeout) {
-    ssize_t res = sock->read(&c, 1);
-
-    if (res > 0) {
-      if (c == terminator) {
-        return result;
-      }
-      result += c;
-      start_time = millis();
+    while (total_sent < len) {
+        ssize_t res = sock->write(buf + total_sent, len - total_sent);
+        if (res > 0) {
+            total_sent += res;
+        } else if (res < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                yield();
+                continue;
+            }
+            break;
+        }
     }
-    else if (res < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        yield();
-        continue;
-      }
-      ESP_LOGVV("read_until", "Socket read error: %d", errno);
-      break;
-    }
-    else {
-      ESP_LOGD("read_until", "Socket closed by pool");
-      break;
-    }
-  }
+}
 
-  if (millis() - start_time >= timeout) {
-    ESP_LOGD("read_until", "Read timeout reached");
-  }
-  return result;
+void pool_close(std::unique_ptr<esphome::socket::Socket> &sock) {
+    if (sock != nullptr) {
+        sock->close();
+        sock.reset();
+        errno = 0;
+    }
 }
 
 uint32_t swab32(uint32_t v) { return bswap_32(v); }

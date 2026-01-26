@@ -77,25 +77,35 @@ std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
     return result;
 }
 
-void pool_send(esphome::socket::Socket *sock, const std::string &data) {
-    if (sock == nullptr) return;
+#include <lwip/sockets.h>
 
-    const char* buf = data.c_str();
+ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data) {
+    if (sock == nullptr || sock->get_fd() < 0) return -1;
+    
+    int fd = sock->get_fd();
+    const char* ptr = data.c_str();
     size_t len = data.size();
     size_t total_sent = 0;
+    uint32_t start_time = millis();
 
     while (total_sent < len) {
-        ssize_t res = sock->write(buf + total_sent, len - total_sent);
-        if (res > 0) {
-            total_sent += res;
-        } else if (res < 0) {
+        int sent = lwip_write(fd, ptr + total_sent, len - total_sent);
+
+        if (sent > 0) {
+            total_sent += sent;
+        } else if (sent < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 yield();
+                if (millis() - start_time > 1000) break; 
                 continue;
             }
-            break;
+            ESP_LOGD("STRATUM", "Write Error: %d", errno);
+            return -1;
+        } else {
+            return total_sent > 0 ? (ssize_t)total_sent : -1;
         }
     }
+    return (ssize_t)total_sent;
 }
 
 void pool_close(std::unique_ptr<esphome::socket::Socket> &sock) {

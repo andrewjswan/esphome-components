@@ -77,8 +77,6 @@ std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
     return result;
 }
 
-#include <lwip/sockets.h>
-
 ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data) {
     if (sock == nullptr || sock->get_fd() < 0) return -1;
 

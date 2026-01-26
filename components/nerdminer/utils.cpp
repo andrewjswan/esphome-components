@@ -43,7 +43,7 @@ bool pool_connected(esphome::socket::Socket *sock) {
     if (res == 0) {
         return false;
     }
-    
+
     if (res < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return true;
@@ -57,7 +57,7 @@ bool pool_available(esphome::socket::Socket *sock) {
     if (sock == nullptr || sock->get_fd() < 0) {
       return false;
     }
-  
+
     char dummy;
     int res = lwip_recv(sock->get_fd(), &dummy, 1, MSG_PEEK | MSG_DONTWAIT);
     return res > 0;
@@ -90,7 +90,7 @@ std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
 
 void pool_send(esphome::socket::Socket *sock, const std::string &data) {
     if (sock == nullptr) return;
-  
+
     const char* buf = data.c_str();
     size_t len = data.size();
     size_t total_sent = 0;

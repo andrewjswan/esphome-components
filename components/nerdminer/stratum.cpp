@@ -67,7 +67,7 @@ bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSub
 
   ESP_LOGD(TAG, "[STRATUM] ==> Mining subscribe");
   ESP_LOGD(TAG, "  Sending: %s", payload);
-  client->write(payload, strlen(payload));
+  pool_send(pool_socket_.get(), std::string(payload));
 
   std::string line = pool_read_until(client, '\n');
   if (line.empty()) return false;
@@ -130,7 +130,7 @@ bool tx_mining_auth(esphome::socket::Socket *client, const char *user, const cha
 
   ESP_LOGD(TAG, "[STRATUM] ==> Autorize work");
   ESP_LOGD(TAG, "  Sending: %s", payload);
-  client->write(payload, strlen(payload));
+  pool_send(pool_socket_.get(), std::string(payload));
 
   vTaskDelay(200 / portTICK_PERIOD_MS);  // Small delay
 
@@ -226,7 +226,7 @@ bool tx_mining_submit(esphome::socket::Socket *client, mining_subscribe mWorker,
          mJob.ntime.c_str(),
          nonce);
   ESP_LOGD(TAG, "  Sending: %s", payload);
-  client->write(payload, strlen(payload));
+  pool_send(pool_socket_.get(), std::string(payload));
 
   return true;
 }
@@ -257,7 +257,7 @@ bool tx_suggest_difficulty(esphome::socket::Socket *client, double difficulty) {
   sprintf(payload, "{\"id\": %d, \"method\": \"mining.suggest_difficulty\", \"params\": [%.10g]}\n", id, difficulty);
 
   ESP_LOGD(TAG, "  Sending: %s", payload);
-  return client->write(payload, strlen(payload)) > 0;
+  return pool_send(pool_socket_.get(), std::string(payload)) > 0;
 }
 
 unsigned long parse_extract_id(const std::string &line) {

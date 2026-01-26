@@ -65,12 +65,13 @@ bool pool_available(esphome::socket::Socket *sock) {
 
 std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
     std::string result;
-    if (sock == nullptr) return result;
+    if (sock == nullptr || sock->get_fd() < 0) return result;
+    int fd = sock->get_fd();
 
     uint32_t start = millis();
-    while (millis() - start < 2000) {
+    while (millis() - start < 1500) {
         char c;
-        ssize_t res = sock->read(&c, 1);
+        int res = lwip_read(fd, &c, 1);
 
         if (res > 0) {
             if (c == terminator) return result;
@@ -80,7 +81,7 @@ std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
                 yield();
                 continue;
             }
-            break;
+            break; 
         } else {
           break;
         }

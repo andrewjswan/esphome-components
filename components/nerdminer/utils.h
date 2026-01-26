@@ -33,7 +33,7 @@ void suffix_string(double val, char *buf, size_t bufsiz, int sigdigits);
 bool pool_connected(esphome::socket::Socket *sock);
 bool pool_available(esphome::socket::Socket *sock);
 std::string pool_read_until(esphome::socket::Socket *sock, char terminator);
-void pool_send(esphome::socket::Socket *sock, const std::string &data);
+ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data);
 void pool_close(std::unique_ptr<esphome::socket::Socket> &sock);
 
 uint32_t crc32_reset();

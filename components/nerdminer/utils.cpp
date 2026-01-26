@@ -81,7 +81,7 @@ std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
 
 ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data) {
     if (sock == nullptr || sock->get_fd() < 0) return -1;
-    
+
     int fd = sock->get_fd();
     const char* ptr = data.c_str();
     size_t len = data.size();
@@ -96,7 +96,7 @@ ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data) {
         } else if (sent < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 yield();
-                if (millis() - start_time > 1000) break; 
+                if (millis() - start_time > 1000) break;
                 continue;
             }
             ESP_LOGD("STRATUM", "Write Error: %d", errno);

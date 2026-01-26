@@ -126,7 +126,7 @@ bool checkPoolConnection(void) {
     int so_error;
     socklen_t len = sizeof(so_error);
     getsockopt(pfd.fd, SOL_SOCKET, SO_ERROR, &so_error, &len);
-    
+
     if (so_error == 0) {
       ESP_LOGD(TAG, "Successfully connected via pool to %s!", NERDMINER_POOL);
       return true;

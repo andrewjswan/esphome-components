@@ -107,8 +107,13 @@ bool checkPoolConnection(void) {
   freeaddrinfo(res);
 
   int conn_res = pool_socket->connect((struct sockaddr *)&s_addr, sizeof(s_addr));
-  if (conn_res != 0 && errno != EINPROGRESS) {
-    ESP_LOGW(TAG, "Imposible to connect to: %s Connect failed: %d", NERDMINER_POOL, errno);
+  if (conn_res == 0) {
+    ESP_LOGD(TAG, "Successfully connected to %s!", NERDMINER_POOL);
+    return true;
+  }
+
+  if (conn_res < 0 && errno != EINPROGRESS) {
+    ESP_LOGD(TAG, "Connection to %s Failed immediately, errno: %d", NERDMINER_POOL, errno);
     pool_close(pool_socket);
     return false;
   }
@@ -117,23 +122,25 @@ bool checkPoolConnection(void) {
   pfd.fd = pool_socket->get_fd();
   pfd.events = POLLOUT;
   int ready = poll(&pfd, 1, 1500);
-  if (ready <= 0) {
-      ESP_LOGW(TAG, "Imposible to connect to: %s Connection timeout...", NERDMINER_POOL);
-      pool_close(pool_socket);
-      return false;
+  if (ready > 0) {
+    int so_error;
+    socklen_t len = sizeof(so_error);
+    getsockopt(pfd.fd, SOL_SOCKET, SO_ERROR, &so_error, &len);
+    
+    if (so_error == 0) {
+      ESP_LOGD(TAG, "Successfully connected via pool to %s!", NERDMINER_POOL);
+      return true;
+    } else {
+      ESP_LOGD(TAG, "Connection to %s Error after poll: %d", NERDMINER_POOL, so_error);
+    }
+  } else if (ready == 0) {
+    ESP_LOGD(TAG, "Connection to %s Connection timeout...", NERDMINER_POOL);
+  } else {
+    ESP_LOGD(TAG, "Connection to %s Poll system error: %d", NERDMINER_POOL, errno);
   }
 
-  int so_error;
-  socklen_t len = sizeof(so_error);
-  getsockopt(pfd.fd, SOL_SOCKET, SO_ERROR, &so_error, &len);
-  if (so_error != 0) {
-      ESP_LOGW(TAG, "Imposible to connect to: %s Socket error after connect: %d", NERDMINER_POOL, so_error);
-      pool_close(pool_socket);
-      return false;
-  }
-
-  ESP_LOGD(TAG, "Successfully connected to %s!", NERDMINER_POOL);
-  return true;
+  pool_close(pool_socket);
+  return false;
 }
 
 // Implements a socketKeepAlive function and

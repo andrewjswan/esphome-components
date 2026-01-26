@@ -62,11 +62,17 @@ unsigned long mLastTXtoPool = millis();
 
 bool checkPoolConnection(void) {
   if (pool_socket != nullptr) {
-    return true;
+    if (pool_connected(pool_socket.get())) {
+        return true;
+    } else {
+        ESP_LOGD(TAG, "Connection lost, cleaning up...");
+        pool_close(pool_socket);
+    }
   }
 
   isMinerSuscribed = false;
   ESP_LOGD(TAG, "Client not connected, trying to connect...");
+  ESP_LOGD(TAG, "Connecting to %s:%d...", NERDMINER_POOL, NERDMINER_POOL_PORT);
 
   struct addrinfo hints;
   struct addrinfo *res = nullptr;
@@ -93,22 +99,40 @@ bool checkPoolConnection(void) {
 
   pool_socket->setblocking(false);
 
-  struct sockaddr_in s_addr;
-  memset(&s_addr, 0, sizeof(s_addr));
+  struct sockaddr_in s_addr{};
   s_addr.sin_family = AF_INET;
   s_addr.sin_port = htons(NERDMINER_POOL_PORT);
-  struct sockaddr_in *res_addr = (struct sockaddr_in *)res->ai_addr;
-  s_addr.sin_addr.s_addr = res_addr->sin_addr.s_addr;
+  s_addr.sin_addr.s_addr = ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr;
 
   freeaddrinfo(res);
 
-  if (pool_socket->connect((struct sockaddr *)&s_addr, sizeof(s_addr)) != 0) {
-    if (errno != EINPROGRESS) {
-      ESP_LOGW(TAG, "Imposible to connect to: %s", NERDMINER_POOL);
-      pool_socket = nullptr;
-      return false;
-    }
+  int conn_res = pool_socket->connect((struct sockaddr *)&s_addr, sizeof(s_addr));
+  if (conn_res != 0 && errno != EINPROGRESS) {
+    ESP_LOGW(TAG, "Imposible to connect to: %s Connect failed: %d", NERDMINER_POOL, errno);
+    pool_close(pool_socket);
+    return false;
   }
+
+  struct pollfd pfd;
+  pfd.fd = pool_socket->get_fd();
+  pfd.events = POLLOUT;
+  int ready = poll(&pfd, 1, 1500);
+  if (ready <= 0) {
+      ESP_LOGW(TAG, "Imposible to connect to: %s Connection timeout...", NERDMINER_POOL);
+      pool_close(pool_socket);
+      return false;
+  }
+
+  int so_error;
+  socklen_t len = sizeof(so_error);
+  getsockopt(pfd.fd, SOL_SOCKET, SO_ERROR, &so_error, &len);
+  if (so_error != 0) {
+      ESP_LOGW(TAG, "Imposible to connect to: %s Socket error after connect: %d", NERDMINER_POOL, so_error);
+      pool_close(pool_socket);
+      return false;
+  }
+
+  ESP_LOGD(TAG, "Successfully connected to %s!", NERDMINER_POOL);
   return true;
 }
 

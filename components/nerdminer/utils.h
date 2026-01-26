@@ -6,8 +6,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "esphome/components/socket/socket.h"
 #include <string>
+
+#include "esphome/core/component.h"
+#include "esphome/components/socket/socket.h"
 
 // General byte order swapping functions.
 
@@ -28,10 +30,11 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob);
 bool checkValid(unsigned char *hash, unsigned char *target);
 void suffix_string(double val, char *buf, size_t bufsiz, int sigdigits);
 
-void pool_close(std::unique_ptr<esphome::socket::Socket> &sock);
 bool pool_connected(esphome::socket::Socket *sock);
 bool pool_available(esphome::socket::Socket *sock);
 std::string pool_read_until(esphome::socket::Socket *sock, char terminator);
+void pool_send(esphome::socket::Socket *sock, const std::string &data);
+void pool_close(std::unique_ptr<esphome::socket::Socket> &sock);
 
 uint32_t crc32_reset();
 uint32_t crc32_add(uint32_t crc32, const void *data, size_t size);

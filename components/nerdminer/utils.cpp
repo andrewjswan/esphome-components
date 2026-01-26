@@ -3,11 +3,14 @@
 #include "stratum.h"
 #include "nerdminer.h"
 
-#include "mbedtls/sha256.h"
-#include "esphome/core/log.h"
-
 #include <string.h>
 #include <stdio.h>
+
+#include <lwip/sockets.h>
+#include <lwip/netdb.h>
+#include "mbedtls/sha256.h"
+#include "esphome/core/helpers.h"
+#include "esphome/core/log.h"
 
 // clang-format off
 #ifndef bswap_16
@@ -25,6 +28,95 @@
 
 namespace esphome {
 namespace nerdminer {
+
+#include "utils.h"
+
+bool pool_connected(esphome::socket::Socket *sock) {
+    if (sock == nullptr || sock->get_fd() < 0) {
+      return false;
+    }
+
+    uint8_t dummy;
+    int fd = sock->get_fd();
+
+    ssize_t res = lwip_recv(fd, &dummy, 1, MSG_PEEK | MSG_DONTWAIT);
+    if (res == 0) {
+        return false;
+    }
+
+    if (res < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return true;
+        }
+        return false;
+    }
+    return true;
+}
+
+bool pool_available(esphome::socket::Socket *sock) {
+    if (sock == nullptr || sock->get_fd() < 0) {
+      return false;
+    }
+
+    char dummy;
+    int res = lwip_recv(sock->get_fd(), &dummy, 1, MSG_PEEK | MSG_DONTWAIT);
+    return res > 0;
+}
+
+std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
+    std::string result;
+    if (sock == nullptr || sock->get_fd() < 0) return result;
+    int fd = sock->get_fd();
+
+    uint32_t start = millis();
+    while (millis() - start < 1500) {
+        char c;
+        int res = lwip_read(fd, &c, 1);
+
+        if (res > 0) {
+            if (c == terminator) return result;
+            result += c;
+        } else if (res < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                yield();
+                continue;
+            }
+            break; 
+        } else {
+          break;
+        }
+    }
+    return result;
+}
+
+void pool_send(esphome::socket::Socket *sock, const std::string &data) {
+    if (sock == nullptr) return;
+
+    const char* buf = data.c_str();
+    size_t len = data.size();
+    size_t total_sent = 0;
+
+    while (total_sent < len) {
+        ssize_t res = sock->write(buf + total_sent, len - total_sent);
+        if (res > 0) {
+            total_sent += res;
+        } else if (res < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                yield();
+                continue;
+            }
+            break;
+        }
+    }
+}
+
+void pool_close(std::unique_ptr<esphome::socket::Socket> &sock) {
+    if (sock != nullptr) {
+        sock->close();
+        sock.reset();
+        errno = 0;
+    }
+}
 
 uint32_t swab32(uint32_t v) { return bswap_32(v); }
 
@@ -189,8 +281,8 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
 
   char target[TARGET_BUFFER_SIZE + 1];
   memset(target, '0', TARGET_BUFFER_SIZE);
-  int zeros = (int) strtol(mJob.nbits.substring(0, 2).c_str(), 0, 16) - 3;
-  memcpy(target + zeros - 2, mJob.nbits.substring(2).c_str(), mJob.nbits.length() - 2);
+  int zeros = (int) strtol(mJob.nbits.substr(0, 2).c_str(), 0, 16) - 3;
+  memcpy(target + zeros - 2, mJob.nbits.substr(2).c_str(), mJob.nbits.size() - 2);
   target[TARGET_BUFFER_SIZE] = 0;
   ESP_LOGD(TAG, "    target: %s", target);
 
@@ -222,9 +314,9 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   // mWorker.extranonce2 = "00000002";
 
   // get coinbase - coinbase_hash_bin = hashlib.sha256(hashlib.sha256(binascii.unhexlify(coinbase)).digest()).digest()
-  String coinbase = mJob.coinb1 + mWorker.extranonce1 + mWorker.extranonce2 + mJob.coinb2;
+  std::string coinbase = mJob.coinb1 + mWorker.extranonce1 + mWorker.extranonce2 + mJob.coinb2;
   ESP_LOGD(TAG, "    coinbase: %s", coinbase.c_str());
-  size_t str_len = coinbase.length() / 2;
+  size_t str_len = coinbase.size() / 2;
   uint8_t bytearray[str_len];
 
   size_t res = to_byte_array(coinbase.c_str(), str_len * 2, bytearray);
@@ -304,7 +396,7 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   // calculate blockheader
   // j.block_header = ''.join([j.version, j.prevhash, merkle_root, j.ntime, j.nbits])
   String blockheader = mJob.version + mJob.prev_block_hash + String(merkle_root) + mJob.ntime + mJob.nbits + "00000000";
-  str_len = blockheader.length() / 2;
+  str_len = blockheader.size() / 2;
 
   // uint8_t bytearray_blockheader[str_len];
   res = to_byte_array(blockheader.c_str(), str_len * 2, mMiner.bytearray_blockheader);

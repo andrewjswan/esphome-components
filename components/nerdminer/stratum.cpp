@@ -124,7 +124,8 @@ mining_subscribe init_mining_subscribe(void) {
 bool tx_mining_auth(esphome::socket::Socket *client, const char *user, const char *pass) {
   char payload[BUFFER] = {0};
 
-  if (client == nullptr) return false;
+  if (client == nullptr)
+    return false;
 
   // Authorize
   id = getNextId(id);

@@ -78,30 +78,31 @@ std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
 }
 
 ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data) {
-    if (sock == nullptr || sock->get_fd() < 0) return -1;
+  if (sock == nullptr || sock->get_fd() < 0)
+    return -1;
 
-    int fd = sock->get_fd();
-    const char* ptr = data.c_str();
-    size_t len = data.size();
-    size_t total_sent = 0;
-    uint32_t start_time = millis();
+  int fd = sock->get_fd();
+  const char *ptr = data.c_str();
+  size_t len = data.size();
+  size_t total_sent = 0;
+  uint32_t start_time = millis();
 
-    while (total_sent < len) {
-        int sent = lwip_write(fd, ptr + total_sent, len - total_sent);
+  while (total_sent < len) {
+    int sent = lwip_write(fd, ptr + total_sent, len - total_sent);
 
-        if (sent > 0) {
-            total_sent += sent;
-        } else if (sent < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                yield();
-                if (millis() - start_time > 1000) break;
-                continue;
-            }
-            ESP_LOGD("STRATUM", "Write Error: %d", errno);
-            return -1;
-        } else {
-            return total_sent > 0 ? (ssize_t)total_sent : -1;
-        }
+    if (sent > 0) {
+      total_sent += sent;
+    } else if (sent < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        yield();
+        if (millis() - start_time > 1000)
+          break;
+        continue;
+      }
+      ESP_LOGD("STRATUM", "Write Error: %d", errno);
+      return -1;
+    } else {
+      return total_sent > 0 ? (ssize_t) total_sent : -1;
     }
     return (ssize_t)total_sent;
 }

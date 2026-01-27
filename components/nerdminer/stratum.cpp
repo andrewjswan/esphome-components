@@ -215,7 +215,8 @@ bool tx_mining_submit(esphome::socket::Socket *client, mining_subscribe mWorker,
                       unsigned long &submit_id) {
   char payload[BUFFER] = {0};
 
-  if (client == nullptr) return false;
+  if (client == nullptr)
+    return false;
 
   // Submit
   id = getNextId(id);

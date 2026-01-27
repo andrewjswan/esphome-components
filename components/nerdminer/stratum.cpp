@@ -71,7 +71,8 @@ bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSub
   pool_send(pool_socket_.get(), std::string(payload));
 
   std::string line = pool_read_until(client, '\n');
-  if (line.empty()) return false;
+  if (line.empty())
+    return false;
   if (!parse_mining_subscribe(line.c_str(), mSubscribe)) {
     return false;
   }

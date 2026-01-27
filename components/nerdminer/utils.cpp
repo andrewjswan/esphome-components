@@ -58,7 +58,28 @@ std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
 
     uint32_t start = millis();
     while (millis() - start < 1500) {
-        char c;
+  int fd = sock->get_fd();
+
+  uint32_t start = millis();
+  while (millis() - start < 1500) {
+    char c;
+    int res = lwip_read(fd, &c, 1);
+
+    if (res > 0) {
+      if (c == terminator)
+        return result;
+      result += c;
+    } else if (res < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        yield();
+        continue;
+      }
+      break;
+    } else {
+      break;
+    }
+  }
+  return result;
         int res = lwip_read(fd, &c, 1);
 
         if (res > 0) {

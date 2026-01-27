@@ -255,7 +255,8 @@ bool parse_mining_set_difficulty(std::string line, double &difficulty) {
 bool tx_suggest_difficulty(esphome::socket::Socket *client, double difficulty) {
   char payload[BUFFER] = {0};
 
-  if (client == nullptr) return false;
+  if (client == nullptr)
+    return false;
 
   id = getNextId(id);
   sprintf(payload, "{\"id\": %d, \"method\": \"mining.suggest_difficulty\", \"params\": [%.10g]}\n", id, difficulty);

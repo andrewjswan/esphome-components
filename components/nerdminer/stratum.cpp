@@ -27,7 +27,7 @@ unsigned long getNextId(unsigned long id) {
 
 // Verify Payload doesn't has zero lenght
 bool verifyPayload(std::string &line) {
-  const char* whitespace = " \t\n\r\f\v";
+  const char *whitespace = " \t\n\r\f\v";
 
   line.erase(0, line.find_first_not_of(whitespace));
   size_t last = line.find_last_not_of(whitespace);

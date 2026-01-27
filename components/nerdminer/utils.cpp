@@ -129,11 +129,11 @@ ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data) {
 }
 
 void pool_close(std::unique_ptr<esphome::socket::Socket> &sock) {
-    if (sock != nullptr) {
-        sock->close();
-        sock.reset();
-        errno = 0;
-    }
+  if (sock != nullptr) {
+    sock->close();
+    sock.reset();
+    errno = 0;
+  }
 }
 
 uint32_t swab32(uint32_t v) { return bswap_32(v); }

@@ -58,7 +58,8 @@ bool checkError(const JsonDocument doc) {
 bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSubscribe) {
   char payload[BUFFER] = {0};
 
-  if (client == nullptr) return false;
+  if (client == nullptr)
+    return false;
 
   // Subscribe
   id = 1;  // Initialize id messages

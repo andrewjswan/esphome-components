@@ -15,6 +15,8 @@ DEPENDENCIES = ["script"]
 
 AUTO_LOAD = ["shadow"]
 
+MULTI_CONF = True
+
 logging.info("Load Shadow component https://github.com/andrewjswan/esphome-components")
 
 shadow_ns = cg.esphome_ns.namespace("shadow")

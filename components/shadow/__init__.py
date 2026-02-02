@@ -24,13 +24,13 @@ SHADOW_ = shadow_ns.class_("Shadow", cg.Component)
 
 CONF_SCRIPT_ID = "script_id"
 
-SHADOW_SCHEMA = cv.ensure_list(cv.Schema(
+SHADOW_SCHEMA = cv.Schema(
     {
         cv.Required(CONF_ID): cv.declare_id(SHADOW_),
         cv.Required(CONF_SCRIPT_ID): cv.use_id(script),
         cv.Optional(CONF_INTERVAL, default="60"): cv.templatable(cv.positive_int),
     },
-))
+)
 
 CONFIG_SCHEMA = cv.All(SHADOW_SCHEMA)
 

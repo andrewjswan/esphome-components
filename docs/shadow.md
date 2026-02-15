@@ -5,6 +5,12 @@
 
 Allows you to run a script in a parallel thread (Task)
 
+### Configuration variables
+
+* `interval` (Required, [Time](https://esphome.io/guides/configuration-types/#time)): The interval to execute the script in shadow.
+* `startup_delay` (Optional, [Time](https://esphome.io/guides/configuration-types/#time)): An optional startup delay - defaults to zero.
+* `script_id` (Required, [Scipt](https://esphome.io/components/script/)): Script identifier for execute.
+
 ### Configuration
 
 ```yaml
@@ -24,5 +30,6 @@ script:
 shadow:
   id: esp_shadow
   script_id: some_script
-  interval: 60
+  startup_delay: 5s
+  interval: 1.5min
 ```

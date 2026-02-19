@@ -7,22 +7,24 @@ Has a [separate repository](https://andrewjswan.github.io/matrix-lamp/).
 
 ### Configuration
 
-```yaml
-external_components:
-  - source:
-      type: git
-      url: https://github.com/andrewjswan/matrix-lamp
-      ref: main
-    components: [matrix_lamp]
+!!! example annotate "Configuration"
 
-matrix_lamp:
-  id: matrix
-  width: 16
-  height: 16
-  random: true
-  scale_id: matrix_scale
-  speed_id: matrix_speed
-```
+    ``` { .yaml .copy .annotate }
+    external_components:
+      - source:
+          type: git
+          url: https://github.com/andrewjswan/matrix-lamp
+          ref: main
+        components: [matrix_lamp]
+    
+    matrix_lamp:
+      id: matrix
+      width: 16
+      height: 16
+      random: true
+      scale_id: matrix_scale
+      speed_id: matrix_speed
+    ```
 
 !!! tip "More info"
     Matrix Lamp component [information](https://andrewjswan.github.io/matrix-lamp/matrix-lamp-component/)

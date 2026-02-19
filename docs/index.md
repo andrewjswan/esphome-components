@@ -9,14 +9,6 @@
 
 External components for ESPHome
 
-- [Matrix Lamp](matrix-lamp.md)
-- [Shadow](shadow.md)
-- [Fastled Helper](fastled-helper.md)
-- [NerdMiner](nerdminer.md)
-- [Music Leds / Sound Reactive](music-leds.md)
-- [CUBIC CM1106 Single Beam NDIR CO2 Sensor Module](https://esphome.io/components/sensor/cm1106/)
-- [CUBIC PM2005/PM2105 Laser Particle Sensor Module](https://esphome.io/components/sensor/pm2005/)
-
 <div class="grid cards" markdown>
 
 - :material-lava-lamp: __[Matrix Lamp]__ – Component assembly of firmware adaptations based on the original idea of ​​Gyver Lamp, for ESPHome.

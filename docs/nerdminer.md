@@ -8,22 +8,24 @@ The main aim of this component is to let you learn more about minery and to have
 
 ### Configuration
 
-```yaml
-external_components:
-  - source:
-      type: git
-      url: https://github.com/andrewjswan/esphome-components
-      ref: main
-    components: [nerdminer]
-    refresh: 60s
+!!! example annotate "Configuration"
 
-nerdminer:
-  id: miner
-  walletid: !secret wallet
-  worker: "esphomeminer"
-  pool: "public-pool.io"
-  port: 21496
-```
+    ``` { .yaml .copy .annotate }
+    external_components:
+      - source:
+          type: git
+          url: https://github.com/andrewjswan/esphome-components
+          ref: main
+        components: [nerdminer]
+        refresh: 60s
+    
+    nerdminer:
+      id: miner
+      walletid: !secret wallet
+      worker: "esphomeminer"
+      pool: "public-pool.io"
+      port: 21496
+    ```
 
 ### Based
 

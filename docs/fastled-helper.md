@@ -6,17 +6,19 @@ Helper providing a set of palettes, working with palettes and additional functio
 
 ### Configuration
 
-```yaml
-external_components:
-  - source:
-      type: git
-      url: https://github.com/andrewjswan/esphome-components
-      ref: main
-    components: [fastled_helper]
-    refresh: 60s
+!!! example annotate "Configuration"
 
-fastled_helper:
-  id: palettes
-  palettes: true
-  music_leds: false
-```
+    ``` { .yaml .copy .annotate }
+    external_components:
+      - source:
+          type: git
+          url: https://github.com/andrewjswan/esphome-components
+          ref: main
+        components: [fastled_helper]
+        refresh: 60s
+
+    fastled_helper:
+      id: palettes
+      palettes: true
+      music_leds: false
+    ```

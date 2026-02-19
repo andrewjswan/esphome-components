@@ -23,12 +23,12 @@ Allows you to run a script in a parallel thread (Task)
           ref: main
         components: [shadow]
         refresh: 60s
-    
+
     script:
       - id: some_script
         then:
           - logger.log: "Script Running..."
-    
+
     shadow:
       id: esp_shadow
       script_id: some_script

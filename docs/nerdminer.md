@@ -18,7 +18,7 @@ The main aim of this component is to let you learn more about minery and to have
           ref: main
         components: [nerdminer]
         refresh: 60s
-    
+
     nerdminer:
       id: miner
       walletid: !secret wallet

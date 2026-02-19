@@ -16,7 +16,7 @@ Has a [separate repository](https://andrewjswan.github.io/matrix-lamp/).
           url: https://github.com/andrewjswan/matrix-lamp
           ref: main
         components: [matrix_lamp]
-    
+
     matrix_lamp:
       id: matrix
       width: 16

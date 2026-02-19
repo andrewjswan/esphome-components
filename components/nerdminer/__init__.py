@@ -46,6 +46,8 @@ async def to_code(config) -> None:
 
     ota.request_ota_state_listeners()
 
+    cg.add_library("WiFi", None)
+
     cg.add_define("NERDMINER_WALLETID", config[CONF_WALLETID])
     cg.add_define("NERDMINER_WORKER", config[CONF_WORKER])
     cg.add_define("NERDMINER_POOL_WORKER", config[CONF_WALLETID] + "." + config[CONF_WORKER])

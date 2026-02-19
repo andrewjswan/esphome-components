@@ -13,23 +13,25 @@ Allows you to run a script in a parallel thread (Task)
 
 ### Configuration
 
-```yaml
-external_components:
-  - source:
-      type: git
-      url: https://github.com/andrewjswan/esphome-components
-      ref: main
-    components: [shadow]
-    refresh: 60s
+!!! example annotate "Configuration"
 
-script:
-  - id: some_script
-    then:
-      - logger.log: "Script Running..."
+    ``` { .yaml .copy .annotate }
+    external_components:
+      - source:
+          type: git
+          url: https://github.com/andrewjswan/esphome-components
+          ref: main
+        components: [shadow]
+        refresh: 60s
 
-shadow:
-  id: esp_shadow
-  script_id: some_script
-  startup_delay: 5s
-  interval: 1.5min
-```
+    script:
+      - id: some_script
+        then:
+          - logger.log: "Script Running..."
+
+    shadow:
+      id: esp_shadow
+      script_id: some_script
+      startup_delay: 5s
+      interval: 1.5min
+    ```

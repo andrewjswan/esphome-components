@@ -16,7 +16,7 @@ Helper providing a set of palettes, working with palettes and additional functio
           ref: main
         components: [fastled_helper]
         refresh: 60s
-    
+
     fastled_helper:
       id: palettes
       palettes: true

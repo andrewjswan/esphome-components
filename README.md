@@ -17,3 +17,6 @@ External components for ESPHome
 - [Music Leds / Sound Reactive](https://andrewjswan.github.io/esphome-components/music-leds/)
 - [CUBIC CM1106 Single Beam NDIR CO2 Sensor Module](https://esphome.io/components/sensor/cm1106.html)
 - [CUBIC PM2005/PM2105 Laser Particle Sensor Module](https://esphome.io/components/sensor/pm2005.html)
+
+## 🤝 Support
+If you like the project, you can support it with a star ⭐ on GitHub.

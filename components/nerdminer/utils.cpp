@@ -390,11 +390,11 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
 
   // calculate blockheader
   // j.block_header = ''.join([j.version, j.prevhash, merkle_root, j.ntime, j.nbits])
-  std::string blockheader = mJob.version + 
-                            mJob.prev_block_hash + 
-                            merkle_root + 
-                            mJob.ntime + 
-                            mJob.nbits + 
+  std::string blockheader = mJob.version +
+                            mJob.prev_block_hash +
+                            merkle_root +
+                            mJob.ntime +
+                            mJob.nbits +
                             "00000000";
   size_t str_len = blockheader.length() / 2;
 

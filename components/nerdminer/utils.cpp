@@ -389,12 +389,7 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   ESP_LOGD(TAG, "    merkle sha: %s", merkle_root.c_str());
 
   // calculate blockheader
-  std::string blockheader = mJob.version +
-                            mJob.prev_block_hash +
-                            merkle_root +
-                            mJob.ntime +
-                            mJob.nbits +
-                            "00000000";
+  std::string blockheader = mJob.version + mJob.prev_block_hash + merkle_root + mJob.ntime + mJob.nbits + "00000000";
   res = to_byte_array(blockheader.c_str(), blockheader.length(), mMiner.bytearray_blockheader);
 
 #ifdef DEBUG_MINING

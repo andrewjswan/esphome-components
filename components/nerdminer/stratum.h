@@ -6,7 +6,6 @@
 
 #include <stdint.h>
 #include <ArduinoJson.h>
-#include <WiFi.h>
 
 #define MAX_MERKLE_BRANCHES 32
 #define HASH_SIZE 32

@@ -32,8 +32,9 @@ namespace nerdminer {
 #include "utils.h"
 
 bool pool_connected(esphome::socket::Socket *sock) {
-    if (sock == nullptr || sock->get_fd() < 0) return false;
-    uint8_t dummy;
+  if (sock == nullptr || sock->get_fd() < 0)
+    return false;
+  uint8_t dummy;
 
   ssize_t res = lwip_recv(sock->get_fd(), &dummy, 1, MSG_PEEK | MSG_DONTWAIT);
   if (res == 0)

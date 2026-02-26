@@ -53,7 +53,8 @@ bool pool_available(esphome::socket::Socket *sock) {
 
 std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
   std::string result;
-  if (sock == nullptr || sock->get_fd() < 0) return result;
+  if (sock == nullptr || sock->get_fd() < 0)
+    return result;
   int fd = sock->get_fd();
 
   uint32_t start = millis();

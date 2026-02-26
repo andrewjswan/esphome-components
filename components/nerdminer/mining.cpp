@@ -106,7 +106,7 @@ bool checkPoolConnection(void) {
 
   freeaddrinfo(res);
 
-  int conn_res = pool_socket->connect((struct sockaddr *)&s_addr, sizeof(s_addr));
+  int conn_res = pool_socket->connect((struct sockaddr *) &s_addr, sizeof(s_addr));
   if (conn_res == 0) {
     ESP_LOGD(TAG, "Successfully connected to %s!", NERDMINER_POOL);
     return true;

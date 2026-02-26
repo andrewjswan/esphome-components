@@ -106,6 +106,7 @@ ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data) {
       return total_sent > 0 ? (ssize_t) total_sent : -1;
     }
     return (ssize_t)total_sent;
+  }
 }
 
 void pool_close(std::unique_ptr<esphome::socket::Socket> &sock) {

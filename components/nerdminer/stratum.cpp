@@ -222,13 +222,8 @@ bool tx_mining_submit(esphome::socket::Socket *client, mining_subscribe mWorker,
   id = getNextId(id);
   submit_id = id;
   snprintf(payload, sizeof(payload),
-         "{\"id\": %u, \"method\": \"mining.submit\", \"params\": [\"%s\",\"%s\",\"%s\",\"%s\",\"%08x\"]}\n",
-         id,
-         mWorker.wName,
-         mJob.job_id.c_str(),
-         mWorker.extranonce2.c_str(),
-         mJob.ntime.c_str(),
-         nonce);
+           "{\"id\": %u, \"method\": \"mining.submit\", \"params\": [\"%s\",\"%s\",\"%s\",\"%s\",\"%08x\"]}\n", id,
+           mWorker.wName, mJob.job_id.c_str(), mWorker.extranonce2.c_str(), mJob.ntime.c_str(), nonce);
   ESP_LOGD(TAG, "  Sending: %s", payload);
   pool_send(client, std::string(payload));
 

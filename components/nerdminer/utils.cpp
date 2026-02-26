@@ -46,9 +46,9 @@ bool pool_available(esphome::socket::Socket *sock) {
     return false;
   }
 
-    char dummy;
-    int res = lwip_recv(sock->get_fd(), &dummy, 1, MSG_PEEK | MSG_DONTWAIT);
-    return res > 0;
+  char dummy;
+  int res = lwip_recv(sock->get_fd(), &dummy, 1, MSG_PEEK | MSG_DONTWAIT);
+  return res > 0;
 }
 
 std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {

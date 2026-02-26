@@ -385,24 +385,25 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   }
 
   // merkle root from merkle_result
-  ESP_LOGD(TAG, "    merkle sha: %s", esphome::format_hex_pretty(mMiner.merkle_result, 32).c_str());
-  char merkle_root[65];
-  for (int i = 0; i < 32; i++) {
-    snprintf(&merkle_root[i * 2], 3, "%02x", mMiner.merkle_result[i]);
-  }
-  merkle_root[65] = 0;
+  std::string merkle_root = esphome::format_hex(mMiner.merkle_result, 32);
+  ESP_LOGD(TAG, "    merkle sha: %s", merkle_root.c_str());
 
   // calculate blockheader
   // j.block_header = ''.join([j.version, j.prevhash, merkle_root, j.ntime, j.nbits])
-  String blockheader = mJob.version + mJob.prev_block_hash + String(merkle_root) + mJob.ntime + mJob.nbits + "00000000";
-  str_len = blockheader.size() / 2;
+  std::string blockheader = mJob.version + 
+                            mJob.prev_block_hash + 
+                            merkle_root + 
+                            mJob.ntime + 
+                            mJob.nbits + 
+                            "00000000";
+  size_t str_len = blockheader.length() / 2;
 
   // uint8_t bytearray_blockheader[str_len];
-  res = to_byte_array(blockheader.c_str(), str_len * 2, mMiner.bytearray_blockheader);
+  res = to_byte_array(blockheader.c_str(), blockheader.length(), mMiner.bytearray_blockheader);
 
 #ifdef DEBUG_MINING
   ESP_LOGD(TAG, "    blockheader: %s", blockheader.c_str());
-  ESP_LOGD(TAG, "    blockheader bytes %d -> ", str_len);
+  ESP_LOGD(TAG, "    blockheader bytes: %zu", str_len);
 #endif
 
   // reverse version

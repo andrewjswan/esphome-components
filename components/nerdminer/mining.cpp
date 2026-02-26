@@ -102,7 +102,7 @@ bool checkPoolConnection(void) {
   struct sockaddr_in s_addr {};
   s_addr.sin_family = AF_INET;
   s_addr.sin_port = htons(NERDMINER_POOL_PORT);
-  s_addr.sin_addr.s_addr = ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr;
+  s_addr.sin_addr.s_addr = ((struct sockaddr_in *) res->ai_addr)->sin_addr.s_addr;
 
   freeaddrinfo(res);
 

@@ -52,12 +52,8 @@ bool pool_available(esphome::socket::Socket *sock) {
 }
 
 std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
-    std::string result;
-    if (sock == nullptr || sock->get_fd() < 0) return result;
-    int fd = sock->get_fd();
-
-    uint32_t start = millis();
-    while (millis() - start < 1500) {
+  std::string result;
+  if (sock == nullptr || sock->get_fd() < 0) return result;
   int fd = sock->get_fd();
 
   uint32_t start = millis();
@@ -80,22 +76,6 @@ std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
     }
   }
   return result;
-        int res = lwip_read(fd, &c, 1);
-
-        if (res > 0) {
-            if (c == terminator) return result;
-            result += c;
-        } else if (res < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                yield();
-                continue;
-            }
-            break;
-        } else {
-          break;
-        }
-    }
-    return result;
 }
 
 ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data) {

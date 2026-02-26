@@ -63,7 +63,7 @@ unsigned long mLastTXtoPool = millis();
 bool checkPoolConnection(void) {
   if (pool_socket != nullptr) {
     if (pool_connected(pool_socket.get())) {
-        return true;
+      return true;
     } else {
       ESP_LOGD(TAG, "Connection lost, cleaning up...");
       pool_close(pool_socket);

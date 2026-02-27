@@ -9,6 +9,7 @@
 #include <lwip/sockets.h>
 #include <lwip/netdb.h>
 #include "mbedtls/sha256.h"
+#include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 

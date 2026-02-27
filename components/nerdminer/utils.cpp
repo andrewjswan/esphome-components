@@ -97,20 +97,23 @@ ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data) {
 
     if (sent > 0) {
       total_sent += sent;
+      start_time = millis(); // Сброс таймаута при прогрессе
     } else if (sent < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         yield();
-        if (millis() - start_time > 1000)
-          break;
+        if (millis() - start_time > 1500) { // Таймаут 1.5 сек
+          ESP_LOGW("STRATUM", "Write timeout (Socket buffer full)");
+          return -1;
+        }
         continue;
       }
       ESP_LOGD("STRATUM", "Write Error: %d", errno);
       return -1;
     } else {
-      return total_sent > 0 ? (ssize_t) total_sent : -1;
+      return -1;
     }
-    return (ssize_t) total_sent;
   }
+  return (ssize_t)total_sent;
 }
 
 void pool_close(std::unique_ptr<esphome::socket::Socket> &sock) {
@@ -124,29 +127,36 @@ void pool_close(std::unique_ptr<esphome::socket::Socket> &sock) {
 uint32_t swab32(uint32_t v) { return bswap_32(v); }
 
 uint8_t hex(char ch) {
-  uint8_t r = (ch > 57) ? (ch - 55) : (ch - 48);
-  return r & 0x0F;
+  if (ch >= '0' && ch <= '9')
+    return ch - '0';
+  if (ch >= 'a' && ch <= 'f')
+    return ch - 'a' + 10;
+  if (ch >= 'A' && ch <= 'F')
+    return ch - 'A' + 10;
+  return 0;
 }
 
 int to_byte_array(const char *in, size_t in_size, uint8_t *out) {
-  int count = 0;
-  if (in_size % 2) {
-    while (*in && out) {
-      *out = hex(*in++);
-      if (!*in)
-        return count;
-      *out = (*out << 4) | hex(*in++);
-      *out++;
-      count++;
-    }
-    return count;
-  } else {
-    while (*in && out) {
-      *out++ = (hex(*in++) << 4) | hex(*in++);
-      count++;
-    }
-    return count;
+  if (in == nullptr || out == nullptr || in_size == 0) {
+    return 0;
   }
+
+  int count = 0;
+  const char *ptr = in;
+  const char *end = in + in_size;
+
+  if (in_size % 2 != 0) {
+    *out++ = hex(*ptr++);
+    count++;
+  }
+
+  while (ptr < end && (ptr + 1) < end) {
+    uint8_t high = hex(*ptr++);
+    uint8_t low  = hex(*ptr++);
+    *out++ = (high << 4) | low;
+    count++;
+  }
+  return count;
 }
 
 void swap_endian_words(const char *hex_words, uint8_t *output) {

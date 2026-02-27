@@ -102,12 +102,12 @@ ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         yield();
         if (millis() - start_time > 1500) {
-          ESP_LOGW("STRATUM", "Write timeout (Socket buffer full)");
+          ESP_LOGD(TAG, "Send: Timeout (Socket buffer full)");
           return -1;
         }
         continue;
       }
-      ESP_LOGD("STRATUM", "Write Error: %d", errno);
+      ESP_LOGD(TAG, "Send: Error: %d", errno);
       return -1;
     } else {
       return -1;
@@ -245,7 +245,7 @@ bool checkValid(unsigned char *hash, unsigned char *target) {
 
 #ifdef DEBUG_MINING
   if (valid) {
-    ESP_LOGD(TAG, "valid: %s", esphome::format_hex_pretty(hash, 32).c_str());
+    ESP_LOGD(TAG, "Valid: %s", esphome::format_hex_pretty(hash, 32).c_str());
   }
 #endif
   return valid;
@@ -297,7 +297,7 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   int zeros = (int) strtol(mJob.nbits.substr(0, 2).c_str(), 0, 16) - 3;
   memcpy(target + zeros - 2, mJob.nbits.substr(2).c_str(), mJob.nbits.size() - 2);
   target[TARGET_BUFFER_SIZE] = 0;
-  ESP_LOGD(TAG, "    target: %s", target);
+  ESP_LOGD(TAG, "  Target: %s", target);
 
   // bytearray target
   size_t size_target = to_byte_array(target, 32, mMiner.bytearray_target);
@@ -321,7 +321,7 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   else if (mWorker.extranonce2_size == 8)
     mWorker.extranonce2 = "0000000000000001";
   else {
-    ESP_LOGD(TAG, "Unknown extranonce2");
+    ESP_LOGD(TAG, "  Unknown extranonce2");
     mWorker.extranonce2 = "00000001";
   }
   // mWorker.extranonce2 = "00000002";
@@ -335,9 +335,9 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   size_t res = to_byte_array(coinbase.c_str(), str_len * 2, bytearray);
 
 #ifdef DEBUG_MINING
-  ESP_LOGD(TAG, "    extranonce2: %s", mWorker.extranonce2.c_str());
-  ESP_LOGD(TAG, "    coinbase: %s", coinbase.c_str());
-  ESP_LOGD(TAG, "    coinbase bytes - size: %d - %s", res, esphome::format_hex_pretty(bytearray, res).c_str());
+  ESP_LOGD(TAG, "  extranonce2: %s", mWorker.extranonce2.c_str());
+  ESP_LOGD(TAG, "  coinbase: %s", coinbase.c_str());
+  ESP_LOGD(TAG, "  coinbase bytes - size: %d - %s", res, esphome::format_hex_pretty(bytearray, res).c_str());
 #endif
 
   mbedtls_sha256_context ctx;
@@ -356,7 +356,7 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   mbedtls_sha256_free(&ctx);
 
 #ifdef DEBUG_MINING
-  ESP_LOGD(TAG, "    coinbase double sha: %s", esphome::format_hex_pretty(shaResult, 32).c_str());
+  ESP_LOGD(TAG, "  coinbase double sha: %s", esphome::format_hex_pretty(shaResult, 32).c_str());
 #endif
 
   // Copy coinbase hash
@@ -369,7 +369,7 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
     size_t res = to_byte_array(merkle_element, 64, bytearray);
 
 #ifdef DEBUG_MINING
-    ESP_LOGD(TAG, "    merkle element %d: %s", k, merkle_element);
+    ESP_LOGD(TAG, "  merkle element %d: %s", k, merkle_element);
 #endif
 
     for (size_t i = 0; i < 32; i++) {
@@ -378,8 +378,8 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
     }
 
 #ifdef DEBUG_MINING
-    ESP_LOGD(TAG, "    merkle element %d: %s", k, merkle_element);
-    ESP_LOGD(TAG, "    merkle concatenated: %s", esphome::format_hex_pretty(merkle_concatenated, 64).c_str());
+    ESP_LOGD(TAG, "  merkle element %d: %s", k, merkle_element);
+    ESP_LOGD(TAG, "  merkle concatenated: %s", esphome::format_hex_pretty(merkle_concatenated, 64).c_str());
 #endif
 
     mbedtls_sha256_context ctx;
@@ -394,13 +394,13 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
     mbedtls_sha256_free(&ctx);
 
 #ifdef DEBUG_MINING
-    ESP_LOGD(TAG, "    merkle sha: %s", esphome::format_hex_pretty(mMiner.merkle_result, 32).c_str());
+    ESP_LOGD(TAG, "  merkle sha: %s", esphome::format_hex_pretty(mMiner.merkle_result, 32).c_str());
 #endif
   }
 
   // merkle root from merkle_result
   std::string merkle_root = esphome::format_hex(mMiner.merkle_result, 32);
-  ESP_LOGD(TAG, "    merkle sha: %s", merkle_root.c_str());
+  ESP_LOGD(TAG, "  merkle sha: %s", merkle_root.c_str());
 
   // calculate blockheader
   std::string blockheader = mJob.version + mJob.prev_block_hash + merkle_root + mJob.ntime + mJob.nbits + "00000000";
@@ -408,8 +408,8 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
 
 #ifdef DEBUG_MINING
   str_len = blockheader.length() / 2;
-  ESP_LOGD(TAG, "    blockheader: %s", blockheader.c_str());
-  ESP_LOGD(TAG, "    blockheader bytes: %zu", str_len);
+  ESP_LOGD(TAG, "  blockheader: %s", blockheader.c_str());
+  ESP_LOGD(TAG, "  blockheader bytes: %zu", str_len);
 #endif
 
   // reverse version
@@ -470,12 +470,12 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   }
 
 #ifdef DEBUG_MINING
-  ESP_LOGD(TAG, " >>> bytearray_blockheader: %s", esphome::format_hex_pretty(mMiner.bytearray_blockheader, 4).c_str());
-  ESP_LOGD(TAG, "version: %s", esphome::format_hex_pretty(mMiner.bytearray_blockheader, 32).c_str());
-  ESP_LOGD(TAG, "prev hash:");
+  ESP_LOGD(TAG, ">>> bytearray_blockheader: %s", esphome::format_hex_pretty(mMiner.bytearray_blockheader, 4).c_str());
+  ESP_LOGD(TAG, "Version: %s", esphome::format_hex_pretty(mMiner.bytearray_blockheader, 32).c_str());
+  ESP_LOGD(TAG, "Prev hash:");
   for (size_t i = 4; i < 4 + 32; i++)
     ESP_LOGD(TAG, "%02x", mMiner.bytearray_blockheader[i]);
-  ESP_LOGD(TAG, "merkle root:");
+  ESP_LOGD(TAG, "Merkle root:");
   for (size_t i = 36; i < 36 + 32; i++)
     ESP_LOGD(TAG, "%02x", mMiner.bytearray_blockheader[i]);
   ESP_LOGD(TAG, "ntime:");

@@ -97,11 +97,11 @@ ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data) {
 
     if (sent > 0) {
       total_sent += sent;
-      start_time = millis(); // Сброс таймаута при прогрессе
+      start_time = millis();
     } else if (sent < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         yield();
-        if (millis() - start_time > 1500) { // Таймаут 1.5 сек
+        if (millis() - start_time > 1500) {
           ESP_LOGW("STRATUM", "Write timeout (Socket buffer full)");
           return -1;
         }
@@ -113,7 +113,7 @@ ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data) {
       return -1;
     }
   }
-  return (ssize_t)total_sent;
+  return (ssize_t) total_sent;
 }
 
 void pool_close(std::unique_ptr<esphome::socket::Socket> &sock) {
@@ -152,7 +152,7 @@ int to_byte_array(const char *in, size_t in_size, uint8_t *out) {
 
   while (ptr < end && (ptr + 1) < end) {
     uint8_t high = hex(*ptr++);
-    uint8_t low  = hex(*ptr++);
+    uint8_t low = hex(*ptr++);
     *out++ = (high << 4) | low;
     count++;
   }

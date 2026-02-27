@@ -6,41 +6,43 @@ Ported `Sound Reactive` from WLED to ESPHome
 
 ### Configuration
 
-```yaml
-external_components:
-  - source:
-      type: git
-      url: https://github.com/andrewjswan/esphome-components
-      ref: main
-    components: [fastled_helper, music_leds]
-    refresh: 60s
+!!! example annotate "Configuration"
 
-fastled_helper:
-  music_leds: true
+    ``` { .yaml .copy .annotate }
+    external_components:
+      - source:
+          type: git
+          url: https://github.com/andrewjswan/esphome-components
+          ref: main
+        components: [fastled_helper, music_leds]
+        refresh: 60s
 
-i2s_audio:
-  i2s_lrclk_pin: GPIO15
-  i2s_bclk_pin: GPIO14
+    fastled_helper:
+      music_leds: true
 
-microphone:
-  - platform: i2s_audio
-    id: adc_mic
-    adc_type: external
-    sample_rate: 10240
-    bits_per_sample: 32bit
-    i2s_din_pin: GPIO32
-    channel: right
+    i2s_audio:
+      i2s_lrclk_pin: GPIO15
+      i2s_bclk_pin: GPIO14
 
-music_leds:
-  id: music_light
+    microphone:
+      - platform: i2s_audio
+        id: adc_mic
+        adc_type: external
+        sample_rate: 10240
+        bits_per_sample: 32bit
+        i2s_din_pin: GPIO32
+        channel: right
 
-light:
-  - id: !extend neopixel_led
-    effects:
-      - music_leds_effect:
-          name: Grav with Music
-          mode: GRAV
-```
+    music_leds:
+      id: music_light
+
+    light:
+      - id: !extend neopixel_led
+        effects:
+          - music_leds_effect:
+              name: Grav with Music
+              mode: GRAV
+    ```
 
 ## Local triggers
 

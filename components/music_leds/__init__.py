@@ -46,6 +46,7 @@ DEPENDENCIES = ["light", "microphone"]
 AUTO_LOAD = ["music_leds", "fastled_helper"]
 
 logging.info("Load Music Leds component https://github.com/andrewjswan/esphome-components")
+logging.info("If you like the Music Leds component, you can support it with a star ⭐ on GitHub.")
 
 music_leds_ns = cg.esphome_ns.namespace("music_leds")
 MUSIC_LEDS = music_leds_ns.class_("MusicLeds", cg.Component)

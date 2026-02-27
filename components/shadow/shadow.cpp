@@ -36,23 +36,33 @@ void Shadow::start() {
 
 void Shadow::shadow_function(void *params) {
   Shadow *this_task = (Shadow *) params;
+
+  if (this_task->startup_delay_ > 0) {
+    vTaskDelay(pdMS_TO_TICKS(this_task->startup_delay_ * 1000));
+  }
+  this_task->execute_script();
+
   for (;;) {
     vTaskDelay(pdMS_TO_TICKS(this_task->shadow_interval_ * 1000));
-
-    if (this_task->script == nullptr) {
-      ESP_LOGE(TAG, "The script came out of the shadow. Skip.");
-      continue;
-    }
-
-    if (this_task->script->is_running()) {
-      continue;
-    }
-
-    this_task->script->execute();
+    this_task->execute_script();
   }  // for(;;)
 
   vTaskDelete(NULL);
 }  // shadow_function()
+
+void Shadow::execute_script() {
+  if (this->script == nullptr) {
+    ESP_LOGE(TAG, "The script came out of the shadow. Skip.");
+    return;
+  }
+
+  if (this->script->is_running()) {
+    ESP_LOGD(TAG, "The script already running in shadow. Skip.");
+    return;
+  }
+
+  this->script->execute();
+}
 
 void Shadow::stop() {
   if (this->script != nullptr && this->script->is_running()) {
@@ -72,6 +82,7 @@ void Shadow::set_script(script::Script<> *script) {
 
 void Shadow::dump_config() {
   ESP_LOGCONFIG(TAG, "Shadow version: %s", SHADOW_VERSION);
+  ESP_LOGCONFIG(TAG, " Startup delay: %ds", this->startup_delay_);
   ESP_LOGCONFIG(TAG, "      Interval: %ds", this->shadow_interval_);
 }  // dump_config()
 

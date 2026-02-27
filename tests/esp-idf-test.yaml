@@ -60,9 +60,13 @@ script:
     mode: queued
 
 shadow:
-  id: esp_shadow
-  script_id: some_script
-  interval: 60
+  - id: esp_shadow
+    script_id: some_script
+    interval: 60s
+
+  - id: esp_shadow_next
+    script_id: some_script
+    interval: 90s
 
 sensor:
   - platform: uptime

@@ -18,6 +18,7 @@ AUTO_LOAD = ["shadow"]
 MULTI_CONF = True
 
 logging.info("Load Shadow component https://github.com/andrewjswan/esphome-components")
+logging.info("If you like the Shadow component, you can support it with a star ⭐ on GitHub.")
 
 shadow_ns = cg.esphome_ns.namespace("shadow")
 SHADOW_ = shadow_ns.class_("Shadow", cg.Component)

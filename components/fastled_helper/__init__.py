@@ -16,6 +16,7 @@ CODEOWNERS = ["@andrewjswan"]
 AUTO_LOAD = ["fastled_helper"]
 
 logging.info("Load Fastled Helper component https://github.com/andrewjswan/esphome-components")
+logging.info("If you like the Fastled Helper component, you can support it with a star ⭐ on GitHub.")
 
 fastled_helper_ns = cg.esphome_ns.namespace("fastled_helper")
 FASTLED_HELPER_ = fastled_helper_ns.class_("FastledHelper", cg.Component)

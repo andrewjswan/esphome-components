@@ -344,8 +344,8 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   mbedtls_sha256_context ctx;
   mbedtls_sha256_init(&ctx);
 
-  byte interResult[32];  // 256 bit
-  byte shaResult[32];    // 256 bit
+  uint8_t interResult[32];  // 256 bit
+  uint8_t shaResult[32];    // 256 bit
 
   mbedtls_sha256_starts(&ctx, 0);
   mbedtls_sha256_update(&ctx, bytearray, str_len);
@@ -363,7 +363,7 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   // Copy coinbase hash
   memcpy(mMiner.merkle_result, shaResult, sizeof(shaResult));
 
-  byte merkle_concatenated[32 * 2];
+  uint8_t merkle_concatenated[32 * 2];
   for (size_t k = 0; k < mJob.merkle_branch.size(); k++) {
     const char *merkle_element = (const char *) mJob.merkle_branch[k];
     uint8_t bytearray[32];
@@ -506,7 +506,7 @@ void suffix_string(double val, char *buf, size_t bufsiz, int sigdigits) {
   const double exa = 1000000000000000000;
   // minimum diff value to display
   const double min_diff = 0.001;
-  const byte maxNdigits = 2;
+  const uint8_t maxNdigits = 2;
   char suffix[2] = {0, 0};
   bool decimal = true;
   double dval;

@@ -3,11 +3,15 @@
 #include "stratum.h"
 #include "nerdminer.h"
 
-#include "mbedtls/sha256.h"
-#include "esphome/core/log.h"
-
 #include <string.h>
 #include <stdio.h>
+
+#include <lwip/sockets.h>
+#include <lwip/netdb.h>
+#include "mbedtls/sha256.h"
+#include "esphome/core/hal.h"
+#include "esphome/core/helpers.h"
+#include "esphome/core/log.h"
 
 // clang-format off
 #ifndef bswap_16
@@ -26,32 +30,134 @@
 namespace esphome {
 namespace nerdminer {
 
+#include "utils.h"
+
+bool pool_connected(esphome::socket::Socket *sock) {
+  if (sock == nullptr || sock->get_fd() < 0)
+    return false;
+  uint8_t dummy;
+
+  ssize_t res = lwip_recv(sock->get_fd(), &dummy, 1, MSG_PEEK | MSG_DONTWAIT);
+  if (res == 0)
+    return false;
+  if (res < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
+    return false;
+  return true;
+}
+
+bool pool_available(esphome::socket::Socket *sock) {
+  if (sock == nullptr || sock->get_fd() < 0) {
+    return false;
+  }
+
+  char dummy;
+  int res = lwip_recv(sock->get_fd(), &dummy, 1, MSG_PEEK | MSG_DONTWAIT);
+  return res > 0;
+}
+
+std::string pool_read_until(esphome::socket::Socket *sock, char terminator) {
+  std::string result;
+  if (sock == nullptr || sock->get_fd() < 0)
+    return result;
+  int fd = sock->get_fd();
+
+  uint32_t start = millis();
+  while (millis() - start < 1500) {
+    char c;
+    int res = lwip_read(fd, &c, 1);
+
+    if (res > 0) {
+      if (c == terminator)
+        return result;
+      result += c;
+    } else if (res < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        yield();
+        continue;
+      }
+      break;
+    } else {
+      break;
+    }
+  }
+  return result;
+}
+
+ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data) {
+  if (sock == nullptr || sock->get_fd() < 0)
+    return -1;
+
+  int fd = sock->get_fd();
+  const char *ptr = data.c_str();
+  size_t len = data.size();
+  size_t total_sent = 0;
+  uint32_t start_time = millis();
+
+  while (total_sent < len) {
+    int sent = lwip_write(fd, ptr + total_sent, len - total_sent);
+
+    if (sent > 0) {
+      total_sent += sent;
+      start_time = millis();
+    } else if (sent < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        yield();
+        if (millis() - start_time > 1500) {
+          ESP_LOGD(TAG, "Send: Timeout (Socket buffer full)");
+          return -1;
+        }
+        continue;
+      }
+      ESP_LOGD(TAG, "Send: Error: %d", errno);
+      return -1;
+    } else {
+      return -1;
+    }
+  }
+  return (ssize_t) total_sent;
+}
+
+void pool_close(std::unique_ptr<esphome::socket::Socket> &sock) {
+  if (sock != nullptr) {
+    sock->close();
+    sock.reset();
+    errno = 0;
+  }
+}
+
 uint32_t swab32(uint32_t v) { return bswap_32(v); }
 
 uint8_t hex(char ch) {
-  uint8_t r = (ch > 57) ? (ch - 55) : (ch - 48);
-  return r & 0x0F;
+  if (ch >= '0' && ch <= '9')
+    return ch - '0';
+  if (ch >= 'a' && ch <= 'f')
+    return ch - 'a' + 10;
+  if (ch >= 'A' && ch <= 'F')
+    return ch - 'A' + 10;
+  return 0;
 }
 
 int to_byte_array(const char *in, size_t in_size, uint8_t *out) {
-  int count = 0;
-  if (in_size % 2) {
-    while (*in && out) {
-      *out = hex(*in++);
-      if (!*in)
-        return count;
-      *out = (*out << 4) | hex(*in++);
-      *out++;
-      count++;
-    }
-    return count;
-  } else {
-    while (*in && out) {
-      *out++ = (hex(*in++) << 4) | hex(*in++);
-      count++;
-    }
-    return count;
+  if (in == nullptr || out == nullptr || in_size == 0) {
+    return 0;
   }
+
+  int count = 0;
+  const char *ptr = in;
+  const char *end = in + in_size;
+
+  if (in_size % 2 != 0) {
+    *out++ = hex(*ptr++);
+    count++;
+  }
+
+  while (ptr < end && (ptr + 1) < end) {
+    uint8_t high = hex(*ptr++);
+    uint8_t low = hex(*ptr++);
+    *out++ = (high << 4) | low;
+    count++;
+  }
+  return count;
 }
 
 void swap_endian_words(const char *hex_words, uint8_t *output) {
@@ -140,7 +246,7 @@ bool checkValid(unsigned char *hash, unsigned char *target) {
 
 #ifdef DEBUG_MINING
   if (valid) {
-    ESP_LOGD(TAG, "valid: %s", esphome::format_hex_pretty(hash, 32).c_str());
+    ESP_LOGD(TAG, "Valid: %s", esphome::format_hex_pretty(hash, 32).c_str());
   }
 #endif
   return valid;
@@ -189,10 +295,10 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
 
   char target[TARGET_BUFFER_SIZE + 1];
   memset(target, '0', TARGET_BUFFER_SIZE);
-  int zeros = (int) strtol(mJob.nbits.substring(0, 2).c_str(), 0, 16) - 3;
-  memcpy(target + zeros - 2, mJob.nbits.substring(2).c_str(), mJob.nbits.length() - 2);
+  int zeros = (int) strtol(mJob.nbits.substr(0, 2).c_str(), 0, 16) - 3;
+  memcpy(target + zeros - 2, mJob.nbits.substr(2).c_str(), mJob.nbits.size() - 2);
   target[TARGET_BUFFER_SIZE] = 0;
-  ESP_LOGD(TAG, "    target: %s", target);
+  ESP_LOGD(TAG, "  Target: %s", target);
 
   // bytearray target
   size_t size_target = to_byte_array(target, 32, mMiner.bytearray_target);
@@ -216,30 +322,30 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   else if (mWorker.extranonce2_size == 8)
     mWorker.extranonce2 = "0000000000000001";
   else {
-    ESP_LOGD(TAG, "Unknown extranonce2");
+    ESP_LOGD(TAG, "  Unknown extranonce2");
     mWorker.extranonce2 = "00000001";
   }
   // mWorker.extranonce2 = "00000002";
 
   // get coinbase - coinbase_hash_bin = hashlib.sha256(hashlib.sha256(binascii.unhexlify(coinbase)).digest()).digest()
-  String coinbase = mJob.coinb1 + mWorker.extranonce1 + mWorker.extranonce2 + mJob.coinb2;
+  std::string coinbase = mJob.coinb1 + mWorker.extranonce1 + mWorker.extranonce2 + mJob.coinb2;
   ESP_LOGD(TAG, "    coinbase: %s", coinbase.c_str());
-  size_t str_len = coinbase.length() / 2;
+  size_t str_len = coinbase.size() / 2;
   uint8_t bytearray[str_len];
 
   size_t res = to_byte_array(coinbase.c_str(), str_len * 2, bytearray);
 
 #ifdef DEBUG_MINING
-  ESP_LOGD(TAG, "    extranonce2: %s", mWorker.extranonce2.c_str());
-  ESP_LOGD(TAG, "    coinbase: %s", coinbase.c_str());
-  ESP_LOGD(TAG, "    coinbase bytes - size: %d - %s", res, esphome::format_hex_pretty(bytearray, res).c_str());
+  ESP_LOGD(TAG, "  extranonce2: %s", mWorker.extranonce2.c_str());
+  ESP_LOGD(TAG, "  coinbase: %s", coinbase.c_str());
+  ESP_LOGD(TAG, "  coinbase bytes - size: %d - %s", res, esphome::format_hex_pretty(bytearray, res).c_str());
 #endif
 
   mbedtls_sha256_context ctx;
   mbedtls_sha256_init(&ctx);
 
-  byte interResult[32];  // 256 bit
-  byte shaResult[32];    // 256 bit
+  uint8_t interResult[32];  // 256 bit
+  uint8_t shaResult[32];    // 256 bit
 
   mbedtls_sha256_starts(&ctx, 0);
   mbedtls_sha256_update(&ctx, bytearray, str_len);
@@ -251,20 +357,20 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   mbedtls_sha256_free(&ctx);
 
 #ifdef DEBUG_MINING
-  ESP_LOGD(TAG, "    coinbase double sha: %s", esphome::format_hex_pretty(shaResult, 32).c_str());
+  ESP_LOGD(TAG, "  coinbase double sha: %s", esphome::format_hex_pretty(shaResult, 32).c_str());
 #endif
 
   // Copy coinbase hash
   memcpy(mMiner.merkle_result, shaResult, sizeof(shaResult));
 
-  byte merkle_concatenated[32 * 2];
+  uint8_t merkle_concatenated[32 * 2];
   for (size_t k = 0; k < mJob.merkle_branch.size(); k++) {
     const char *merkle_element = (const char *) mJob.merkle_branch[k];
     uint8_t bytearray[32];
     size_t res = to_byte_array(merkle_element, 64, bytearray);
 
 #ifdef DEBUG_MINING
-    ESP_LOGD(TAG, "    merkle element %d: %s", k, merkle_element);
+    ESP_LOGD(TAG, "  merkle element %d: %s", k, merkle_element);
 #endif
 
     for (size_t i = 0; i < 32; i++) {
@@ -273,8 +379,8 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
     }
 
 #ifdef DEBUG_MINING
-    ESP_LOGD(TAG, "    merkle element %d: %s", k, merkle_element);
-    ESP_LOGD(TAG, "    merkle concatenated: %s", esphome::format_hex_pretty(merkle_concatenated, 64).c_str());
+    ESP_LOGD(TAG, "  merkle element %d: %s", k, merkle_element);
+    ESP_LOGD(TAG, "  merkle concatenated: %s", esphome::format_hex_pretty(merkle_concatenated, 64).c_str());
 #endif
 
     mbedtls_sha256_context ctx;
@@ -289,29 +395,22 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
     mbedtls_sha256_free(&ctx);
 
 #ifdef DEBUG_MINING
-    ESP_LOGD(TAG, "    merkle sha: %s", esphome::format_hex_pretty(mMiner.merkle_result, 32).c_str());
+    ESP_LOGD(TAG, "  merkle sha: %s", esphome::format_hex_pretty(mMiner.merkle_result, 32).c_str());
 #endif
   }
 
   // merkle root from merkle_result
-  ESP_LOGD(TAG, "    merkle sha: %s", esphome::format_hex_pretty(mMiner.merkle_result, 32).c_str());
-  char merkle_root[65];
-  for (int i = 0; i < 32; i++) {
-    snprintf(&merkle_root[i * 2], 3, "%02x", mMiner.merkle_result[i]);
-  }
-  merkle_root[65] = 0;
+  std::string merkle_root = esphome::format_hex(mMiner.merkle_result, 32);
+  ESP_LOGD(TAG, "  merkle sha: %s", merkle_root.c_str());
 
   // calculate blockheader
-  // j.block_header = ''.join([j.version, j.prevhash, merkle_root, j.ntime, j.nbits])
-  String blockheader = mJob.version + mJob.prev_block_hash + String(merkle_root) + mJob.ntime + mJob.nbits + "00000000";
-  str_len = blockheader.length() / 2;
-
-  // uint8_t bytearray_blockheader[str_len];
-  res = to_byte_array(blockheader.c_str(), str_len * 2, mMiner.bytearray_blockheader);
+  std::string blockheader = mJob.version + mJob.prev_block_hash + merkle_root + mJob.ntime + mJob.nbits + "00000000";
+  res = to_byte_array(blockheader.c_str(), blockheader.length(), mMiner.bytearray_blockheader);
 
 #ifdef DEBUG_MINING
-  ESP_LOGD(TAG, "    blockheader: %s", blockheader.c_str());
-  ESP_LOGD(TAG, "    blockheader bytes %d -> ", str_len);
+  str_len = blockheader.length() / 2;
+  ESP_LOGD(TAG, "  blockheader: %s", blockheader.c_str());
+  ESP_LOGD(TAG, "  blockheader bytes: %zu", str_len);
 #endif
 
   // reverse version
@@ -372,12 +471,12 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   }
 
 #ifdef DEBUG_MINING
-  ESP_LOGD(TAG, " >>> bytearray_blockheader: %s", esphome::format_hex_pretty(mMiner.bytearray_blockheader, 4).c_str());
-  ESP_LOGD(TAG, "version: %s", esphome::format_hex_pretty(mMiner.bytearray_blockheader, 32).c_str());
-  ESP_LOGD(TAG, "prev hash:");
+  ESP_LOGD(TAG, ">>> bytearray_blockheader: %s", esphome::format_hex_pretty(mMiner.bytearray_blockheader, 4).c_str());
+  ESP_LOGD(TAG, "Version: %s", esphome::format_hex_pretty(mMiner.bytearray_blockheader, 32).c_str());
+  ESP_LOGD(TAG, "Prev hash:");
   for (size_t i = 4; i < 4 + 32; i++)
     ESP_LOGD(TAG, "%02x", mMiner.bytearray_blockheader[i]);
-  ESP_LOGD(TAG, "merkle root:");
+  ESP_LOGD(TAG, "Merkle root:");
   for (size_t i = 36; i < 36 + 32; i++)
     ESP_LOGD(TAG, "%02x", mMiner.bytearray_blockheader[i]);
   ESP_LOGD(TAG, "ntime:");
@@ -407,7 +506,7 @@ void suffix_string(double val, char *buf, size_t bufsiz, int sigdigits) {
   const double exa = 1000000000000000000;
   // minimum diff value to display
   const double min_diff = 0.001;
-  const byte maxNdigits = 2;
+  const uint8_t maxNdigits = 2;
   char suffix[2] = {0, 0};
   bool decimal = true;
   double dval;

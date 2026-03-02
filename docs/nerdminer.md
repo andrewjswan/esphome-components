@@ -1,6 +1,7 @@
 ## NerdMiner
 
 [![esp32_arduino](https://img.shields.io/badge/ESP32-Arduino-darkcyan.svg)](https://esphome.io/)
+[![esp32_esp_idf](https://img.shields.io/badge/ESP--IDF-blue.svg)](https://esphome.io/)
 
 This component let you try to reach a bitcoin block with a small piece of hardware.
 

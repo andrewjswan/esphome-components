@@ -283,7 +283,8 @@ static double getDifficulty(sha256_hash_t *ctx) {
 static void compareBestDifficulty(sha256_hash_t *ctx) {
   double difficulty = getDifficulty(ctx);
   if (!std::isnan(difficulty) && !std::isinf(difficulty) &&
-      (std::isnan(s_stats.bestDifficulty) || std::isinf(s_stats.bestDifficulty) || difficulty >= s_stats.bestDifficulty)) {
+      (std::isnan(s_stats.bestDifficulty) || std::isinf(s_stats.bestDifficulty) ||
+       difficulty >= s_stats.bestDifficulty)) {
     s_stats.bestDifficulty = difficulty;
   }
 }

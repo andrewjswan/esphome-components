@@ -8,6 +8,7 @@ from esphome.components import ota, socket
 from esphome.components.esp32 import VARIANT_ESP32C3, get_esp32_variant
 from esphome.const import CONF_ID
 from esphome.core import CORE
+from esphome.types import ConfigType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,22 +31,28 @@ CONF_POOL_PORT = "port"
 CONF_POOL_PASS = "password"  # noqa: S105
 
 
-def _consume_sockets(config):
+def _consume_sockets(config: ConfigType) -> ConfigType:
+    """Register socket need for Nerminer component."""
+    # Nerdminer needs 1 socket (Stratum)
     socket.consume_sockets(1, "nerdminer")(config)
     return config
 
+
 CONFIG_SCHEMA = cv.All(
-    cv.Schema({
-        cv.Required(CONF_ID): cv.declare_id(NERDMINER_),
-        cv.Required(CONF_WALLETID): cv.string,
-        cv.Optional(CONF_WORKER, default="esphomeminer"): cv.string,
-        cv.Optional(CONF_POOL, default="public-pool.io"): cv.string,
-        cv.Optional(CONF_POOL_PORT, default=21496): cv.port,
-        cv.Optional(CONF_POOL_PASS, default="x"): cv.string,
-    }).extend(cv.COMPONENT_SCHEMA),
+    cv.Schema(
+        {
+            cv.Required(CONF_ID): cv.declare_id(NERDMINER_),
+            cv.Required(CONF_WALLETID): cv.string,
+            cv.Optional(CONF_WORKER, default="esphomeminer"): cv.string,
+            cv.Optional(CONF_POOL, default="public-pool.io"): cv.string,
+            cv.Optional(CONF_POOL_PORT, default=21496): cv.port,
+            cv.Optional(CONF_POOL_PASS, default="x"): cv.string,
+        },
+    ).extend(cv.COMPONENT_SCHEMA),
     _consume_sockets,
     cv.only_on_esp32,
 )
+
 
 async def to_code(config) -> None:
     """Code generation entry point."""

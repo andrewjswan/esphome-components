@@ -75,7 +75,7 @@ void IRAM_ATTR sha256_s3_compute_midstate(const uint32_t *block1_swapped,  // Fi
  * - Double-hash padding persistent in SHA_TEXT[8-15]
  * - Early reject on SHA_H[0] lower 16 bits
  */
-bool IRAM_ATTR sha256_pipelined_mine_s3_v2(
+bool sha256_pipelined_mine_s3_v2(
     const uint32_t *midstate,           // Pre-computed midstate (8 words)
     const uint32_t *block2_words,       // Block 2 words 0-2 (timestamp, nbits, merkle_tail) - swapped
     uint32_t *nonce_ptr,                // Current nonce (big-endian/swapped)

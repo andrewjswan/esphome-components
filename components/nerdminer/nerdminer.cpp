@@ -67,16 +67,21 @@ void NerdMiner::start() {
 
 #if (SOC_CPU_CORES_NUM >= 2)
   // Dual-core: Run miners on both cores
-  xTaskCreatePinnedToCore(miner_task_core0, "Miner-0", MINER_0_STACK, (void *) 1, MINER_0_PRIORITY, &miner0_handle,
+  xTaskCreatePinnedToCore(miner_task_core0, "Miner/0", MINER_0_STACK, (void *) 1, MINER_0_PRIORITY, &miner0_handle,
                           MINER_0_CORE);
+  esp_task_wdt_add(miner0_handle);
   // Miner on Core 1 (high priority, dedicated core)
-  xTaskCreatePinnedToCore(miner_task_core1, "Miner-1", MINER_1_STACK, (void *) 1, MINER_1_PRIORITY, &miner1_handle,
+  xTaskCreatePinnedToCore(miner_task_core1, "Miner/1", MINER_1_STACK, (void *) 1, MINER_1_PRIORITY, &miner1_handle,
                           MINER_1_CORE);
+  esp_task_wdt_add(miner1_handle);
 #else
   // Single-core (C3, S2): Run only one miner task, not pinned
   // Must yield frequently to let WiFi/Stratum work
-  xTaskCreate(miner_task_core0, "Miner-0", MINER_0_STACK, (void *) 0, MINER_0_PRIORITY, &miner0_handle);
+  xTaskCreate(miner_task_core0, "Miner/0", MINER_0_STACK, (void *) 0, MINER_0_PRIORITY, &miner0_handle);
+  esp_task_wdt_add(miner0_handle);
 #endif
+
+  vTaskPrioritySet(NULL, 4);
 
   ESP_LOGCONFIG(TAG, "NerdMiner started...");
 }  // start()
@@ -110,46 +115,55 @@ void NerdMiner::dump_config() {
 bool NerdMiner::getMinerState() {
   // monitor_data mData = getMonitorData();
   // return mData.Status;
+  return true;
 }
 
 uint32_t NerdMiner::getTotalHashes() {
   // mining_data mData = getMiningData();
   // return mData.totalMHashes;
+  return 0;
 }  // getTotalHashes()
 
 uint32_t NerdMiner::getBlockTemplates() {
   // mining_data mData = getMiningData();
   // return mData.templates;
+  return 0;
 }  // getBlockTemplates()
 
 double NerdMiner::getBestDiff() {
   // mining_data mData = getMiningData();
   // return mData.bestDiff;
+  return 0;
 }  // getBestDiff()
 
 uint32_t NerdMiner::get32BitShares() {
   // mining_data mData = getMiningData();
   // return mData.completedShares;
+  return 0;
 }  // get32BitShares()
 
 uint64_t NerdMiner::getHores() {
   // mining_data mData = getMiningData();
   // return mData.timeMining;
+  return 0;
 }  // getHores()
 
 uint32_t NerdMiner::getValidBlocks() {
   // mining_data mData = getMiningData();
   // return mData.valids;
+  return 0;
 }  // getValidBlocks()
 
 double NerdMiner::getHashrate() {
   // mining_data mData = getMiningData();
   // return mData.currentHashRate;
+  return 0;
 }  // getHashrate()
 
 uint32_t NerdMiner::getKHashes() {
   // mining_data mData = getMiningData();
   // return mData.totalKHashes;
+  return 0;
 }  // getKHashes()
 
 }  // namespace nerdminer

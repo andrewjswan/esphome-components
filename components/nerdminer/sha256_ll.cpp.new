@@ -7,9 +7,6 @@
  * Direct register access to ESP32 SHA peripheral for maximum mining performance.
  */
 
-#include "nerdminer.h"
-#include "sha256_ll.h"
-
 // ESP-IDF SHA peripheral headers
 #include <sha/sha_dma.h>
 #include <hal/sha_hal.h>
@@ -17,18 +14,22 @@
 
 #if defined(CONFIG_IDF_TARGET_ESP32)
 #include <sha/sha_parallel_engine.h>
+#include "soc/dport_access.h"
+#else
+  #ifndef DPORT_INTERRUPT_DISABLE
+    #define DPORT_INTERRUPT_DISABLE() 
+    #define DPORT_INTERRUPT_RESTORE() 
+  #endif
+
+  #ifndef DPORT_SEQUENCE_REG_READ
+    #define DPORT_SEQUENCE_REG_READ(addr) REG_READ(addr)
+  #endif
 #endif
 
-#if defined(CONFIG_IDF_TARGET_ESP32C3)
-#ifndef DPORT_INTERRUPT_DISABLE
-#define DPORT_INTERRUPT_DISABLE() 
-#define DPORT_INTERRUPT_RESTORE() 
-#endif
+#include "soc/soc.h"
 
-#ifndef DPORT_SEQUENCE_REG_READ
-#define DPORT_SEQUENCE_REG_READ(addr) REG_READ(addr)
-#endif
-#endif
+#include "nerdminer.h"
+#include "sha256_ll.h"
 
 namespace esphome {
 namespace nerdminer {
@@ -166,8 +167,8 @@ static inline bool IRAM_ATTR ll_read_digest_if(uint8_t *hash_out) {
   // H0 contains the most significant bits of the hash (Big Endian)
   // For mining difficulty > 1, H0 must be 0
   DPORT_INTERRUPT_DISABLE();
-
   uint32_t first = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 7 * 4);
+
   static uint32_t debug_ctr = 0;
   bool debug_log = (debug_ctr++ % 500000 == 0);
 
@@ -298,7 +299,6 @@ static inline bool IRAM_ATTR ll_read_digest_if(uint8_t *hash_out) {
   out[2] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 5 * 4));  // H5 -> out[2]
   out[1] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 6 * 4));  // H6 -> out[1]
   out[0] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 7 * 4));  // H7 -> out[0] (LSB at low bytes)
-
   DPORT_INTERRUPT_RESTORE();
 
   return true;
@@ -326,7 +326,6 @@ void sha256_ll_midstate(uint32_t *midstate, const uint8_t *header) {
 
   // Now read midstate from SHA_TEXT_BASE
   DPORT_INTERRUPT_DISABLE();
-
   midstate[0] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 0 * 4);
   midstate[1] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 1 * 4);
   midstate[2] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 2 * 4);
@@ -335,7 +334,6 @@ void sha256_ll_midstate(uint32_t *midstate, const uint8_t *header) {
   midstate[5] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 5 * 4);
   midstate[6] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 6 * 4);
   midstate[7] = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 7 * 4);
-
   DPORT_INTERRUPT_RESTORE();
 
 #else

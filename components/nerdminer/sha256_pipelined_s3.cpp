@@ -46,7 +46,7 @@ void sha256_pipelined_s3_init(void) {
 
 // clang-format off
 
-bool IRAM_ATTR sha256_pipelined_mine_s3(
+bool sha256_pipelined_mine_s3(
     const uint32_t *header_swapped,
     uint32_t *nonce_ptr,
     volatile uint64_t *hash_count_ptr,

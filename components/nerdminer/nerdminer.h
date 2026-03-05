@@ -23,6 +23,8 @@ class NerdMiner : public Component
 #endif
 {
  public:
+  float get_setup_priority() const override { return setup_priority::LATE; }
+
   void setup() override;
   void start();
   void stop();

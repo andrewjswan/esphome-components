@@ -1,15 +1,6 @@
 #include "nerdminer.h"
 #include "utils.h"
 
-#include <string.h>
-#include <stdio.h>
-
-#include <lwip/sockets.h>
-#include <lwip/netdb.h>
-#include "mbedtls/sha256.h"
-
-#include "esphome/core/hal.h"
-#include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
 // For CPU overclocking
@@ -25,11 +16,6 @@ extern "C" {
 
 namespace esphome {
 namespace nerdminer {
-
-void trim(std::string &s) {
-  s.erase(0, s.find_first_not_of(" \t\n\r\f\v"));
-  s.erase(s.find_last_not_of(" \t\n\r\f\v") + 1);
-}
 
 /**
  * Attempt CPU overclock using 320MHz PLL
@@ -77,7 +63,7 @@ uint32_t try_overclock() {
 
   // Failed, revert to 240MHz
   rtc_cpu_freq_config_t default_conf;
-  rtc_clk_cpu_freq_get_config(&default_conf); 
+  rtc_clk_cpu_freq_get_config(&default_conf);
   ESP_LOGD(TAG, "[OVERCLOCK] Failed (got %u MHz), using 240 MHz", actualFreq);
   return 240;
 

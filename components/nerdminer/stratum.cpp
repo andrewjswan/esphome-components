@@ -16,6 +16,7 @@
 #include "utils.h"
 
 #include "esphome/components/network/util.h"
+#include "esphome/components/socket/socket.h"
 #include "esphome/core/hal.h"
 
 // ============================================================
@@ -105,8 +106,6 @@ bool checkPoolConnection(std::unique_ptr<esphome::socket::Socket> &sock) {
     }
   }
 
-  s_isConnected = false;
-
   ESP_LOGD(TAG, "Client not connected, trying to connect...");
   ESP_LOGD(TAG, "Connecting to %s:%d...", s_primaryPool.url, s_primaryPool.port);
 
@@ -128,7 +127,7 @@ bool checkPoolConnection(std::unique_ptr<esphome::socket::Socket> &sock) {
   // Try connecting pool IP
   sock = esphome::socket::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (sock == nullptr) {
-    ESP_LOGD(TAG, "Failed to create socket (errno: %d)", errno);
+    ESP_LOGW(TAG, "Failed to create socket (errno: %d)", errno);
     freeaddrinfo(res);
     return false;
   }
@@ -145,11 +144,12 @@ bool checkPoolConnection(std::unique_ptr<esphome::socket::Socket> &sock) {
   int conn_res = sock->connect((struct sockaddr *) &s_addr, sizeof(s_addr));
   if (conn_res == 0) {
     ESP_LOGD(TAG, "Successfully connected to %s!", s_primaryPool.url);
+    s_lastActivity = millis();
     return true;
   }
 
   if (conn_res < 0 && errno != EINPROGRESS) {
-    ESP_LOGD(TAG, "Connection to %s Failed immediately, errno: %d", s_primaryPool.url, errno);
+    ESP_LOGW(TAG, "Connection to %s Failed immediately, errno: %d", s_primaryPool.url, errno);
     sockClose(sock);
     return false;
   }
@@ -164,15 +164,16 @@ bool checkPoolConnection(std::unique_ptr<esphome::socket::Socket> &sock) {
     getsockopt(pfd.fd, SOL_SOCKET, SO_ERROR, &so_error, &len);
 
     if (so_error == 0) {
-      ESP_LOGD(TAG, "Successfully connected via pool to %s!", s_primaryPool.url);
+      ESP_LOGD(TAG, "Successfully connected via Poll to %s!", s_primaryPool.url);
+      s_lastActivity = millis();
       return true;
     } else {
-      ESP_LOGD(TAG, "Connection to %s Error after poll: %d", s_primaryPool.url, so_error);
+      ESP_LOGW(TAG, "Connection to %s Error after Poll: %d", s_primaryPool.url, so_error);
     }
   } else if (ready == 0) {
-    ESP_LOGD(TAG, "Connection to %s Connection timeout...", s_primaryPool.url);
+    ESP_LOGW(TAG, "Connection to %s Connection timeout...", s_primaryPool.url);
   } else {
-    ESP_LOGD(TAG, "Connection to %s Poll system error: %d", s_primaryPool.url, errno);
+    ESP_LOGW(TAG, "Connection to %s Poll system error: %d", s_primaryPool.url, errno);
   }
 
   sockClose(sock);
@@ -207,7 +208,7 @@ static void formatHex8(char *dest, uint32_t value) {
 }
 
 // Bounded read to prevent stack overflow/OOM from malicious packets
-static std::string readBoundedLine(esphome::socket::Socket *sock, size_t maxLen = 4096) {
+static std::string readBoundedLine(esphome::socket::Socket *sock, char terminator, size_t maxLen = 4096) {
   std::string line;
   if (sock == nullptr || sock->get_fd() < 0) {
     return line;
@@ -215,19 +216,20 @@ static std::string readBoundedLine(esphome::socket::Socket *sock, size_t maxLen 
 
   int fd = sock->get_fd();
   uint32_t start = millis();
-  while (millis() - start < 5000) {
+  while (millis() - start < 1500) {
     char c;
     int res = lwip_read(fd, &c, 1);
 
     if (res > 0) {
-      if (c == '\n')
+      if (c == terminator) {
         return line;
+      }
       if (line.length() < maxLen) {
         line += c;
       }
     } else if (res < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        yield();
+        vTaskDelay(1);
         continue;
       }
       break;
@@ -237,7 +239,7 @@ static std::string readBoundedLine(esphome::socket::Socket *sock, size_t maxLen 
   }
 
   if (line.length() >= maxLen) {
-    ESP_LOGD(TAG, "[STRATUM] WARNING: Line exceeded max length, discarded.");
+    ESP_LOGW(TAG, "[STRATUM] WARNING: Line exceeded max length, discarded.");
     return "";  // Return empty to signal error
   }
   return line;
@@ -261,14 +263,14 @@ ssize_t sendData(esphome::socket::Socket *sock, const std::string &data) {
       start_time = millis();
     } else if (sent < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        yield();
+        vTaskDelay(1);
         if (millis() - start_time > 1500) {
-          ESP_LOGD(TAG, "Send: Timeout (Socket buffer full)");
+          ESP_LOGW(TAG, "Send: Timeout (Socket buffer full)");
           return -1;
         }
         continue;
       }
-      ESP_LOGD(TAG, "Send: Error: %d", errno);
+      ESP_LOGW(TAG, "Send: Error: %d", errno);
       return -1;
     } else {
       return -1;
@@ -307,18 +309,18 @@ static bool parseSubscribeResponse(const std::string &line) {
   DeserializationError err = deserializeJson(s_doc, line);
 
   if (err) {
-    ESP_LOGD(TAG, "[STRATUM] JSON parse error: %s RAW: %s", err.c_str(), line.c_str());
+    ESP_LOGW(TAG, "[STRATUM] JSON parse error: %s RAW: %s", err.c_str(), line.c_str());
     return false;
   }
 
   if (s_doc["error"].is<JsonVariant>() && s_doc["error"].size() > 0) {
     const char *errMsg = s_doc["error"][1];
-    ESP_LOGD(TAG, "[STRATUM] Subscribe error: %s", errMsg ? errMsg : "unknown");
+    ESP_LOGW(TAG, "[STRATUM] Subscribe error: %s", errMsg ? errMsg : "unknown");
     return false;
   }
 
   if (!s_doc["result"].is<JsonVariant>() || !s_doc["result"].is<JsonArray>()) {
-    ESP_LOGD(TAG, "[STRATUM] Invalid subscribe response (no result)");
+    ESP_LOGW(TAG, "[STRATUM] Invalid subscribe response (no result)");
     return false;
   }
 
@@ -347,7 +349,7 @@ static bool parseAuthorizeResponse(const std::string &line) {
 
   if (s_doc["error"].is<JsonVariant>() && s_doc["error"].size() > 0) {
     const char *errMsg = s_doc["error"][1];
-    ESP_LOGD(TAG, "[STRATUM] Auth error: %s", errMsg ? errMsg : "unknown");
+    ESP_LOGW(TAG, "[STRATUM] Auth error: %s", errMsg ? errMsg : "unknown");
     return false;
   }
 
@@ -422,18 +424,15 @@ static void parseSetDifficulty(const std::string &line) {
 }
 
 static void handleServerMessage(esphome::socket::Socket *sock) {
-  std::string line = readBoundedLine(sock);
-  trim(line);
-
+  std::string line = readBoundedLine(sock, '\n');
   if (line.length() == 0)
     return;
 
   ESP_LOGD(TAG, "[STRATUM] RX: %s", line.c_str());
-
   s_doc.clear();
   DeserializationError err = deserializeJson(s_doc, line);
   if (err) {
-    ESP_LOGD(TAG, "[STRATUM] Parse error: %s", err.c_str());
+    ESP_LOGW(TAG, "[STRATUM] Parse error: %s", err.c_str());
     return;
   }
 
@@ -493,11 +492,9 @@ static void handleServerMessage(esphome::socket::Socket *sock) {
 static bool waitForResponseById(esphome::socket::Socket *sock, uint32_t expectedId, std::string &outResponse,
                                 int maxAttempts = 10) {
   for (int attempt = 0; attempt < maxAttempts; attempt++) {
-    std::string line = readBoundedLine(sock);  // Use bounded read to prevent OOM
-    trim(line);
-
+    std::string line = readBoundedLine(sock, '\n');  // Use bounded read to prevent OOM
     if (line.length() == 0) {
-      ESP_LOGD(TAG, "[STRATUM] Response timeout");
+      ESP_LOGD(TAG, "[STRATUM] Empty response for id!");
       return false;
     }
 
@@ -505,7 +502,7 @@ static bool waitForResponseById(esphome::socket::Socket *sock, uint32_t expected
     s_doc.clear();
     DeserializationError err = deserializeJson(s_doc, line);
     if (err) {
-      ESP_LOGD(TAG, "[STRATUM] JSON parse error: %s", err.c_str());
+      ESP_LOGW(TAG, "[STRATUM] JSON parse error: %s", err.c_str());
       continue;
     }
 
@@ -571,7 +568,7 @@ static bool subscribe(esphome::socket::Socket *sock, const char *wallet, const c
   stats->avgLatency = (stats->avgLatency == 0) ? subLatency : ((stats->avgLatency * 9 + subLatency) / 10);
 
   if (!parseSubscribeResponse(resp)) {
-    ESP_LOGD(TAG, "[STRATUM] Subscribe failed");
+    ESP_LOGW(TAG, "[STRATUM] Subscribe failed");
     return false;
   }
 
@@ -605,7 +602,7 @@ static bool subscribe(esphome::socket::Socket *sock, const char *wallet, const c
 
   // Wait for authorize response (handle set_difficulty/notify that may arrive first)
   if (!waitForResponseById(sock, authId, resp)) {
-    ESP_LOGD(TAG, "[STRATUM] No authorize response");
+    ESP_LOGW(TAG, "[STRATUM] No authorize response");
     return false;
   }
 
@@ -615,7 +612,7 @@ static bool subscribe(esphome::socket::Socket *sock, const char *wallet, const c
   stats->avgLatency = (stats->avgLatency * 9 + authLatency) / 10;
 
   if (!parseAuthorizeResponse(resp)) {
-    ESP_LOGD(TAG, "[STRATUM] Authorization failed");
+    ESP_LOGW(TAG, "[STRATUM] Authorization failed");
     return false;
   }
 
@@ -687,7 +684,7 @@ void stratum_task(void *name) {
         miner_stop();
         sockClose(pool_socket);
         s_isConnected = false;
-        ESP_LOGD(TAG, "[STRATUM] Connection lost, wait...");
+        ESP_LOGW(TAG, "[STRATUM] Connection lost, wait...");
       }
 
       vTaskDelay(500 / portTICK_PERIOD_MS);
@@ -721,10 +718,24 @@ void stratum_task(void *name) {
     if (!checkPoolConnection(pool_socket)) {
       if (s_isConnected) {
         miner_stop();
+        sockClose(pool_socket);
         s_isConnected = false;
       }
       vTaskDelay(((1 + rand() % 60) * 1000) / portTICK_PERIOD_MS);
       continue;
+    }
+
+    // Subscribe
+    if (!s_isConnected) {
+      ESP_LOGD(TAG, "[STRATUM] Subscribe...");
+      if (subscribe(pool_socket.get(), s_primaryPool.wallet, s_primaryPool.password, s_primaryPool.workerName)) {
+        s_lastActivity = millis();
+        ESP_LOGD(TAG, "[STRATUM] Subscribe complete.");
+      } else {
+        sockClose(pool_socket);
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        continue;
+      }
     }
     s_isConnected = true;
 

@@ -57,7 +57,7 @@ void IRAM_ATTR sha256_s3_init_zeros(void) {
  *
  * IMPORTANT: Call sha256_s3_init_zeros() once per job before using this.
  */
-bool IRAM_ATTR sha256_pipelined_mine_s3_v3(
+bool sha256_pipelined_mine_s3_v3(
     const uint32_t *midstate,           // Pre-computed midstate (8 words)
     const uint32_t *block2_words,       // Block 2 words 0-2 (merkle_tail, timestamp, nbits) - swapped
     uint32_t *nonce_ptr,                // Current nonce (big-endian/swapped)

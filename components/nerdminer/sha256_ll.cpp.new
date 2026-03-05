@@ -17,8 +17,8 @@
 #include "soc/dport_access.h"
 #else
   #ifndef DPORT_INTERRUPT_DISABLE
-    #define DPORT_INTERRUPT_DISABLE() 
-    #define DPORT_INTERRUPT_RESTORE() 
+    #define DPORT_INTERRUPT_DISABLE()
+    #define DPORT_INTERRUPT_RESTORE()
   #endif
 
   #ifndef DPORT_SEQUENCE_REG_READ

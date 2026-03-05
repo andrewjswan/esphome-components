@@ -724,7 +724,6 @@ void stratum_task(void *name) {
       vTaskDelay(((1 + rand() % 60) * 1000) / portTICK_PERIOD_MS);
       continue;
     }
-
     // Subscribe
     if (!s_isConnected) {
       ESP_LOGD(TAG, "[STRATUM] Subscribe...");

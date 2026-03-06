@@ -70,9 +70,8 @@ bool sha256_pipelined_mine(volatile uint32_t *sha_base, const uint32_t *header_s
  * Note: ESP32 doesn't support midstate caching (no writable state registers)
  * so block 1 must still be reloaded every iteration.
  */
-bool sha256_pipelined_mine_v2(volatile uint32_t *sha_base, const uint32_t *header_swapped,
-                              uint32_t *nonce_ptr, volatile uint64_t *hash_count_ptr,
-                              volatile bool *mining_flag);
+bool sha256_pipelined_mine_v2(volatile uint32_t *sha_base, const uint32_t *header_swapped, uint32_t *nonce_ptr,
+                              volatile uint64_t *hash_count_ptr, volatile bool *mining_flag);
 
 /**
  * Pipelined mining v3 - equivalent to v2.

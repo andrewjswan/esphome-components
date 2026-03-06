@@ -56,8 +56,8 @@ void sha256_pipelined_init(void);
  * @return true if potential share found (16-bit early reject passed)
  *         false if stopped due to mining_flag becoming false
  */
-bool IRAM_ATTR sha256_pipelined_mine(volatile uint32_t *sha_base, const uint32_t *header_swapped, uint32_t *nonce_ptr,
-                                     volatile uint64_t *hash_count_ptr, volatile bool *mining_flag);
+bool sha256_pipelined_mine(volatile uint32_t *sha_base, const uint32_t *header_swapped, uint32_t *nonce_ptr,
+                           volatile uint64_t *hash_count_ptr, volatile bool *mining_flag);
 
 /**
  * Optimized pipelined mining v2 with unrolled zeros.
@@ -70,18 +70,16 @@ bool IRAM_ATTR sha256_pipelined_mine(volatile uint32_t *sha_base, const uint32_t
  * Note: ESP32 doesn't support midstate caching (no writable state registers)
  * so block 1 must still be reloaded every iteration.
  */
-bool IRAM_ATTR sha256_pipelined_mine_v2(volatile uint32_t *sha_base, const uint32_t *header_swapped,
-                                        uint32_t *nonce_ptr, volatile uint64_t *hash_count_ptr,
-                                        volatile bool *mining_flag);
+bool sha256_pipelined_mine_v2(volatile uint32_t *sha_base, const uint32_t *header_swapped, uint32_t *nonce_ptr,
+                              volatile uint64_t *hash_count_ptr, volatile bool *mining_flag);
 
 /**
- * Ultra-optimized mining loop v3 with batched copies.
  * Pipelined mining v3 - equivalent to v2.
  * Register caching was attempted but not achievable due to Xtensa constraints.
  * The SHA hardware is the bottleneck (~715 KH/s on CYD), not CPU.
  */
-bool IRAM_ATTR sha256_pipelined_mine_s3_v3(const uint32_t *midstate, const uint32_t *block2_words, uint32_t *nonce_ptr,
-                                           volatile uint64_t *hash_count_ptr, volatile bool *mining_flag);
+bool sha256_pipelined_mine_v3(volatile uint32_t *sha_base, const uint32_t *header_swapped, uint32_t *nonce_ptr,
+                              volatile uint64_t *hash_count_ptr, volatile bool *mining_flag);
 
 #ifdef __cplusplus
 }

@@ -45,7 +45,7 @@ void sha256_ll_release(void);
 /**
  * Wait for SHA peripheral to finish current operation.
  */
-void IRAM_ATTR sha256_ll_wait_idle(void);
+void sha256_ll_wait_idle(void);
 
 /**
  * Compute midstate from first 64 bytes of block header.
@@ -54,7 +54,7 @@ void IRAM_ATTR sha256_ll_wait_idle(void);
  * @param midstate Output: 8 x 32-bit midstate values
  * @param header   Input: First 64 bytes of block header
  */
-void IRAM_ATTR sha256_ll_midstate(uint32_t *midstate, const uint8_t *header);
+void sha256_ll_midstate(uint32_t *midstate, const uint8_t *header);
 
 /**
  * Perform double SHA-256 from midstate with early 16-bit reject.
@@ -66,7 +66,7 @@ void IRAM_ATTR sha256_ll_midstate(uint32_t *midstate, const uint8_t *header);
  * @param hash_out   Output: 32-byte double SHA-256 result (only valid if returns true)
  * @return true if hash passes 16-bit early reject (potential valid share)
  */
-bool IRAM_ATTR sha256_ll_double_hash(const uint32_t *midstate, const uint8_t *tail, uint32_t nonce, uint8_t *hash_out);
+bool sha256_ll_double_hash(const uint32_t *midstate, const uint8_t *tail, uint32_t nonce, uint8_t *hash_out);
 
 /**
  * Perform full double SHA-256 without midstate (like NerdMiner).
@@ -77,7 +77,7 @@ bool IRAM_ATTR sha256_ll_double_hash(const uint32_t *midstate, const uint8_t *ta
  * @param hash_out   Output: 32-byte double SHA-256 result (only valid if returns true)
  * @return true if hash passes 16-bit early reject (potential valid share)
  */
-bool IRAM_ATTR sha256_ll_double_hash_full(const uint8_t *header, uint32_t nonce, uint8_t *hash_out);
+bool sha256_ll_double_hash_full(const uint8_t *header, uint32_t nonce, uint8_t *hash_out);
 
 #ifdef __cplusplus
 }

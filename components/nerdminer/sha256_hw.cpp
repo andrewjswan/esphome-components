@@ -54,7 +54,7 @@ void sha256_hw_init(void) {
  * Compute midstate from first 64 bytes of block header
  * This uses the hardware SHA peripheral
  */
-void sha256_hw_midstate(uint32_t *digest, const uint8_t *dataIn) {
+void IRAM_ATTR sha256_hw_midstate(uint32_t *digest, const uint8_t *dataIn) {
   // Use the low-level hardware function to compute midstate
   sha256_ll_midstate(digest, dataIn);
 }
@@ -66,7 +66,7 @@ void sha256_hw_midstate(uint32_t *digest, const uint8_t *dataIn) {
  * since the hardware computes all 64 rounds in ~80 clock cycles.
  * This function just stores the tail bytes for the mining loop.
  */
-void sha256_hw_bake(const uint32_t *digest, const uint8_t *dataIn, sha256_bake_t *bake) {
+void IRAM_ATTR sha256_hw_bake(const uint32_t *digest, const uint8_t *dataIn, sha256_bake_t *bake) {
   // Store tail data (bytes 64-79 of header, excluding nonce position)
   // This is used by the mining loop to update only the nonce
   memcpy(bake->data, dataIn, 12);  // First 12 bytes of tail (timestamp, nbits, partial nonce)
@@ -80,7 +80,8 @@ void sha256_hw_bake(const uint32_t *digest, const uint8_t *dataIn, sha256_bake_t
  * the hardware SHA computes all 64 rounds in hardware, so we just
  * need to call the low-level double hash function.
  */
-bool sha256_hw_hash_baked(const uint32_t *digest, const uint8_t *dataIn, const sha256_bake_t *bake, uint8_t *hashOut) {
+bool IRAM_ATTR sha256_hw_hash_baked(const uint32_t *digest, const uint8_t *dataIn, const sha256_bake_t *bake,
+                                    uint8_t *hashOut) {
   // Extract nonce from dataIn (bytes 12-15 of the tail)
   uint32_t nonce = *(uint32_t *) (dataIn + 12);
 
@@ -94,7 +95,7 @@ bool sha256_hw_hash_baked(const uint32_t *digest, const uint8_t *dataIn, const s
 /**
  * Standard double SHA-256 without baking (for verification, etc.)
  */
-bool sha256_hw_hash(sha256_hw_ctx_t *ctx, const uint8_t *dataIn, uint8_t *hashOut) {
+bool IRAM_ATTR sha256_hw_hash(sha256_hw_ctx_t *ctx, const uint8_t *dataIn, uint8_t *hashOut) {
   // Use the last 16 bytes as tail, extract nonce
   uint32_t nonce = *(uint32_t *) (dataIn + 12);
 

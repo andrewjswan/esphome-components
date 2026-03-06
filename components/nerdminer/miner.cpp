@@ -853,6 +853,14 @@ void miner_task_core1(void *param) {
 #if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(DEBUG_SHARE_VALIDATION)
         ESP_LOGD(TAG, "[S3-DBG] SW verify=%s hash[28-31]=%02x%02x%02x%02x", swVerified ? "PASS" : "FAIL", ctx.bytes[28],
                  ctx.bytes[29], ctx.bytes[30], ctx.bytes[31]);
+        if (!swVerified) {
+          // Also dump full hash for analysis
+          ESP_LOGD(TAG,
+                   "[SW-VERIFY-OUT] Full hash: %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x",
+                   ctx.bytes[0], ctx.bytes[1], ctx.bytes[2], ctx.bytes[3], ctx.bytes[4], ctx.bytes[5], ctx.bytes[6],
+                   ctx.bytes[7], ctx.bytes[8], ctx.bytes[9], ctx.bytes[10], ctx.bytes[11], ctx.bytes[12], ctx.bytes[13],
+                   ctx.bytes[14], ctx.bytes[15]);
+        }
 #endif
 
         if (swVerified) {

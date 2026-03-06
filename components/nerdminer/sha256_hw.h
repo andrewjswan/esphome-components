@@ -59,8 +59,7 @@ void sha256_hw_bake(const uint32_t *digest, const uint8_t *dataIn, sha256_bake_t
  * @param hashOut Output: 32-byte double SHA-256 result
  * @return true if hash passes early 16-bit check (worth full verification)
  */
-bool sha256_hw_hash_baked(const uint32_t *digest, const uint8_t *dataIn, const sha256_bake_t *bake,
-                          uint8_t *hashOut);
+bool sha256_hw_hash_baked(const uint32_t *digest, const uint8_t *dataIn, const sha256_bake_t *bake, uint8_t *hashOut);
 
 /**
  * Standard double SHA-256 without baking (for verification, etc.)

@@ -32,8 +32,8 @@ void sha256_pipelined_s3_init(void);
  *
  * @return true if potential share found (16-bit early reject passed)
  */
-bool sha256_pipelined_mine_s3(const uint32_t *header_swapped, uint32_t *nonce_ptr,
-                              volatile uint64_t *hash_count_ptr, volatile bool *mining_flag);
+bool sha256_pipelined_mine_s3(const uint32_t *header_swapped, uint32_t *nonce_ptr, volatile uint64_t *hash_count_ptr,
+                              volatile bool *mining_flag);
 
 /**
  * Compute midstate from block 1 (first 64 bytes of header).

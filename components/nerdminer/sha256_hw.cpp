@@ -80,7 +80,8 @@ void IRAM_ATTR sha256_hw_bake(const uint32_t *digest, const uint8_t *dataIn, sha
  * the hardware SHA computes all 64 rounds in hardware, so we just
  * need to call the low-level double hash function.
  */
-bool IRAM_ATTR sha256_hw_hash_baked(const uint32_t *digest, const uint8_t *dataIn, const sha256_bake_t *bake, uint8_t *hashOut) {
+bool IRAM_ATTR sha256_hw_hash_baked(const uint32_t *digest, const uint8_t *dataIn, const sha256_bake_t *bake,
+                                    uint8_t *hashOut) {
   // Extract nonce from dataIn (bytes 12-15 of the tail)
   uint32_t nonce = *(uint32_t *) (dataIn + 12);
 

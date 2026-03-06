@@ -22,7 +22,11 @@
 // Lower = more responsive UI, but fewer hashes from Core 0
 // Values: 128 (responsive), 256 (default), 512 (throughput), 1024 (max)
 #ifndef CORE_0_YIELD_COUNT
+#if defined(CONFIG_IDF_TARGET_ESP32)
+#define CORE_0_YIELD_COUNT 512
+#else
 #define CORE_0_YIELD_COUNT 256
+#endif
 #endif
 
 // Miner on Core 1 (highest priority, dedicated)

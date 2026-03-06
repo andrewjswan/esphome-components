@@ -7,11 +7,13 @@
  * Based on BitsyMiner by Justin Williams (GPL v3)
  */
 
-#include <ArduinoJson.h>
 #include "config.h"
+#include "esphome/core/defines.h"
 
 // Stratum protocol constants
+#ifndef DESIRED_DIFFICULTY
 #define DESIRED_DIFFICULTY 0.0014
+#endif
 #define STRATUM_MSG_SIZE 512
 #define MAX_PENDING_SUBMISSIONS 30
 

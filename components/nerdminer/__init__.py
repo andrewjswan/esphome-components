@@ -29,6 +29,8 @@ CONF_WORKER = "worker"
 CONF_POOL = "pool"
 CONF_POOL_PORT = "port"
 CONF_POOL_PASS = "password"  # noqa: S105
+CONF_DIFFICULTY = "difficulty"
+DIFFICULTY_VALUES = [0.00001, 0.0001, 0.001, 0.0014, 0.01, 0.1, 1.0]
 
 
 def _consume_sockets(config: ConfigType) -> ConfigType:
@@ -47,6 +49,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_POOL, default="public-pool.io"): cv.string,
             cv.Optional(CONF_POOL_PORT, default=21496): cv.port,
             cv.Optional(CONF_POOL_PASS, default="x"): cv.string,
+            cv.Optional(CONF_DIFFICULTY, default=0.0014): cv.one_of(*DIFFICULTY_VALUES, float=True),
         },
     ).extend(cv.COMPONENT_SCHEMA),
     _consume_sockets,
@@ -73,5 +76,8 @@ async def to_code(config) -> None:
     cg.add(var.set_pool(config[CONF_POOL]))
     cg.add(var.set_pool_pass(config[CONF_POOL_PASS]))
     cg.add(var.set_pool_port(config[CONF_POOL_PORT]))
+
+    if config[CONF_DIFFICULTY]:
+        cg.add_define("DESIRED_DIFFICULTY", config[CONF_DIFFICULTY])
 
     await cg.register_component(var, config)

@@ -41,7 +41,6 @@ static pool_config_t s_primaryPool;
 
 static volatile bool s_isConnected = false;
 static volatile bool s_reconnectRequested = false;
-static char s_currentPoolUrl[MAX_POOL_URL_LEN] = {0};
 
 // Stores the fully authorized username (e.g. "wallet.worker") for use in submissions
 static char s_authorizedWorkerName[MAX_WALLET_LEN + 34] = {0};
@@ -781,7 +780,7 @@ void stratum_reconnect() { s_reconnectRequested = true; }
 
 bool stratum_is_connected() { return s_isConnected; }
 
-const char *stratum_get_pool() { return s_currentPoolUrl; }
+const char *stratum_get_pool() { return s_primaryPool.url; }
 
 void stratum_set_pool(const char *url, int port, const char *wallet, const char *password, const char *workerName) {
   safeStrCpy(s_primaryPool.url, url, MAX_POOL_URL_LEN);

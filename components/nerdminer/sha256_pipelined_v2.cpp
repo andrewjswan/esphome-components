@@ -28,7 +28,7 @@ namespace nerdminer {
 
 // clang-format off
 
-bool sha256_pipelined_mine_v2(
+bool IRAM_ATTR sha256_pipelined_mine_v2(
     volatile uint32_t *sha_base,
     const uint32_t *header_swapped,
     uint32_t *nonce_ptr,

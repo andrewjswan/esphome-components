@@ -77,7 +77,7 @@ void sha256_ll_release(void) {
 #endif
 }
 
-void sha256_ll_wait_idle(void) {
+void IRAM_ATTR sha256_ll_wait_idle(void) {
   uint32_t timeout = 20000;
 #if defined(CONFIG_IDF_TARGET_ESP32)
   while (DPORT_REG_READ(SHA_256_BUSY_REG)) {
@@ -310,7 +310,7 @@ static inline bool IRAM_ATTR ll_read_digest_if(uint8_t *hash_out) {
 // Public API
 // =============================================================================
 
-void sha256_ll_midstate(uint32_t *midstate, const uint8_t *header) {
+void IRAM_ATTR sha256_ll_midstate(uint32_t *midstate, const uint8_t *header) {
   // Compute midstate (SHA-256 of first 64 bytes)
   // We use the HAL function for this since it's a one-time operation per job
 
@@ -366,7 +366,7 @@ void sha256_ll_midstate(uint32_t *midstate, const uint8_t *header) {
 
 // Full double hash without midstate (like NerdMiner)
 // header must be 80 bytes, pre-swapped for big-endian SHA
-bool sha256_ll_double_hash_full(const uint8_t *header, uint32_t nonce, uint8_t *hash_out) {
+bool IRAM_ATTR sha256_ll_double_hash_full(const uint8_t *header, uint32_t nonce, uint8_t *hash_out) {
 #if defined(CONFIG_IDF_TARGET_ESP32)
   // === First SHA-256: Hash of 80-byte header ===
 
@@ -395,7 +395,7 @@ bool sha256_ll_double_hash_full(const uint8_t *header, uint32_t nonce, uint8_t *
 #endif
 }
 
-bool sha256_ll_double_hash(const uint32_t *midstate, const uint8_t *tail, uint32_t nonce, uint8_t *hash_out) {
+bool IRAM_ATTR sha256_ll_double_hash(const uint32_t *midstate, const uint8_t *tail, uint32_t nonce, uint8_t *hash_out) {
 #if defined(CONFIG_IDF_TARGET_ESP32)
   // === First SHA-256: Complete header hash ===
   // 1. Restore midstate (hash of first 64 bytes) into SHA hardware

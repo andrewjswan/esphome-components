@@ -32,8 +32,8 @@ void sha256_pipelined_s3_init(void);
  *
  * @return true if potential share found (16-bit early reject passed)
  */
-bool IRAM_ATTR sha256_pipelined_mine_s3(const uint32_t *header_swapped, uint32_t *nonce_ptr,
-                                        volatile uint64_t *hash_count_ptr, volatile bool *mining_flag);
+bool sha256_pipelined_mine_s3(const uint32_t *header_swapped, uint32_t *nonce_ptr,
+                              volatile uint64_t *hash_count_ptr, volatile bool *mining_flag);
 
 /**
  * Compute midstate from block 1 (first 64 bytes of header).
@@ -56,8 +56,8 @@ void sha256_s3_compute_midstate(const uint32_t *block1_swapped, uint32_t *midsta
  *
  * @return true if potential share found (16-bit early reject passed)
  */
-bool IRAM_ATTR sha256_pipelined_mine_s3_v2(const uint32_t *midstate, const uint32_t *block2_words, uint32_t *nonce_ptr,
-                                           volatile uint64_t *hash_count_ptr, volatile bool *mining_flag);
+bool sha256_pipelined_mine_s3_v2(const uint32_t *midstate, const uint32_t *block2_words, uint32_t *nonce_ptr,
+                                 volatile uint64_t *hash_count_ptr, volatile bool *mining_flag);
 
 /**
  * Initialize SHA_TEXT zeros for v3.
@@ -82,8 +82,8 @@ void sha256_s3_init_zeros(void);
  *
  * @return true if potential share found
  */
-bool IRAM_ATTR sha256_pipelined_mine_s3_v3(const uint32_t *midstate, const uint32_t *block2_words, uint32_t *nonce_ptr,
-                                           volatile uint64_t *hash_count_ptr, volatile bool *mining_flag);
+bool sha256_pipelined_mine_s3_v3(const uint32_t *midstate, const uint32_t *block2_words, uint32_t *nonce_ptr,
+                                 volatile uint64_t *hash_count_ptr, volatile bool *mining_flag);
 
 #ifdef __cplusplus
 }

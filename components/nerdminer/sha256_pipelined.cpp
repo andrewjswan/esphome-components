@@ -34,7 +34,7 @@ void sha256_pipelined_init(void) {
 
 // clang-format off
 
-bool sha256_pipelined_mine(
+bool IRAM_ATTR sha256_pipelined_mine(
     volatile uint32_t *sha_base,
     const uint32_t *header_swapped,
     uint32_t *nonce_ptr,

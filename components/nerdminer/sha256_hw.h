@@ -37,7 +37,7 @@ typedef struct {
  * @param digest Output: 8 x 32-bit midstate values
  * @param dataIn Input: First 64 bytes of block header
  */
-void IRAM_ATTR sha256_hw_midstate(uint32_t *digest, const uint8_t *dataIn);
+void sha256_hw_midstate(uint32_t *digest, const uint8_t *dataIn);
 
 /**
  * Pre-compute constants for a job ("baking")
@@ -47,7 +47,7 @@ void IRAM_ATTR sha256_hw_midstate(uint32_t *digest, const uint8_t *dataIn);
  * @param dataIn Input: Bytes 64-76 of block header (timestamp, nbits, first nonce byte)
  * @param bake Output: Pre-computed constants for sha256_hw_hash_baked()
  */
-void IRAM_ATTR sha256_hw_bake(const uint32_t *digest, const uint8_t *dataIn, sha256_bake_t *bake);
+void sha256_hw_bake(const uint32_t *digest, const uint8_t *dataIn, sha256_bake_t *bake);
 
 /**
  * Complete double SHA-256 using pre-baked constants
@@ -59,8 +59,8 @@ void IRAM_ATTR sha256_hw_bake(const uint32_t *digest, const uint8_t *dataIn, sha
  * @param hashOut Output: 32-byte double SHA-256 result
  * @return true if hash passes early 16-bit check (worth full verification)
  */
-bool IRAM_ATTR sha256_hw_hash_baked(const uint32_t *digest, const uint8_t *dataIn, const sha256_bake_t *bake,
-                                    uint8_t *hashOut);
+bool sha256_hw_hash_baked(const uint32_t *digest, const uint8_t *dataIn, const sha256_bake_t *bake,
+                          uint8_t *hashOut);
 
 /**
  * Standard double SHA-256 without baking (for verification, etc.)
@@ -70,7 +70,7 @@ bool IRAM_ATTR sha256_hw_hash_baked(const uint32_t *digest, const uint8_t *dataI
  * @param hashOut Output: 32-byte double SHA-256 result
  * @return true if hash passes early 16-bit check
  */
-bool IRAM_ATTR sha256_hw_hash(sha256_hw_ctx_t *ctx, const uint8_t *dataIn, uint8_t *hashOut);
+bool sha256_hw_hash(sha256_hw_ctx_t *ctx, const uint8_t *dataIn, uint8_t *hashOut);
 
 /**
  * Byte-reverse an array of 32-bit words

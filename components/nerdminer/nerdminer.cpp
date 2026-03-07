@@ -1,12 +1,15 @@
-#include "esphome.h"
+#include "config.h"
 #include "nerdminer.h"
-#include "mining.h"
+#include "miner.h"
+#include "stratum_types.h"
+#include "stratum.h"
 #include "monitor.h"
-#include "timeconst.h"
+#include "utils.h"
 
 #include "esphome/core/log.h"
 
 #include <esp_task_wdt.h>
+#include <esp_pm.h>
 #include <soc/soc_caps.h>
 
 // 15 minutes WDT for miner task
@@ -18,9 +21,24 @@ namespace nerdminer {
 void NerdMiner::setup() {
   ESP_LOGCONFIG(TAG, "Setting up NerdMiner...");
 
+  // Disable power management (no CPU throttling/sleep)
+  setup_powermanagement();
+
+  // Initialize mining subsystem
+  miner_init();
+
+  // Initialize stratum subsystem
+  stratum_init();
+  stratum_set_pool(this->pool_, this->pool_port_, this->wallet_id_, this->pool_pass_, this->worker_name_);
+
+  // Initialize monitor (live stats - display already initialized)
+  monitor_init();
+
 #ifdef USE_OTA_STATE_LISTENER
   ota::get_global_ota_callback()->add_global_state_listener(this);
 #endif
+
+  ESP_LOGCONFIG(TAG, "Setup complete.");
 
   this->start();
 }  // setup()
@@ -42,20 +60,25 @@ void NerdMiner::start() {
   esp_task_wdt_init(&wdt_config);
   esp_task_wdt_reconfigure(&wdt_config);
 
-  BaseType_t res1 = xTaskCreatePinnedToCore(runMonitor, "Monitor", 10000, (void *) "Monitor", 5, &monitor_handle, 1);
-  BaseType_t res2 =
-      xTaskCreatePinnedToCore(runStratumWorker, "Stratum", 15000, (void *) "Stratum", 4, &stratum_handle, 1);
-
-#ifdef HARDWARE_SHA265
-  xTaskCreate(minerWorkerHw, "MinerHW-0", 4096, (void *) 0, 3, &miner1_handle);
-#else
-  xTaskCreate(minerWorkerSw, "MinerSW-0", 6000, (void *) 0, 1, &miner1_handle);
-#endif
-  esp_task_wdt_add(miner1_handle);
+  xTaskCreatePinnedToCore(monitor_task, "Monitor", MONITOR_STACK, (void *) "Monitor", MONITOR_PRIORITY, &monitor_handle,
+                          MONITOR_CORE);
+  xTaskCreatePinnedToCore(stratum_task, "Stratum", STRATUM_STACK, (void *) "Stratum", STRATUM_PRIORITY, &stratum_handle,
+                          STRATUM_CORE);
 
 #if (SOC_CPU_CORES_NUM >= 2)
-  xTaskCreate(minerWorkerSw, "MinerSW-1", 6000, (void *) 1, 1, &miner2_handle);
-  esp_task_wdt_add(miner2_handle);
+  // Dual-core: Run miners on both cores
+  xTaskCreatePinnedToCore(miner_task_core0, "Miner/0", MINER_0_STACK, (void *) 1, MINER_0_PRIORITY, &miner0_handle,
+                          MINER_0_CORE);
+  esp_task_wdt_add(miner0_handle);
+  // Miner on Core 1 (high priority, dedicated core)
+  xTaskCreatePinnedToCore(miner_task_core1, "Miner/1", MINER_1_STACK, (void *) 1, MINER_1_PRIORITY, &miner1_handle,
+                          MINER_1_CORE);
+  esp_task_wdt_add(miner1_handle);
+#else
+  // Single-core (C3, S2): Run only one miner task, not pinned
+  // Must yield frequently to let WiFi/Stratum work
+  xTaskCreate(miner_task_core0, "Miner/0", MINER_0_STACK, (void *) 0, MINER_0_PRIORITY, &miner0_handle);
+  esp_task_wdt_add(miner0_handle);
 #endif
 
   vTaskPrioritySet(NULL, 4);
@@ -64,10 +87,10 @@ void NerdMiner::start() {
 }  // start()
 
 void NerdMiner::stop() {
+  vTaskDelete(miner0_handle);
+  miner0_handle = nullptr;
   vTaskDelete(miner1_handle);
   miner1_handle = nullptr;
-  vTaskDelete(miner2_handle);
-  miner2_handle = nullptr;
 
   vTaskDelete(stratum_handle);
   stratum_handle = nullptr;
@@ -80,9 +103,9 @@ void NerdMiner::stop() {
 
 void NerdMiner::dump_config() {
   ESP_LOGCONFIG(TAG, "NerdMiner version: %s", NERDMINER_VERSION);
-  ESP_LOGCONFIG(TAG, "           Worker: %s", NERDMINER_WORKER);
-  ESP_LOGCONFIG(TAG, "             Pool: %s", NERDMINER_POOL);
-  ESP_LOGCONFIG(TAG, "             Port: %d", NERDMINER_POOL_PORT);
+  ESP_LOGCONFIG(TAG, "           Worker: %s", this->worker_name_);
+  ESP_LOGCONFIG(TAG, "             Pool: %s", this->pool_);
+  ESP_LOGCONFIG(TAG, "             Port: %d", this->pool_port_);
   ESP_LOGCONFIG(TAG, "            Cores: %d", SOC_CPU_CORES_NUM);
 #ifdef HARDWARE_SHA265
   ESP_LOGCONFIG(TAG, "  Hardware SHA265: Yes");
@@ -90,48 +113,57 @@ void NerdMiner::dump_config() {
 }  // dump_config()
 
 bool NerdMiner::getMinerState() {
-  monitor_data mData = getMonitorData();
-  return mData.Status;
+  // monitor_data mData = getMonitorData();
+  // return mData.Status;
+  return true;
 }
 
 uint32_t NerdMiner::getTotalHashes() {
-  mining_data mData = getMiningData();
-  return mData.totalMHashes;
+  // mining_data mData = getMiningData();
+  // return mData.totalMHashes;
+  return 0;
 }  // getTotalHashes()
 
 uint32_t NerdMiner::getBlockTemplates() {
-  mining_data mData = getMiningData();
-  return mData.templates;
+  // mining_data mData = getMiningData();
+  // return mData.templates;
+  return 0;
 }  // getBlockTemplates()
 
 double NerdMiner::getBestDiff() {
-  mining_data mData = getMiningData();
-  return mData.bestDiff;
+  // mining_data mData = getMiningData();
+  // return mData.bestDiff;
+  return 0;
 }  // getBestDiff()
 
 uint32_t NerdMiner::get32BitShares() {
-  mining_data mData = getMiningData();
-  return mData.completedShares;
+  // mining_data mData = getMiningData();
+  // return mData.completedShares;
+  return 0;
 }  // get32BitShares()
 
 uint64_t NerdMiner::getHores() {
-  mining_data mData = getMiningData();
-  return mData.timeMining;
+  // mining_data mData = getMiningData();
+  // return mData.timeMining;
+  return 0;
 }  // getHores()
 
 uint32_t NerdMiner::getValidBlocks() {
-  mining_data mData = getMiningData();
-  return mData.valids;
+  // mining_data mData = getMiningData();
+  // return mData.valids;
+  return 0;
 }  // getValidBlocks()
 
 double NerdMiner::getHashrate() {
-  mining_data mData = getMiningData();
-  return mData.currentHashRate;
+  // mining_data mData = getMiningData();
+  // return mData.currentHashRate;
+  return 0;
 }  // getHashrate()
 
 uint32_t NerdMiner::getKHashes() {
-  mining_data mData = getMiningData();
-  return mData.totalKHashes;
+  // mining_data mData = getMiningData();
+  // return mData.totalKHashes;
+  return 0;
 }  // getKHashes()
 
 }  // namespace nerdminer

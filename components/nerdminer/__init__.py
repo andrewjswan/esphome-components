@@ -5,7 +5,6 @@ import logging
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import ota, socket
-from esphome.components.esp32 import VARIANT_ESP32C3, get_esp32_variant
 from esphome.const import CONF_ID
 from esphome.core import CORE
 from esphome.types import ConfigType
@@ -64,7 +63,12 @@ async def to_code(config) -> None:
     cg.add_define("USE_NERDMINER")
 
     if CORE.is_esp32:
-        if get_esp32_variant() in (VARIANT_ESP32C3):
+        from esphome.components.esp32 import VARIANT_ESP32, VARIANT_ESP32C3, get_esp32_variant
+        
+        variant = get_esp32_variant()
+        if variant == VARIANT_ESP32:
+            cg.add_define("HARDWARE_SHA256", 1)
+        elif variant == VARIANT_ESP32C3:
             cg.add_define("USE_SOFTWARE_SHA", 1)
         else:
             cg.add_define("USE_HARDWARE_SHA", 1)

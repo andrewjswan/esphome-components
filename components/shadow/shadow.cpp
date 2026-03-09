@@ -27,7 +27,7 @@ void Shadow::start() {
                           TAG,                      // Name of the task
                           8192,                     // Stack size in words
                           (void *) this,            // Task input parameter
-                          1,                        // Priority of the task
+                          this->shadow_priority_,   // Priority of the task
                           &shadow_handle,           // Task handle
                           tskNO_AFFINITY);          // Core
 
@@ -84,6 +84,7 @@ void Shadow::dump_config() {
   ESP_LOGCONFIG(TAG, "Shadow version: %s", SHADOW_VERSION);
   ESP_LOGCONFIG(TAG, " Startup delay: %ds", this->startup_delay_);
   ESP_LOGCONFIG(TAG, "      Interval: %ds", this->shadow_interval_);
+  ESP_LOGCONFIG(TAG, "      Proirity: %d", this->shadow_priority_);
 }  // dump_config()
 
 }  // namespace shadow

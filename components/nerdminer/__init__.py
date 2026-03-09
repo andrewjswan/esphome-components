@@ -64,7 +64,7 @@ async def to_code(config) -> None:
 
     if CORE.is_esp32:
         from esphome.components.esp32 import VARIANT_ESP32, VARIANT_ESP32C3, get_esp32_variant
-        
+
         variant = get_esp32_variant()
         if variant == VARIANT_ESP32:
             cg.add_define("HARDWARE_SHA256", 1)

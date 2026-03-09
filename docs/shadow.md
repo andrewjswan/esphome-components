@@ -9,6 +9,7 @@ Allows you to run a script in a parallel thread (Task)
 
 * `interval` (Required, [Time](https://esphome.io/guides/configuration-types/#time)): The interval to execute the script in shadow.
 * `startup_delay` (Optional, [Time](https://esphome.io/guides/configuration-types/#time)): An optional startup delay - defaults to zero.
+* `priority` (Optional, `Int`): An optional RTOS Task priority - default 1, range 1..10.
 * `script_id` (Required, [Scipt](https://esphome.io/components/script/)): Script identifier for execute.
 
 ### Configuration

@@ -32,6 +32,7 @@ class Shadow : public Component
   void set_script(script::Script<> *script);
   void set_shadow_interval(uint8_t shadow_interval) { this->shadow_interval_ = shadow_interval; }
   void set_startup_delay(uint8_t startup_delay) { this->startup_delay_ = startup_delay; }
+  void set_shadow_priority(uint8_t shadow_priority) { this->shadow_priority_ = shadow_priority; }
 
 #ifdef USE_OTA_STATE_LISTENER
   void on_ota_global_state(ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) override;
@@ -42,6 +43,7 @@ class Shadow : public Component
   script::Script<> *script{nullptr};
   uint8_t shadow_interval_{60};
   uint8_t startup_delay_{0};
+  uint8_t shadow_priority_{1};
 
   void execute_script();
 

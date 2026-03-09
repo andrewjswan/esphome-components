@@ -1,77 +1,70 @@
 #pragma once
 
-#include "cJSON.h"
+/*
+ * SparkMiner - Stratum Protocol
+ * Stratum v1 client for pool communication
+ *
+ * Based on BitsyMiner by Justin Williams (GPL v3)
+ *
+ * Features:
+ * - FreeRTOS queue for async submissions
+ * - Callback mechanism for response tracking
+ * - Primary/backup pool failover
+ */
 
-#include "esphome/components/socket/socket.h"
-#include "esphome/components/wifi/wifi_component.h"
-
-#include <stdint.h>
-#include <ArduinoJson.h>
-
-#define MAX_MERKLE_BRANCHES 32
-#define HASH_SIZE 32
-#define COINBASE_SIZE 100
-#define COINBASE2_SIZE 128
-
-#define BUFFER 1024
+#include "stratum_types.h"
 
 namespace esphome {
 namespace nerdminer {
 
-typedef struct {
-  std::string sub_details;
-  std::string extranonce1;
-  std::string extranonce2;
-  int extranonce2_size;
-  char wName[80];
-  char wPass[20];
-} mining_subscribe;
+/**
+ * Initialize stratum subsystem
+ * Creates message queue and initializes state
+ */
+void stratum_init();
 
-typedef struct {
-  std::string job_id;
-  std::string prev_block_hash;
-  std::string coinb1;
-  std::string coinb2;
-  std::string nbits;
-  JsonArray merkle_branch;
-  std::string version;
-  uint32_t target;
-  std::string ntime;
-  bool clean_jobs;
-} mining_job;
+/**
+ * Main stratum task (runs on Core 0)
+ * Handles pool connection, message parsing, and submissions
+ */
+void stratum_task(void *param);
 
-typedef enum {
-  STRATUM_SUCCESS,
-  STRATUM_UNKNOWN,
-  STRATUM_PARSE_ERROR,
-  MINING_NOTIFY,
-  MINING_SET_DIFFICULTY
-} stratum_method;
+/**
+ * Submit a share to the pool
+ * Thread-safe - can be called from any task
+ *
+ * @param entry Share data to submit
+ * @return true if queued successfully
+ */
+bool stratum_submit_share(const submit_entry_t *entry);
 
-unsigned long getNextId(unsigned long id);
-bool verifyPayload(std::string &line);
-bool checkError(const JsonDocument doc);
+/**
+ * Force reconnect to pool
+ * Used after settings change
+ */
+void stratum_reconnect();
 
-// Method Mining.Subscribe
-mining_subscribe init_mining_subscribe(void);
-bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSubscribe);
-bool parse_mining_subscribe(std::string line, mining_subscribe &mSubscribe);
+/**
+ * Check if connected to pool
+ */
+bool stratum_is_connected();
 
-// Method Mining.Authorise
-bool tx_mining_auth(esphome::socket::Socket *client, const char *user, const char *pass);
-stratum_method parse_mining_method(std::string line);
-bool parse_mining_notify(std::string line, mining_job &mJob);
+/**
+ * Check if currently connected to backup pool
+ */
+bool stratum_is_backup();
 
-// Method Mining.Submit
-bool tx_mining_submit(esphome::socket::Socket *client, mining_subscribe mWorker, mining_job mJob, unsigned long nonce,
-                      unsigned long &submit_id);
+/**
+ * Get current pool URL
+ */
+const char *stratum_get_pool();
 
-// Difficulty Methods
-bool tx_suggest_difficulty(esphome::socket::Socket *client, double difficulty);
-bool parse_mining_set_difficulty(std::string line, double &difficulty);
-
-// ID Methods
-unsigned long parse_extract_id(const std::string &line);
+/**
+ * Set pool configuration
+ * @param workerName Optional worker name (appended as wallet.worker)
+ */
+void stratum_set_pool(const char *url, int port, const char *wallet, const char *password,
+                      const char *workerName = NULL);
 
 }  // namespace nerdminer
 }  // namespace esphome

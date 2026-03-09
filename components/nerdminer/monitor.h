@@ -1,34 +1,71 @@
 #pragma once
 
-#define NEXT_HALVING_EVENT 1050000  // 840000
-#define HALVING_BLOCKS 210000
+/*
+ * SparkMiner - Monitor Task
+ * Coordinates display updates and live stats fetching
+ */
 
 namespace esphome {
 namespace nerdminer {
 
-enum NMState { NM_Connecting, NM_Hashing };
+// Display data structure
+// NOTE: Using fixed char arrays instead of Arduino String to prevent heap fragmentation
+// The struct tag display_data_s is used by display_interface.h forward declaration
+struct display_data_t {
+  // Mining stats
+  uint64_t totalHashes;
+  double hashRate;
+  double bestDifficulty;
+  uint32_t sharesAccepted;
+  uint32_t sharesRejected;
+  uint32_t templates;
+  uint32_t blocks32;
+  uint32_t blocksFound;
+  uint32_t uptimeSeconds;
+  uint32_t avgLatency;  // Average pool latency in ms
+  uint32_t cpuMhz;      // CPU frequency in MHz
 
-typedef struct {
-  bool Status;
-  NMState NerdStatus;
-} monitor_data;
+  // Pool info
+  bool poolConnected;
+  const char *poolName;
+  double poolDifficulty;
+  int poolFailovers;  // Number of failovers (for warning color)
 
-typedef struct {
-  uint32_t totalMHashes;     // Total Hashes
-  uint32_t templates;        // Block Templates
-  double bestDiff;           // Best Difficulty
-  uint32_t completedShares;  // 32Bit Shares
-  uint64_t timeMining;       // Hores
-  uint32_t valids;           // Valid Blocks
-  double currentHashRate;    // Hashrate
-  uint32_t totalKHashes;     // KHashes
-} mining_data;
+  // Pool stats (from API) - fixed char arrays
+  int poolWorkersTotal;      // Total workers on pool
+  int poolWorkersAddress;    // Workers on your address
+  char poolHashrate[24];     // Pool total hashrate
+  char workerHashrate[24];   // Your combined worker hashrate
+  char addressBestDiff[24];  // Your best difficulty on pool
 
-void setup_monitor(void);
+  // Network info
+  bool wifiConnected;
+  int8_t wifiRssi;  // WiFi signal strength in dBm
+  const char *ipAddress;
 
-monitor_data getMonitorData();
-mining_data getMiningData();
-void updateMiningData(unsigned long mElapsed);
+  // Live stats (from API) - fixed char arrays
+  float btcPrice;
+  uint32_t blockHeight;
+  char networkHashrate[24];
+  char networkDifficulty[24];
+  int halfHourFee;
+
+  // Difficulty Adjustment
+  float difficultyProgress;
+  float difficultyChange;
+  uint32_t difficultyRetargetBlocks;
+};
+
+/**
+ * Initialize monitor subsystem
+ */
+void monitor_init();
+
+/**
+ * Monitor task (runs on Core 0)
+ * Updates display and fetches live stats periodically
+ */
+void monitor_task(void *param);
 
 }  // namespace nerdminer
 }  // namespace esphome

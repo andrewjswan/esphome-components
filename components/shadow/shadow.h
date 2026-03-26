@@ -29,8 +29,8 @@ class Shadow : public Component
   void dump_config() override;
 
   void set_script(script::Script<> *script);
-  void set_shadow_interval(uint8_t shadow_interval) { this->shadow_interval_ = shadow_interval; }
-  void set_startup_delay(uint8_t startup_delay) { this->startup_delay_ = startup_delay; }
+  void set_shadow_interval(uint32_t shadow_interval) { this->shadow_interval_ = shadow_interval; }
+  void set_startup_delay(uint32_t startup_delay) { this->startup_delay_ = startup_delay; }
   void set_shadow_priority(uint8_t shadow_priority) { this->shadow_priority_ = shadow_priority; }
 
 #ifdef USE_OTA_STATE_LISTENER

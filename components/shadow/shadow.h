@@ -8,10 +8,9 @@
 #include "esphome/components/ota/ota_backend.h"
 #endif
 
-namespace esphome {
-namespace shadow {
+namespace esphome::shadow {
 
-static const char *const SHADOW_VERSION = "2026.2.1";
+static const char *const SHADOW_VERSION = "2026.3.1";
 static const char *const TAG = "shadow";
 
 class Shadow : public Component
@@ -50,5 +49,4 @@ class Shadow : public Component
   static void shadow_function(void *params);
 };  // Shadow
 
-}  // namespace shadow
-}  // namespace esphome
+}  // namespace esphome::shadow

@@ -8,10 +8,9 @@
 #include "esphome/components/ota/ota_backend.h"
 #endif
 
-namespace esphome {
-namespace shadow {
+namespace esphome::shadow {
 
-static const char *const SHADOW_VERSION = "2026.2.1";
+static const char *const SHADOW_VERSION = "2026.3.1";
 static const char *const TAG = "shadow";
 
 class Shadow : public Component
@@ -41,8 +40,8 @@ class Shadow : public Component
  protected:
   TaskHandle_t shadow_handle{nullptr};
   script::Script<> *script{nullptr};
-  uint8_t shadow_interval_{60};
-  uint8_t startup_delay_{0};
+  uint32_t shadow_interval_{60};
+  uint32_t startup_delay_{0};
   uint8_t shadow_priority_{1};
 
   void execute_script();
@@ -50,5 +49,4 @@ class Shadow : public Component
   static void shadow_function(void *params);
 };  // Shadow
 
-}  // namespace shadow
-}  // namespace esphome
+}  // namespace esphome::shadow

@@ -1,8 +1,7 @@
 #include "shadow.h"
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace shadow {
+namespace esphome::shadow {
 
 void Shadow::setup() {
   ESP_LOGCONFIG(TAG, "Setting up shadow...");
@@ -87,5 +86,4 @@ void Shadow::dump_config() {
   ESP_LOGCONFIG(TAG, "      Proirity: %d", this->shadow_priority_);
 }  // dump_config()
 
-}  // namespace shadow
-}  // namespace esphome
+}  // namespace esphome::shadow

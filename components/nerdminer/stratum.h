@@ -8,15 +8,14 @@
 #include <stdint.h>
 #include <ArduinoJson.h>
 
+namespace esphome::nerdminer {
+
 #define MAX_MERKLE_BRANCHES 32
 #define HASH_SIZE 32
 #define COINBASE_SIZE 100
 #define COINBASE2_SIZE 128
 
 #define BUFFER 1024
-
-namespace esphome {
-namespace nerdminer {
 
 typedef struct {
   std::string sub_details;
@@ -73,5 +72,4 @@ bool parse_mining_set_difficulty(std::string line, double &difficulty);
 // ID Methods
 unsigned long parse_extract_id(const std::string &line);
 
-}  // namespace nerdminer
-}  // namespace esphome
+}  // namespace esphome::nerdminer

@@ -10,8 +10,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-namespace esphome {
-namespace nerdminer {
+namespace esphome::nerdminer {
 
 static const char *const TAG = "nerdminer";
 static const char *const NERDMINER_VERSION = "2026.2.1-1.7.0";
@@ -51,5 +50,4 @@ class NerdMiner : public Component
 
 };  // NerdMiner
 
-}  // namespace nerdminer
-}  // namespace esphome
+}  // namespace esphome::nerdminer

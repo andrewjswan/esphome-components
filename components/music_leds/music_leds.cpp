@@ -25,8 +25,7 @@
 #define NUM_GEQ_CHANNELS 16  // number of frequency channels. Don't change !!
 #define SAMPLES_FFT 512      // Samples in an FFT batch - This value MUST ALWAYS be a power of 2
 
-namespace esphome {
-namespace music_leds {
+namespace esphome::music_leds {
 
 static const uint32_t BUFFER_SIZE = sizeof(I2S_datatype) * SAMPLES_FFT;
 
@@ -1671,5 +1670,4 @@ void MusicLedsSoundLoopTrigger::process(float volume_smth, int16_t volume_raw, f
 }
 #endif
 
-}  // namespace music_leds
-}  // namespace esphome
+}  // namespace esphome::music_leds

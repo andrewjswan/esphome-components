@@ -3,8 +3,7 @@
 #define NEXT_HALVING_EVENT 1050000  // 840000
 #define HALVING_BLOCKS 210000
 
-namespace esphome {
-namespace nerdminer {
+namespace esphome::nerdminer {
 
 enum NMState { NM_Connecting, NM_Hashing };
 
@@ -30,5 +29,4 @@ monitor_data getMonitorData();
 mining_data getMiningData();
 void updateMiningData(unsigned long mElapsed);
 
-}  // namespace nerdminer
-}  // namespace esphome
+}  // namespace esphome::nerdminer

@@ -688,5 +688,4 @@ IRAM_ATTR bool nerd_sha256d_baked(const uint32_t *digest, const uint8_t *dataIn,
   return true;
 }
 
-}  // namespace nerdminer
-}  // namespace esphome
+}  // namespace esphome::nerdminer

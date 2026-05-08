@@ -1,8 +1,6 @@
 #pragma once
 
-/*
- * Created by dwight on 3/14/24.
- */
+namespace esphome::nerdminer {
 
 #define SECOND_MS 1000
 #define SECOND 1
@@ -12,3 +10,5 @@
 #define WEEK 7 * DAY        // 604,800 Seconds
 #define MONTH 30 * DAY      // 2,592,000 Seconds
 #define YEAR 365 * DAY      // 31,536,000 Seconds
+
+}  // namespace esphome::nerdminer

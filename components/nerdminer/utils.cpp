@@ -13,6 +13,10 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
+#include "utils.h"
+
+namespace esphome::nerdminer {
+
 // clang-format off
 #ifndef bswap_16
 #define bswap_16(a) ((((uint16_t)(a) << 8) & 0xff00) | (((uint16_t)(a) >> 8) & 0xff))
@@ -26,11 +30,6 @@
    (((uint32_t)(a) >> 24) & 0xff))
 #endif
 // clang-format on
-
-namespace esphome {
-namespace nerdminer {
-
-#include "utils.h"
 
 bool pool_connected(esphome::socket::Socket *sock) {
   if (sock == nullptr || sock->get_fd() < 0)
@@ -622,5 +621,4 @@ uint32_t crc32_add(uint32_t crc32, const void *data, size_t size) {
 
 uint32_t crc32_finish(uint32_t crc32) { return crc32 ^ 0xFFFFFFFF; }
 
-}  // namespace nerdminer
-}  // namespace esphome
+}  // namespace esphome::nerdminer

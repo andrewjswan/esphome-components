@@ -20,8 +20,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-namespace esphome {
-namespace nerdminer {
+namespace esphome::nerdminer {
 
 struct nerdSHA256_context {
   uint8_t buffer[64];
@@ -38,5 +37,4 @@ bool nerd_sha256d_baked(const uint32_t *digest, const uint8_t *dataIn, const uin
 
 void ByteReverseWords(uint32_t *out, const uint32_t *in, uint32_t byteCount);
 
-}  // namespace nerdminer
-}  // namespace esphome
+}  // namespace esphome::nerdminer

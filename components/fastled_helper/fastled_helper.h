@@ -1,7 +1,6 @@
 #pragma once
 
-namespace esphome {
-namespace fastled_helper {
+namespace esphome::fastled_helper {
 
 static const char *const FASTLED_HELPER_VERSION = "2025.10.1";
 static const char *const TAG = "fastled_helper";
@@ -16,5 +15,4 @@ class FastledHelper : public Component {
 #endif
 };  // FastledHelper
 
-}  // namespace fastled_helper
-}  // namespace esphome
+}  // namespace esphome::fastled_helper

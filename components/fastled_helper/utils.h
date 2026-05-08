@@ -6,8 +6,7 @@
 #include "palettes.h"
 #include "esphome/core/color.h"
 
-namespace esphome {
-namespace fastled_helper {
+namespace esphome::fastled_helper {
 
 #define ARRAY_SIZE(array) ((sizeof(array)) / (sizeof(array[0])))
 
@@ -430,5 +429,4 @@ static CRGB getCRGBForBand(int x, int pal) {
 
 #endif  // PALETTES
 
-}  // namespace fastled_helper
-}  // namespace esphome
+}  // namespace esphome::fastled_helper

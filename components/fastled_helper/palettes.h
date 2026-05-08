@@ -6,8 +6,7 @@
 
 #include <FastLED.h>
 
-namespace esphome {
-namespace fastled_helper {
+namespace esphome::fastled_helper {
 
 #undef DEFINE_GRADIENT_PALETTE
 
@@ -406,7 +405,6 @@ static CRGBPalette16 paletteArr[] = {
     bhw1_28_gp,
 };
 
-}  // namespace fastled_helper
-}  // namespace esphome
+}  // namespace esphome::fastled_helper
 
 #endif

@@ -1,7 +1,6 @@
 #include "esphome.h"
 
-namespace esphome {
-namespace fastled_helper {
+namespace esphome::fastled_helper {
 
 void FastledHelper::setup() {}  // setup()
 
@@ -32,5 +31,4 @@ void FastledHelper::dump_config() {
 #endif
 }  // dump_config()
 
-}  // namespace fastled_helper
-}  // namespace esphome
+}  // namespace esphome::fastled_helper

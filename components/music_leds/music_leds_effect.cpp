@@ -3,8 +3,7 @@
 #include "esphome/core/log.h"
 #include "esphome/core/helpers.h"
 
-namespace esphome {
-namespace music_leds {
+namespace esphome::music_leds {
 
 MusicLedsLightEffect::MusicLedsLightEffect(const char *name) : AddressableLightEffect(name) {}
 
@@ -26,5 +25,4 @@ void MusicLedsLightEffect::apply(light::AddressableLight &it, const Color &curre
   }
 }
 
-}  // namespace music_leds
-}  // namespace esphome
+}  // namespace esphome::music_leds

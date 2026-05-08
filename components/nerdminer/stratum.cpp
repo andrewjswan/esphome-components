@@ -10,8 +10,7 @@
 #include <string.h>
 #include <stdio.h>
 
-namespace esphome {
-namespace nerdminer {
+namespace esphome::nerdminer {
 
 JsonDocument doc;
 unsigned long id = 1;
@@ -276,5 +275,4 @@ unsigned long parse_extract_id(const std::string &line) {
   return doc["id"].as<unsigned long>();
 }
 
-}  // namespace nerdminer
-}  // namespace esphome
+}  // namespace esphome::nerdminer

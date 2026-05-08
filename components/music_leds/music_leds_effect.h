@@ -2,8 +2,7 @@
 
 #include "esphome/components/light/addressable_light_effect.h"
 
-namespace esphome {
-namespace music_leds {
+namespace esphome::music_leds {
 
 class MusicLeds;
 
@@ -22,5 +21,4 @@ class MusicLedsLightEffect : public light::AddressableLightEffect {
   MusicLeds *music_leds_{nullptr};
 };
 
-}  // namespace music_leds
-}  // namespace esphome
+}  // namespace esphome::music_leds

@@ -16,8 +16,7 @@
 
 #include <FastLED.h>
 
-namespace esphome {
-namespace music_leds {
+namespace esphome::music_leds {
 
 static const char *const TAG = "music_leds";
 static const char *const MUSIC_LEDS_VERSION = "2025.7.1";
@@ -212,5 +211,4 @@ class MusicLedsSoundLoopTrigger : public Trigger<float, int16_t, float, bool> {
 };  // class MusicLedsSoundLoopTrigger
 #endif
 
-}  // namespace music_leds
-}  // namespace esphome
+}  // namespace esphome::music_leds

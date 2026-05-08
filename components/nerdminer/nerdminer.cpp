@@ -9,11 +9,10 @@
 #include <esp_task_wdt.h>
 #include <soc/soc_caps.h>
 
+namespace esphome::nerdminer {
+
 // 15 minutes WDT for miner task
 #define WDT_MINER_TIMEOUT 900000
-
-namespace esphome {
-namespace nerdminer {
 
 void NerdMiner::setup() {
   ESP_LOGCONFIG(TAG, "Setting up NerdMiner...");
@@ -134,5 +133,4 @@ uint32_t NerdMiner::getKHashes() {
   return mData.totalKHashes;
 }  // getKHashes()
 
-}  // namespace nerdminer
-}  // namespace esphome
+}  // namespace esphome::nerdminer

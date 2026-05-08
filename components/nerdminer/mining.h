@@ -16,8 +16,7 @@
 
 #define TARGET_BUFFER_SIZE 64
 
-namespace esphome {
-namespace nerdminer {
+namespace esphome::nerdminer {
 
 typedef struct {
   uint8_t bytearray_target[32];
@@ -33,5 +32,4 @@ void minerWorkerHw(void *task_id);
 
 void resetStat();
 
-}  // namespace nerdminer
-}  // namespace esphome
+}  // namespace esphome::nerdminer

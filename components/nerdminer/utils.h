@@ -11,14 +11,13 @@
 #include "esphome/core/component.h"
 #include "esphome/components/socket/socket.h"
 
+namespace esphome::nerdminer {
+
 // General byte order swapping functions.
 
 #define bswap16(x) __bswap16(x)
 #define bswap32(x) __bswap32(x)
 #define bswap64(x) __bswap64(x)
-
-namespace esphome {
-namespace nerdminer {
 
 uint8_t hex(char ch);
 
@@ -40,5 +39,4 @@ uint32_t crc32_reset();
 uint32_t crc32_add(uint32_t crc32, const void *data, size_t size);
 uint32_t crc32_finish(uint32_t crc32);
 
-}  // namespace nerdminer
-}  // namespace esphome
+}  // namespace esphome::nerdminer

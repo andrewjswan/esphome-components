@@ -27,8 +27,7 @@
 #endif
 #endif
 
-namespace esphome {
-namespace nerdminer {
+namespace esphome::nerdminer {
 
 // Jobs per second
 #define NONCE_PER_JOB_SW 4096
@@ -1052,5 +1051,4 @@ void runMonitor(void *name) {
   }
 }
 
-}  // namespace nerdminer
-}  // namespace esphome
+}  // namespace esphome::nerdminer

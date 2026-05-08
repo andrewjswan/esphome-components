@@ -4,8 +4,7 @@
 
 #include <list>
 
-namespace esphome {
-namespace nerdminer {
+namespace esphome::nerdminer {
 
 extern uint32_t templates;
 extern uint32_t Mhashes;
@@ -69,5 +68,4 @@ void updateMiningData(unsigned long mElapsed) {
   mMining.valids = valids;
 }
 
-}  // namespace nerdminer
-}  // namespace esphome
+}  // namespace esphome::nerdminer

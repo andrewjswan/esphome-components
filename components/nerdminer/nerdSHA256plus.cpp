@@ -21,6 +21,8 @@
 #include <math.h>
 #include <string.h>
 
+namespace esphome::nerdminer {
+
 #define ROTR(x, n) ((x >> n) | (x << ((sizeof(x) << 3) - n)))
 
 #ifndef PUT_UINT32_BE
@@ -40,9 +42,6 @@
   (((uint32_t) (b)[(i)] << 24) | ((uint32_t) (b)[(i) + 1] << 16) | ((uint32_t) (b)[(i) + 2] << 8) | \
    ((uint32_t) (b)[(i) + 3]))
 #endif
-
-namespace esphome {
-namespace nerdminer {
 
 // DRAM_ATTR static const uint32_t K[] = {
 DRAM_ATTR static const uint32_t K[64] = {
@@ -689,5 +688,4 @@ IRAM_ATTR bool nerd_sha256d_baked(const uint32_t *digest, const uint8_t *dataIn,
   return true;
 }
 
-}  // namespace nerdminer
-}  // namespace esphome
+}  // namespace esphome::nerdminer

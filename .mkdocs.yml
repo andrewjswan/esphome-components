@@ -59,21 +59,36 @@ theme:
       accent: indigo
 
 markdown_extensions:
-  - pymdownx.highlight:
-      anchor_linenums: true
-      line_spans: __span
-      pygments_lang_class: true
-  - pymdownx.emoji:
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-  - pymdownx.inlinehilite
-  - pymdownx.snippets
-  - pymdownx.details
-  - pymdownx.superfences
+  - abbr
   - admonition
   - attr_list
   - codehilite
   - md_in_html
+  - sane_lists
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.magiclink:
+      hide_protocol: true
+      repo_url_shortener: true
+      repo_url_shorthand: true
+      normalize_issue_symbols: true
+      user: andrewjswan
+      repo: svitlobot
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tasklist
+  - toc:
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
 
 nav:
   - Home: index.md
@@ -84,6 +99,7 @@ nav:
       - NerdMiner: nerdminer.md
       - Music Leds | Sound Reactive: music-leds.md
   - Additionals: additionals.md
+  - Changelog: CHANGELOG.md
 
 extra:
   analytics:
@@ -92,6 +108,9 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/andrewjswan
+
+extra_css:
+  - stylesheets/github.css
 
 plugins:
   - social:

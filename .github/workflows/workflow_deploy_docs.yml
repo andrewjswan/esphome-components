@@ -18,6 +18,19 @@ jobs:
       - name: ⬇️ Check out Repo
         uses: actions/checkout@v6
 
+      - name: ⬇️ Checkout Changelog
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          sparse-checkout: |
+            CHANGELOG.md
+          sparse-checkout-cone-mode: false
+          path: changelog
+
+      - name: 💅 Copy Changelog to Docs
+        run: |
+          cp -R changelog/* docs/
+
       - name: 🎭 Setup Pages
         id: pages
         uses: actions/configure-pages@v6

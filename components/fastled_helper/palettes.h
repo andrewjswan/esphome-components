@@ -1,5 +1,7 @@
 #pragma once
 
+#include "esphome/core/defines.h"
+
 #ifdef PALETTES
 
 #define FASTLED_INTERNAL  // remove annoying pragma messages

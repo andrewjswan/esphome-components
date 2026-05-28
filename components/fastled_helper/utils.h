@@ -5,6 +5,7 @@
 #include "FastLED.h"
 #include "palettes.h"
 #include "esphome/core/color.h"
+#include "esphome/core/defines.h"
 
 namespace esphome::fastled_helper {
 

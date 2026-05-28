@@ -1,8 +1,11 @@
-#include "esphome.h"
+#include "fastled_helper.h"
+#include "palettes.h"
+#include "utils.h"
+
+#include "esphome/core/defines.h"
+#include "esphome/core/log.h"
 
 namespace esphome::fastled_helper {
-
-void FastledHelper::setup() {}  // setup()
 
 #ifdef PALETTES
 void FastledHelper::set_current_palette(int index) {

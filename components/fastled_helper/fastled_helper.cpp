@@ -1,5 +1,6 @@
 #include "fastled_helper.h"
 #include "palettes.h"
+#include "utils.h"
 
 #include "esphome/core/defines.h"
 #include "esphome/core/log.h"

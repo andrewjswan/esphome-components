@@ -1,5 +1,7 @@
 #pragma once
 
+#include "mining.h"
+
 #include "esphome/core/component.h"
 #include "esphome/core/defines.h"
 
@@ -35,6 +37,12 @@ class Duco : public Component
  protected:
   TaskHandle_t miner1_handle = nullptr;
   TaskHandle_t miner2_handle = nullptr;
+
+  MiningConfig *configuration = new MiningConfig(
+    DUCO_USER,
+    DUCO_WORKER,
+    DUCO_KEY
+  );
 
   static void duco_function(void *params);
 };  // Duco

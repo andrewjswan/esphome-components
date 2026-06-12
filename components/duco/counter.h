@@ -2,6 +2,8 @@
 
 #include <string.h>
 
+namespace esphome::duco {
+
 template <unsigned int max_digits>
 
 class Counter {
@@ -50,3 +52,5 @@ protected:
 };
 
 #endif
+
+}  // namespace esphome::duco

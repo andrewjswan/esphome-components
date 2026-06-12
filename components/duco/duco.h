@@ -36,6 +36,7 @@ class Duco : public Component
   TaskHandle_t miner1_handle = nullptr;
   TaskHandle_t miner2_handle = nullptr;
 
+  static void duco_function(void *params);
 };  // Duco
 
 }  // namespace esphome::duco

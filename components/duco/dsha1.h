@@ -1,5 +1,7 @@
 #pragma once
 
+namespace esphome::duco {
+
 class DSHA1 {
     
 public:
@@ -196,3 +198,5 @@ private:
     }
 };
 #endif
+
+}  // namespace esphome::duco

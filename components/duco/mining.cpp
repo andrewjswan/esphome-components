@@ -6,6 +6,8 @@
 #include "esphome/core/defines.h"
 #include "esphome/core/log.h"
 
+#include <algorithm>
+
 #if defined(ESP32)
 #include <esp_task_wdt.h>
 #endif
@@ -263,7 +265,8 @@ void MiningJob::submit(unsigned long counter, float hashrate, float elapsed_time
     waitForClientData();
     this->ping = millis() - ping_start;
 
-    if (this->client_buffer == "GOOD") {
+    bool is_good = (this->client_buffer.find("GOOD") != std::string::npos);
+    if (is_good) {
         this->accepted_share_count++;
     }
 
@@ -276,6 +279,7 @@ void MiningJob::submit(unsigned long counter, float hashrate, float elapsed_time
              elapsed_time_s,
              this->ping.load(),
              this->config->node_id.c_str());
+    this->client_buffer.clear(); 
 }
 
 bool MiningJob::parse() {
@@ -283,6 +287,9 @@ bool MiningJob::parse() {
         ESP_LOGE(TAG, "Core [%d] - Cannot parse empty or invalid client buffer", this->core);
         return false;
     }
+
+    this->client_buffer.erase(std::remove(this->client_buffer.begin(), this->client_buffer.end(), '\r'), this->client_buffer.end());
+    this->client_buffer.erase(std::remove(this->client_buffer.begin(), this->client_buffer.end(), '\n'), this->client_buffer.end());
 
     std::vector<std::string> tokens;
     size_t start = 0;
@@ -302,7 +309,7 @@ bool MiningJob::parse() {
         return false;
     }
 
-    this->last_block_hash = tokens[0];
+    this->last_block_hash = tokens[0] + ","; 
     this->expected_hash_str = tokens[1];
 
     hexStringToUint8Array(this->expected_hash_str, this->expected_hash, 20);

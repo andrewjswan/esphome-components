@@ -269,7 +269,7 @@ bool Duco::fetch_pool_node() {
   }
 
   std::string json_body = response.substr(json_start);
-  ESP_LOGI(TAG, "Extracted genuine JSON: %s", json_body.c_str());
+  ESP_LOGD(TAG, "Extracted genuine JSON: %s", json_body.c_str());
 
   bool parse_success = esphome::json::parse_json(json_body, [this](JsonObject root) -> bool {
     if (root["ip"].is<JsonVariant>() && root["port"].is<JsonVariant>()) {

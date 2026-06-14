@@ -320,12 +320,7 @@ bool MiningJob::parse() {
         ESP_LOGE(TAG, "Core [%d] - Difficulty token '%s' is not a valid number", this->core, tokens[2].c_str());
         return false;
     }
-
-    if (parsed_diff < 1000) {
-        this->difficulty = (static_cast<uint32_t>(parsed_diff) * 100) + 1;
-    } else {
-        this->difficulty = static_cast<uint32_t>(parsed_diff);
-    }
+    this->difficulty = (static_cast<uint32_t>(parsed_diff) * 100) + 1;
 
     return true;
 }

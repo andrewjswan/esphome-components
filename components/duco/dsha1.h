@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
 namespace esphome::duco {
 
 class DSHA1 {
@@ -197,6 +201,5 @@ private:
         *(uint64_t *)ptr = __builtin_bswap64(x);
     }
 };
-#endif
 
 }  // namespace esphome::duco

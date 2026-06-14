@@ -1,6 +1,8 @@
 #pragma once
 
-#include <string.h>
+#include <cstddef>
+#include <cstring>
+#include <algorithm>
 
 namespace esphome::duco {
 
@@ -41,7 +43,7 @@ protected:
     else {
       *c = '0';
       inc_string(c - 1);
-      len = max(max_digits - (c - buffer) + 1, len);
+      len = std::max(static_cast<size_t>(max_digits - (c - buffer) + 1), len);
     }
   }
 
@@ -50,7 +52,5 @@ protected:
   unsigned int val;
   size_t len;
 };
-
-#endif
 
 }  // namespace esphome::duco

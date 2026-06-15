@@ -51,28 +51,21 @@ void MiningJob::mine() {
       
     dsha1->reset().write((const unsigned char *)this->last_block_hash.c_str(), this->last_block_hash.length());
 
-    int start_time = micros();
-    max_micros_elapsed(start_time, 0);
-
-    for (Counter<10> counter; counter < this->difficulty; ++counter) {
+    uint32_t start_time = micros();
+    for (Counter<10> counter; counter < this->difficulty.load(); ++counter) {
         DSHA1 ctx = *dsha1;
         ctx.write((const unsigned char *)counter.c_str(), counter.strlen()).finalize(this->hashArray);
-        
-        #if defined(ESP32)
-            #define SYSTEM_TIMEOUT 10000 // 10ms for ESP32 to prevent watchdog panics
-        #else
-            #define SYSTEM_TIMEOUT 50000 // 50ms fallback
-        #endif
-        if (max_micros_elapsed(micros(), SYSTEM_TIMEOUT)) {
+
+        if (counter % 8000 == 0) {
             handleSystemEvents();
-        } 
+        }
 
         if (memcmp(this->expected_hash, this->hashArray, 20) == 0) {
-            unsigned long elapsed_micros  = micros() - start_time;
+            uint32_t elapsed_micros  = micros() - start_time;
             float elapsed_time_s = elapsed_micros * 0.000001f;
             this->share_count++;
 
-            float current_hashrate = 0.0f;
+            uint32_t current_hashrate = 0;
             if (elapsed_time_s > 0.0f) {
                 current_hashrate = counter / elapsed_time_s;
             } else {
@@ -89,14 +82,7 @@ void MiningJob::mine() {
             break; // Share found, exit loop to request the next job
         }
     }
-}
-
-bool MiningJob::max_micros_elapsed(unsigned long current, unsigned long max_elapsed) {
-    if ((current - this->last_micros_checkpoint) > max_elapsed) {
-        this->last_micros_checkpoint = current;
-        return true;
-    }
-    return false;
+    ESP_LOGD(TAG, "Core [%d] - Mine complete.", this->core);
 }
 
 void MiningJob::handleSystemEvents(void) {
@@ -232,7 +218,7 @@ void MiningJob::waitForClientData() {
     }
 }
 
-void MiningJob::submit(unsigned long counter, float hashrate, float elapsed_time_s) {
+void MiningJob::submit(uint32_t counter, uint32_t hashrate, float elapsed_time_s) {
     if (!this->config->is_ready) return;
     if (!this->is_connected || !this->client_sock) return;
 
@@ -251,6 +237,8 @@ void MiningJob::submit(unsigned long counter, float hashrate, float elapsed_time
     reply += std::to_string(this->config->WALLET_ID);
     reply += END_TOKEN;
 
+    ESP_LOGD(TAG, "Core [%d] - Sending share to pool: %s", this->core, reply.c_str());
+
     int sent_bytes = this->client_sock->send(reply.c_str(), reply.length(), 0);
     
     if (sent_bytes < 0) {
@@ -261,7 +249,7 @@ void MiningJob::submit(unsigned long counter, float hashrate, float elapsed_time
         return;
     }
 
-    unsigned long ping_start = millis();
+    uint32_t ping_start = millis();
     waitForClientData();
     this->ping = millis() - ping_start;
 
@@ -309,13 +297,13 @@ bool MiningJob::parse() {
         return false;
     }
 
-    this->last_block_hash = tokens[0] + ","; 
+    this->last_block_hash = tokens[0]; 
     this->expected_hash_str = tokens[1];
 
     hexStringToUint8Array(this->expected_hash_str, this->expected_hash, 20);
 
     char* endptr;
-    unsigned long parsed_diff = std::strtoul(tokens[2].c_str(), &endptr, 10);
+    uint32_t parsed_diff = std::strtoul(tokens[2].c_str(), &endptr, 10);
     if (endptr == tokens[2].c_str()) {
         ESP_LOGE(TAG, "Core [%d] - Difficulty token '%s' is not a valid number", this->core, tokens[2].c_str());
         return false;
@@ -326,11 +314,11 @@ bool MiningJob::parse() {
 }
 
 void MiningJob::askForJob() {
+    if (!this->config->is_ready) return;
     if (!this->is_connected || !this->client_sock) return;
 
     ESP_LOGI(TAG, "Core [%d] - Asking for a new job for user: %s", this->core, this->config->DUCO_USER.c_str());
 
-    // Базовая часть запроса, одинаковая для всех режимов
     std::string job_req = "JOB";
     job_req += SEP_TOKEN;
     job_req += this->config->DUCO_USER;
@@ -339,7 +327,6 @@ void MiningJob::askForJob() {
     job_req += SEP_TOKEN;
     job_req += this->config->MINER_KEY;
 
-    // Блок условной компиляции для датчиков (добавляем телеметрию, если она включена)
     #if defined(USE_DS18B20)
         sensors.requestTemperatures(); 
         float temp = sensors.getTempCByIndex(0);

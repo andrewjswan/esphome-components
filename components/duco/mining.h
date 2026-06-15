@@ -37,7 +37,7 @@ private:
     uint8_t hashArray[20];
     uint8_t expected_hash[20];
 
-    std::atomic<float> hashrate{0.0f};
+    std::atomic<uint32_t> hashrate{0};
     std::atomic<uint32_t> difficulty{0};
     std::atomic<uint32_t> share_count{0};
     std::atomic<uint32_t> accepted_share_count{0};
@@ -46,15 +46,13 @@ private:
     std::unique_ptr<esphome::socket::Socket> client_sock;
     bool is_connected = false;
 
-    uint32_t last_micros_checkpoint{0};
-    bool max_micros_elapsed(uint32_t current, uint32_t max_elapsed);
     void handleSystemEvents(void);
 
     uint8_t *hexStringToUint8Array(const std::string &hexString, uint8_t *uint8Array, const uint32_t arrayLength);
 
     void connectToNode();
     void waitForClientData();
-    void submit(uint32_t counter, float hashrate, float elapsed_time_s);
+    void submit(uint32_t counter, uint32_t hashrate, float elapsed_time_s);
     bool parse();
     void askForJob();
 

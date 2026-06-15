@@ -4,6 +4,7 @@
 #include "esphome/core/application.h"
 #include "esphome/core/defines.h"
 #include "esphome/core/log.h"
+#include "esphome/components/network/util.h"
 #include "esphome/components/socket/socket.h"
 #include "esphome/components/json/json_util.h"
 
@@ -39,7 +40,6 @@ void Duco::setup() {
   this->configuration->WALLET_ID = random(0, 2811);  // Needed for miner grouping in the wallet
 
   this->generate_identifier();
-  this->fetch_pool_node();
 
   this->start();
 }  // setup()
@@ -53,17 +53,16 @@ void Duco::on_ota_global_state(ota::OTAState state, float progress, uint8_t erro
 #endif
 
 void Duco::loop() {
-  if (this->configuration->is_ready) {
-    return;
-  }
+  if (!network::is_connected()) return;
+  if (this->configuration->is_ready) return;
 
   uint32_t current_time = millis();
-  if (current_time - this->last_fetch_time < 60000) {
+  if (this->last_fetch_time != 0 && (current_time - this->last_fetch_time < 60000)) {
     return; 
   }
 
   this->last_fetch_time = current_time;
-  ESP_LOGW(TAG, "Configuration is empty or invalid. Retrying fetch...");
+  ESP_LOGD(TAG, "Configuration is empty. Fetching...");
   this->fetch_pool_node();
 }
 

@@ -87,17 +87,37 @@ void NerdMiner::start() {
 }  // start()
 
 void NerdMiner::stop() {
-  vTaskDelete(miner0_handle);
-  miner0_handle = nullptr;
-  vTaskDelete(miner1_handle);
-  miner1_handle = nullptr;
+  if (miner0_handle != nullptr) {
+    esp_task_wdt_delete(miner0_handle);
+  }
+  #if (SOC_CPU_CORES_NUM >= 2)
+  if (miner1_handle != nullptr) {
+    esp_task_wdt_delete(miner1_handle);
+  }
+  #endif
 
-  vTaskDelete(stratum_handle);
-  stratum_handle = nullptr;
+  if (miner0_handle != nullptr) {
+    vTaskDelete(miner0_handle);
+    miner0_handle = nullptr;
+  }
 
-  vTaskDelete(monitor_handle);
-  monitor_handle = nullptr;
+  #if (SOC_CPU_CORES_NUM >= 2)
+  if (miner1_handle != nullptr) {
+    vTaskDelete(miner1_handle);
+    miner1_handle = nullptr;
+  }
+  #endif
 
+  if (stratum_handle != nullptr) {
+    vTaskDelete(stratum_handle);
+    stratum_handle = nullptr;
+  }
+
+  if (monitor_handle != nullptr) {
+    vTaskDelete(monitor_handle);
+    monitor_handle = nullptr;
+  }
+  
   ESP_LOGCONFIG(TAG, "NerdMiner stopped.");
 }  // stop()
 

@@ -76,12 +76,12 @@ void Duco::start() {
   esp_task_wdt_reconfigure(&wdt_config);
   
   this->job[0] = new MiningJob(0, this->configuration, this);
-  xTaskCreatePinnedToCore(Duco::duco_thread_entry, "Miner[0]", 10000, (void *)this->job[0], 1, &miner1_handle, 0);
+  xTaskCreatePinnedToCore(Duco::duco_thread_entry, "Miner/0", 10000, (void *)this->job[0], 1, &miner1_handle, 0);
   esp_task_wdt_add(miner1_handle);
 
 #if (SOC_CPU_CORES_NUM >= 2)
   this->job[1] = new MiningJob(1, this->configuration, this);
-  xTaskCreatePinnedToCore(Duco::duco_thread_entry, "Miner[1]", 10000, (void *)this->job[1], 1, &miner2_handle, 1);
+  xTaskCreatePinnedToCore(Duco::duco_thread_entry, "Miner/1", 10000, (void *)this->job[1], 1, &miner2_handle, 1);
   esp_task_wdt_add(miner2_handle);
 #endif
 

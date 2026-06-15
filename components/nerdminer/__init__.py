@@ -33,7 +33,7 @@ NERDMINER_SCHEMA = cv.Schema(
         cv.Required(CONF_WALLETID): cv.string,
         cv.Optional(CONF_WORKER, default="esphomeminer"): cv.string,
         cv.Optional(CONF_POOL, default="public-pool.io"): cv.string,
-        cv.Optional(CONF_POOL_PORT, default=21496): cv.port,
+        cv.Optional(CONF_POOL_PORT, default=3333): cv.port,
         cv.Optional(CONF_POOL_PASS, default="x"): cv.string,
     },
 )

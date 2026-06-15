@@ -70,7 +70,7 @@ void NerdMiner::stop() {
   if (miner2_handle != nullptr) {
     esp_task_wdt_delete(miner2_handle);
   }
-  #endif
+#endif
 
   if (miner1_handle != nullptr) {
     vTaskDelete(miner1_handle);

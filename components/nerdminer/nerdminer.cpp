@@ -82,7 +82,7 @@ void NerdMiner::stop() {
     vTaskDelete(miner2_handle);
     miner2_handle = nullptr;
   }
-  #endif
+#endif
 
   if (stratum_handle != nullptr) {
     vTaskDelete(stratum_handle);

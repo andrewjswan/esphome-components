@@ -77,7 +77,7 @@ void NerdMiner::stop() {
     miner1_handle = nullptr;
   }
 
-  #if (SOC_CPU_CORES_NUM >= 2)
+#if (SOC_CPU_CORES_NUM >= 2)
   if (miner2_handle != nullptr) {
     vTaskDelete(miner2_handle);
     miner2_handle = nullptr;

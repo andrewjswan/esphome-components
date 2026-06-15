@@ -13,7 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 
 CODEOWNERS = ["@andrewjswan"]
 
-DEPENDENCIES = ["wifi", "http_request"]
+DEPENDENCIES = ["wifi"]
 
 AUTO_LOAD = ["nerdminer", "socket"]
 

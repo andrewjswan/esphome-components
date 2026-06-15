@@ -66,7 +66,7 @@ void NerdMiner::stop() {
   if (miner1_handle != nullptr) {
     esp_task_wdt_delete(miner1_handle);
   }
-  #if (SOC_CPU_CORES_NUM >= 2)
+#if (SOC_CPU_CORES_NUM >= 2)
   if (miner2_handle != nullptr) {
     esp_task_wdt_delete(miner2_handle);
   }

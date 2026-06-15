@@ -46,7 +46,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Required(CONF_WALLETID): cv.string,
             cv.Optional(CONF_WORKER, default="esphomeminer"): cv.string,
             cv.Optional(CONF_POOL, default="public-pool.io"): cv.string,
-            cv.Optional(CONF_POOL_PORT, default=21496): cv.port,
+            cv.Optional(CONF_POOL_PORT, default=3333): cv.port,
             cv.Optional(CONF_POOL_PASS, default="x"): cv.string,
             cv.Optional(CONF_DIFFICULTY, default=0.0014): cv.one_of(*DIFFICULTY_VALUES, float=True),
         },

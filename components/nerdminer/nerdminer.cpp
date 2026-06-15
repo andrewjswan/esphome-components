@@ -93,7 +93,7 @@ void NerdMiner::stop() {
     vTaskDelete(monitor_handle);
     monitor_handle = nullptr;
   }
-  
+
   ESP_LOGCONFIG(TAG, "NerdMiner stopped.");
 }  // stop()
 

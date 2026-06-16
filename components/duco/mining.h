@@ -23,6 +23,12 @@ public:
 
     void mine();
 
+    std::atomic<uint32_t> hashrate{0};
+    std::atomic<uint32_t> difficulty{0};
+    std::atomic<uint32_t> share_count{0};
+    std::atomic<uint32_t> accepted_share_count{0};
+    std::atomic<uint32_t> ping{0};
+
 private:
     MiningConfig *config;
     Duco *parent;
@@ -31,20 +37,14 @@ private:
 
     DSHA1 *dsha1;
 
-    std::string client_buffer;
-    std::string last_block_hash;
-    std::string expected_hash_str;
+    std::string client_buffer{};
+    std::string last_block_hash{};
+    std::string expected_hash_str{};
     uint8_t hashArray[20];
     uint8_t expected_hash[20];
 
-    std::atomic<uint32_t> hashrate{0};
-    std::atomic<uint32_t> difficulty{0};
-    std::atomic<uint32_t> share_count{0};
-    std::atomic<uint32_t> accepted_share_count{0};
-    std::atomic<uint32_t> ping{0};
-
-    std::unique_ptr<esphome::socket::Socket> client_sock;
-    bool is_connected = false;
+    std::unique_ptr<esphome::socket::Socket> client_sock{nullptr};
+    bool is_connected{false};
 
     void handleSystemEvents(void);
 
@@ -55,11 +55,6 @@ private:
     void submit(uint32_t counter, uint32_t hashrate, float elapsed_time_s);
     bool parse();
     void askForJob();
-
-    const std::string &getLastBlockHash() const { return this->last_block_hash; }
-    const std::string &getExpectedHashStr() const { return this->expected_hash_str; }
-    const uint8_t *getExpectedHash() const { return this->expected_hash; }
-    uint32_t getDifficulty() const { return this->difficulty; }
 };
 
 }  // namespace esphome::duco

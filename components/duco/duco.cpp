@@ -299,45 +299,101 @@ bool Duco::fetch_pool_node() {
 void Duco::generate_identifier() {
     std::string auto_rig_name = "";
 
+    this->configuration->chip_id = esphome::str_upper_case(esphome::get_mac_address());
+    if (this->configuration->RIG_IDENTIFIER != "Auto")
+      return;
+
     #if defined(ESP8266)
-        char chip_buf[16];
-        snprintf(chip_buf, sizeof(chip_buf), "%X", ESP.getChipId());
-        this->configuration->chip_id = chip_buf;
-
-        if (this->configuration->RIG_IDENTIFIER != "Auto")
-            return;
-
-        auto_rig_name = "ESP8266-" + this->configuration->chip_id;
+        this->configuration->RIG_IDENTIFIER = "ESP8266-" + this->configuration->chip_id;
     #else
-        uint64_t chip_id_raw = ESP.getEfuseMac();
-        uint16_t chip_high = (uint16_t)(chip_id_raw >> 32);
-        uint32_t chip_low  = (uint32_t)chip_id_raw;
-        
-        char full_chip_buf[23];
-        snprintf(full_chip_buf, sizeof(full_chip_buf), "%04X%08X", chip_high, chip_low);
-
-        this->configuration->chip_id = full_chip_buf;
-
-        if (this->configuration->RIG_IDENTIFIER != "Auto")
-            return;
-
-        auto_rig_name = "ESP32-" + this->configuration->chip_id;
+        this->configuration->RIG_IDENTIFIER = "ESP32-" + this->configuration->chip_id;
     #endif 
 
-    std::transform(auto_rig_name.begin(), auto_rig_name.end(), auto_rig_name.begin(), ::toupper);
     this->configuration->RIG_IDENTIFIER = auto_rig_name;
 }
 
 void Duco::on_share_found_callback() {
   this->defer([this]() {
-    ESP_LOGI(TAG, "Share found event caught in the main ESPHome loop!");
-    // this->share_found_trigger_->trigger();
+    ESP_LOGD(TAG, "Share found event caught in the main ESPHome loop!");
+    this->share_found_callback.call();
   });
+}
+
+bool Duco::getMinerState() {
+  return this->configuration->is_ready.load();
+}
+
+std::string Duco::getPool() {
+  return this->configuration->host;
+}
+
+uint32_t Duco::getHashRate() {
+    uint32_t total_hashrate = 0;
+    for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
+        if (this->job[i] != nullptr) {
+            total_hashrate += this->job[i]->hashrate.load();
+        }
+    }
+    return total_hashrate / 1000;
+}
+
+uint32_t Duco::getTotalShares() {
+    uint32_t total_shares = 0;
+    for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
+        if (this->job[i] != nullptr) {
+            total_shares   += this->job[i]->share_count.load();
+        }
+    }
+    return total_shares;
+}
+
+uint32_t Duco::getAcceptedShares() {
+    uint32_t total_accepted = 0;
+    for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
+        if (this->job[i] != nullptr) {
+            total_accepted += this->job[i]->accepted_share_count.load();
+        }
+    }
+    return total_accepted;
+}
+
+uint32_t Duco::getDifficulty() {
+    for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
+        if (this->job[i] != nullptr) {
+            return this->job[i]->difficulty.load();
+        }
+    }
+    return 0;
+}
+
+float Duco::getShareRate() {
+    uint32_t total_secs = millis() / 1000;
+    if (total_secs > 0) {
+        return static_cast<float>(getTotalShares()) / total_secs;
+    }
+    return 0.0f;
+}
+
+float Duco::getAcceptedRate() {
+    uint32_t total_shares = getTotalShares();
+    if (total_shares > 0) {
+        return (static_cast<float>(getAcceptedShares()) * 100.0f) / total_shares;
+    }
+    return 0.0f;
+}
+
+uint32_t Duco::getPing() {
+    for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
+        if (this->job[i] != nullptr) {
+            return this->job[i]->ping.load();
+        }
+    }
+    return 0;
 }
 
 /*
 void Duco::print_and_display_report() {
-    float total_hashrate = 0.0f;
+    uint32_t total_hashrate = 0;
     uint32_t total_accepted = 0;
     uint32_t total_shares = 0;
     uint32_t current_ping = 0;
@@ -362,17 +418,6 @@ void Duco::print_and_display_report() {
 
     // 2. Calculate Uptime strictly using standard types (Safe from memory fragmentation)
     uint32_t total_secs = millis() / 1000;
-    int uptime_secs  = total_secs % 60;
-    int uptime_mins  = (total_secs / 60) % 60;
-    int uptime_hours = (total_secs / 3600) % 24;
-    int uptime_days  = total_secs / 86400;
-    
-    char uptime_buf[32];
-    if (uptime_days > 0) {
-        snprintf(uptime_buf, sizeof(uptime_buf), "%dd %dh %dm %ds", uptime_days, uptime_hours, uptime_mins, uptime_secs);
-    } else {
-        snprintf(uptime_buf, sizeof(uptime_buf), "%dh %dm %ds", uptime_hours, uptime_mins, uptime_secs);
-    }
 
     // 3. Calculate efficiency (Accept Rate) with division-by-zero protection
     float accept_rate = 100.0f;

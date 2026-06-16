@@ -4,10 +4,28 @@ import logging
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
+from esphome import automation
 from esphome.components import ota, socket
-from esphome.const import CONF_ID, CONF_KEY, CONF_NAME, CONF_USERNAME
+from esphome.const import CONF_ID, CONF_KEY, CONF_NAME, CONF_ON_STATE, CONF_USERNAME
 from esphome.core import CORE
 from esphome.types import ConfigType
+from esphome.components.esp32 import (
+    VARIANT_ESP32C2,
+    VARIANT_ESP32C3,
+    VARIANT_ESP32C5,
+    VARIANT_ESP32C6,
+    VARIANT_ESP32C61,
+    VARIANT_ESP32H2,
+    # VARIANT_ESP32H21,
+    VARIANT_ESP32S2,
+    get_esp32_variant,
+)
+single_core_variants = (
+    VARIANT_ESP32C2, VARIANT_ESP32C3, VARIANT_ESP32C5, 
+    VARIANT_ESP32C6, VARIANT_ESP32C61, VARIANT_ESP32H2, 
+    #VARIANT_ESP32H21, 
+    VARIANT_ESP32S2,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,24 +48,6 @@ def _consume_sockets(config: ConfigType) -> ConfigType:
     if CORE.is_esp8266:
         socket.consume_sockets(1, "duco")(config)
     elif CORE.is_esp32:
-        from esphome.components.esp32 import (
-            VARIANT_ESP32C2,
-            VARIANT_ESP32C3,
-            VARIANT_ESP32C5,
-            VARIANT_ESP32C6,
-            VARIANT_ESP32C61,
-            VARIANT_ESP32H2,
-            # VARIANT_ESP32H21,
-            VARIANT_ESP32S2,
-            get_esp32_variant,
-        )
-
-        single_core_variants = (
-            VARIANT_ESP32C2, VARIANT_ESP32C3, VARIANT_ESP32C5, 
-            VARIANT_ESP32C6, VARIANT_ESP32C61, VARIANT_ESP32H2, 
-            #VARIANT_ESP32H21, 
-            VARIANT_ESP32S2,
-        )
         if get_esp32_variant() in single_core_variants:
             socket.consume_sockets(1, "duco")(config)
         else:
@@ -62,6 +62,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Required(CONF_USERNAME): cv.string,
             cv.Required(CONF_KEY): cv.string,
             cv.Optional(CONF_NAME, default="Auto"): cv.string,
+            cv.Optional(CONF_ON_STATE) : automation.validate_automation({}),
         },
     ).extend(cv.COMPONENT_SCHEMA),
     _consume_sockets,
@@ -78,11 +79,19 @@ async def to_code(config) -> None:
     cg.add_define("DUCO_KEY", config[CONF_KEY])
     cg.add_define("DUCO_WORKER", config[CONF_NAME])
 
-    # if CORE.is_esp8266:
-    #     cg.add_define("DUCO_START_DIFF", "ESP8266H")
-    #     cg.add_define("DUCO_MINER_BANNER", "ESPHome ESP8266 Miner")
-    # elif CORE.is_esp32:
-    #     cg.add_define("DUCO_START_DIFF", "ESP32")
-    #     cg.add_define("DUCO_MINER_BANNER", "ESPHome ESP32 Miner")
+    if CORE.is_esp8266:
+        cg.add_define("DUCO_START_DIFF", "ESP8266H")
+        cg.add_define("DUCO_MINER_BANNER", "ESPHome ESP8266 Miner")
+    elif CORE.is_esp32:
+        if get_esp32_variant() in single_core_variants:
+            cg.add_define("DUCO_START_DIFF", "ESP32S")
+        else:
+            cg.add_define("DUCO_START_DIFF", "ESP32")
+        cg.add_define("DUCO_MINER_BANNER", "ESPHome " + get_esp32_variant() + " Miner")
 
     await cg.register_component(var, config)
+
+    for conf in config.get(CONF_ON_STATE, []):
+        await automation.build_callback_automation(
+            var, "add_on_share_found_callback", [], conf
+        )

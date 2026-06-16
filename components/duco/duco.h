@@ -17,7 +17,7 @@
 namespace esphome::duco {
 
 static const char *const TAG = "duco";
-static const char *const DUCO_VERSION = "2026.6.1";
+static const char *const DUCO_VERSION = "2026.6.3";
 
 struct MiningConfig {
     std::string DUCO_USER = "";
@@ -30,33 +30,6 @@ struct MiningConfig {
     std::string node_id = "";
     std::string host = "";
     uint16_t port = 0;
-
-    #if defined(ESP8266)
-      // "High-band" 8266 diff
-      static constexpr const char* START_DIFF = "ESP8266H";
-    #elif (SOC_CPU_CORES_NUM == 1)
-      // Single core 32 diff
-      static constexpr const char* START_DIFF = "ESP32S";
-    #else
-      // Normal 32 diff
-      static constexpr const char* START_DIFF = "ESP32";
-    #endif
-
-    #if defined(ESP8266)
-      #if defined(BLUSHYBOX)
-        static constexpr const char* MINER_BANNER = "ESPHome BlushyBox Miner (ESP8266)";
-      #else
-        static constexpr const char* MINER_BANNER = "ESPHome ESP8266 Miner";
-      #endif
-    #elif (SOC_CPU_CORES_NUM == 1)
-      static constexpr const char* MINER_BANNER = "ESPHome ESP32-C3/S2 Miner";
-    #else
-      #if defined(BLUSHYBOX)
-        static constexpr const char* MINER_BANNER = "ESPHome BlushyBox Miner (ESP32)";
-      #else
-        static constexpr const char* MINER_BANNER = "ESPHome ESP32 Miner";
-      #endif
-    #endif
 
     std::atomic<bool> is_ready{false};
 
@@ -86,6 +59,20 @@ class Duco : public Component
 
   void on_share_found_callback();
 
+  template<typename F> void add_on_share_found_callback(F &&callback) {
+    this->share_found_callback.add(std::forward<F>(callback));
+  }
+
+  bool getMinerState();
+  std::string getPool();
+  uint32_t getHashRate();
+  uint32_t getTotalShares();
+  uint32_t getAcceptedShares();
+  uint32_t getDifficulty();
+  float getShareRate();
+  float getAcceptedRate();
+  uint32_t getPing();
+  
  protected:
   uint32_t last_fetch_time{0}; 
 
@@ -99,6 +86,8 @@ class Duco : public Component
   void generate_identifier();
 
   static void duco_thread_entry(void *params);
+
+  CallbackManager<void()> share_found_callback;
 };  // Duco
 
 }  // namespace esphome::duco

@@ -52,7 +52,7 @@ void MiningJob::mine() {
     dsha1->reset().write((const unsigned char *)this->last_block_hash.c_str(), this->last_block_hash.length());
 
     uint32_t start_time = micros();
-    for (Counter<10> counter; counter < this->difficulty.load(); ++counter) {
+    for (Counter<10> counter; counter <= this->difficulty.load(); ++counter) {
         DSHA1 ctx = *dsha1;
         ctx.write((const unsigned char *)counter.c_str(), counter.strlen()).finalize(this->hashArray);
 
@@ -97,7 +97,7 @@ void MiningJob::handleSystemEvents(void) {
       vTaskDelay(pdMS_TO_TICKS(10)); 
     #else
       // ESP8266
-      delay(10);
+      esphome::delay(10);
     #endif
 }
 
@@ -226,7 +226,7 @@ void MiningJob::submit(uint32_t counter, uint32_t hashrate, float elapsed_time_s
     reply += SEP_TOKEN;
     reply += std::to_string(hashrate);
     reply += SEP_TOKEN;
-    reply += this->config->MINER_BANNER;
+    reply += DUCO_MINER_BANNER;
     reply += SPC_TOKEN;
     reply += this->config->MINER_VER;
     reply += SEP_TOKEN;
@@ -258,7 +258,7 @@ void MiningJob::submit(uint32_t counter, uint32_t hashrate, float elapsed_time_s
         this->accepted_share_count++;
     }
 
-    ESP_LOGD(TAG, "Core [%d] - %s share #%d (%lu) hashrate: %.2f kH/s (%.2fs) Ping: %lums (%s)",
+    ESP_LOGI(TAG, "Core [%d] - %s share #%d (%lu) hashrate: %.2f kH/s (%.2fs) Ping: %lums (%s)",
              this->core,
              this->client_buffer.c_str(),
              this->share_count.load(),
@@ -308,7 +308,7 @@ bool MiningJob::parse() {
         ESP_LOGE(TAG, "Core [%d] - Difficulty token '%s' is not a valid number", this->core, tokens[2].c_str());
         return false;
     }
-    this->difficulty = (static_cast<uint32_t>(parsed_diff) * 100) + 1;
+    this->difficulty = (static_cast<uint32_t>(parsed_diff) * 100);
 
     return true;
 }
@@ -323,7 +323,7 @@ void MiningJob::askForJob() {
     job_req += SEP_TOKEN;
     job_req += this->config->DUCO_USER;
     job_req += SEP_TOKEN;
-    job_req += this->config->START_DIFF;
+    job_req += DUCO_START_DIFF;
     job_req += SEP_TOKEN;
     job_req += this->config->MINER_KEY;
 

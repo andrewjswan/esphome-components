@@ -5,6 +5,10 @@
 #include "esphome/core/component.h"
 #include "esphome/core/defines.h"
 
+#ifdef USE_SENSOR
+#include "esphome/components/sensor/sensor.h"
+#endif
+
 #ifdef USE_OTA_STATE_LISTENER
 #include "esphome/components/ota/ota_backend.h"
 #endif
@@ -17,30 +21,30 @@
 namespace esphome::duco {
 
 static const char *const TAG = "duco";
-static const char *const DUCO_VERSION = "2026.6.3";
+static const char *const DUCO_VERSION = "2026.6.5";
 
 struct MiningConfig {
-    std::string DUCO_USER = "";
-    std::string RIG_IDENTIFIER = "";
-    std::string MINER_KEY = "";
-    std::string MINER_VER = DUCO_VERSION;
-    uint16_t WALLET_ID = 0;
+  std::string DUCO_USER = "";
+  std::string RIG_IDENTIFIER = "";
+  std::string MINER_KEY = "";
+  std::string MINER_VER = DUCO_VERSION;
+  uint16_t WALLET_ID = 0;
 
-    std::string chip_id = "";
-    std::string node_id = "";
-    std::string host = "";
-    uint16_t port = 0;
+  std::string chip_id = "";
+  std::string node_id = "";
+  std::string host = "";
+  uint16_t port = 0;
 
-    std::atomic<bool> is_ready{false};
+  std::atomic<bool> is_ready{false};
 
-    MiningConfig(std::string DUCO_USER, std::string RIG_IDENTIFIER, std::string MINER_KEY)
-            : DUCO_USER(DUCO_USER), RIG_IDENTIFIER(RIG_IDENTIFIER), MINER_KEY(MINER_KEY) {}
+  MiningConfig(std::string DUCO_USER, std::string RIG_IDENTIFIER, std::string MINER_KEY)
+      : DUCO_USER(DUCO_USER), RIG_IDENTIFIER(RIG_IDENTIFIER), MINER_KEY(MINER_KEY) {}
 };
 
 class Duco : public Component
 #ifdef USE_OTA_STATE_LISTENER
     ,
-                  public ota::OTAGlobalStateListener
+             public ota::OTAGlobalStateListener
 #endif
 {
  public:
@@ -52,6 +56,12 @@ class Duco : public Component
   void loop() override;
 
   void dump_config() override;
+
+#ifdef USE_SENSOR
+  void set_temperature_sensor(sensor::Sensor *temperature_sensor) { this->temperature_sensor_ = temperature_sensor; }
+  void set_humidity_sensor(sensor::Sensor *humidity_sensor) { this->humidity_sensor_ = humidity_sensor; }
+  void set_cputemp_sensor(sensor::Sensor *cputemp_sensor) { this->cputemp_sensor_ = cputemp_sensor; }
+#endif
 
 #ifdef USE_OTA_STATE_LISTENER
   void on_ota_global_state(ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) override;
@@ -72,15 +82,46 @@ class Duco : public Component
   float getShareRate();
   float getAcceptedRate();
   uint32_t getPing();
-  
+
+#ifdef USE_SENSOR
+  std::string get_temperature_string() const {
+    if (this->temperature_sensor_ != nullptr && this->temperature_sensor_->has_state()) {
+      return esphome::str_sprintf("Temp:%.1f%s", this->temperature_sensor_->get_state(),
+                                  this->temperature_sensor_->get_unit_of_measurement_ref().c_str());
+    }
+    return "";
+  }
+
+  std::string get_humidity_string() const {
+    if (this->humidity_sensor_ != nullptr && this->humidity_sensor_->has_state()) {
+      return esphome::str_sprintf("Hum:%.0f%%", this->humidity_sensor_->get_state());
+    }
+    return "";
+  }
+
+  std::string get_cputemp_string() const {
+    if (this->cputemp_sensor_ != nullptr && this->cputemp_sensor_->has_state()) {
+      return esphome::str_sprintf("CPU Temp:%.1f%s", this->cputemp_sensor_->get_state(),
+                                  this->cputemp_sensor_->get_unit_of_measurement_ref().c_str());
+    }
+    return "";
+  }
+#endif
+
  protected:
-  uint32_t last_fetch_time{0}; 
+  uint32_t last_fetch_time{0};
 
   TaskHandle_t miner1_handle{nullptr};
   TaskHandle_t miner2_handle{nullptr};
 
   MiningConfig *configuration{nullptr};
   MiningJob *job[SOC_CPU_CORES_NUM];
+
+#ifdef USE_SENSOR
+  sensor::Sensor *temperature_sensor_{nullptr};
+  sensor::Sensor *humidity_sensor_{nullptr};
+  sensor::Sensor *cputemp_sensor_{nullptr};
+#endif
 
   bool fetch_pool_node();
   void generate_identifier();

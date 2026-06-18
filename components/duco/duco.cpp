@@ -21,6 +21,7 @@
 
 namespace esphome::duco {
 
+#define CHECK_INTERVAL 60000
 // 15 minutes WDT for miner task
 #define WDT_MINER_TIMEOUT 900000
 
@@ -49,38 +50,44 @@ void Duco::on_ota_global_state(ota::OTAState state, float progress, uint8_t erro
 #endif
 
 void Duco::loop() {
-  if (!network::is_connected())
+  if (!network::is_connected()) {
+    this->configuration->is_ready = false;
     return;
+  }
+    
+  uint32_t current_time = millis();
+  if (current_time - this->last_check_time >= CHECK_INTERVAL) {
+    this->last_check_time = current_time;
+    check_for_problem();
+  }
+
   if (this->configuration->is_ready)
     return;
 
-  uint32_t current_time = millis();
-  if (this->last_fetch_time != 0 && (current_time - this->last_fetch_time < 60000)) {
+  if (this->last_fetch_time != 0 && (current_time - this->last_fetch_time < CHECK_INTERVAL)) {
     return;
   }
-
   this->last_fetch_time = current_time;
-  ESP_LOGD(TAG, "Configuration is empty. Fetching...");
   this->fetch_pool_node();
 }
 
 void Duco::start() {
-  esp_task_wdt_config_t wdt_config = {
-      .timeout_ms = WDT_MINER_TIMEOUT,
-      .idle_core_mask = (1 << SOC_CPU_CORES_NUM) - 1,  // Bitmask of all cores
-      .trigger_panic = true,
-  };
-  esp_task_wdt_init(&wdt_config);
-  esp_task_wdt_reconfigure(&wdt_config);
+//   esp_task_wdt_config_t wdt_config = {
+//       .timeout_ms = WDT_MINER_TIMEOUT,
+//       .idle_core_mask = (1 << SOC_CPU_CORES_NUM) - 1,  // Bitmask of all cores
+//       .trigger_panic = true,
+//   };
+//   esp_task_wdt_init(&wdt_config);
+//   esp_task_wdt_reconfigure(&wdt_config);
 
   this->job[0] = new MiningJob(0, this->configuration, this);
   xTaskCreatePinnedToCore(Duco::duco_thread_entry, "Miner/0", 10000, (void *) this->job[0], 1, &this->miner1_handle, 0);
-  esp_task_wdt_add(this->miner1_handle);
+//  esp_task_wdt_add(this->miner1_handle);
 
 #if (SOC_CPU_CORES_NUM >= 2)
   this->job[1] = new MiningJob(1, this->configuration, this);
   xTaskCreatePinnedToCore(Duco::duco_thread_entry, "Miner/1", 10000, (void *) this->job[1], 1, &this->miner2_handle, 1);
-  esp_task_wdt_add(this->miner2_handle);
+//  esp_task_wdt_add(this->miner2_handle);
 #endif
 
   ESP_LOGCONFIG(TAG, "Duco started...");
@@ -93,13 +100,13 @@ void Duco::stop() {
 
 #if defined(ESP32)
   if (this->miner1_handle != nullptr) {
-    esp_task_wdt_delete(this->miner1_handle);
+//    esp_task_wdt_delete(this->miner1_handle);
     vTaskDelete(this->miner1_handle);
     this->miner1_handle = nullptr;
   }
 #if (SOC_CPU_CORES_NUM >= 2)
   if (this->miner2_handle != nullptr) {
-    esp_task_wdt_delete(this->miner2_handle);
+//    esp_task_wdt_delete(this->miner2_handle);
     vTaskDelete(this->miner2_handle);
     this->miner2_handle = nullptr;
   }
@@ -134,7 +141,7 @@ void Duco::duco_thread_entry(void *params) {
 }  // duco_function()
 
 bool Duco::fetch_pool_node() {
-  ESP_LOGI(TAG, "Fetching active node from poolpicker...");
+  ESP_LOGI(TAG, "Fetching active node from Poolpicker...");
   this->configuration->is_ready = false;
 
   struct addrinfo hints;
@@ -324,6 +331,40 @@ void Duco::on_share_found_callback() {
     ESP_LOGD(TAG, "Share found event caught in the main ESPHome loop!");
     this->share_found_callback.call();
   });
+}
+
+void Duco::check_for_problem() {
+  bool should_restart = false;
+
+  for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
+    if (this->job[i] != nullptr) {
+      if (this->job[i]->problem()) {
+        ESP_LOGW(TAG, "Miner on Core[%d] has a problem!", i);
+        should_restart = true;
+      }
+    }
+  }
+
+  if (should_restart) {
+    esphome::delay(1000);
+    esphome::App.safe_reboot();
+  }
+}
+
+std::string Duco::getCoresStatus() {
+  std::string status = "";
+  status.reserve(SOC_CPU_CORES_NUM); 
+
+  for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
+    if (this->job[i] == nullptr) {
+      status += "-";
+    } else if (this->job[i]->problem()) {
+      status += "X";
+    } else {
+      status += "*";
+    }
+  }
+  return status;
 }
 
 bool Duco::getMinerState() { return this->configuration->is_ready.load(); }

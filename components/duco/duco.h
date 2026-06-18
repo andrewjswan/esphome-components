@@ -67,6 +67,9 @@ class Duco : public Component
   void on_ota_global_state(ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) override;
 #endif
 
+  void check_for_problem();
+  std::string getCoresStatus();
+
   void on_share_found_callback();
 
   template<typename F> void add_on_share_found_callback(F &&callback) {
@@ -110,6 +113,7 @@ class Duco : public Component
 
  protected:
   uint32_t last_fetch_time{0};
+  uint32_t last_check_time{0};
 
   TaskHandle_t miner1_handle{nullptr};
   TaskHandle_t miner2_handle{nullptr};

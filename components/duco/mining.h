@@ -12,6 +12,8 @@
 
 namespace esphome::duco {
 
+inline constexpr int8_t ERROR_THRESHOLD = 55;
+
 struct MiningConfig;
 class Duco;
 
@@ -21,6 +23,9 @@ class MiningJob {
   ~MiningJob() { delete this->dsha1; }
 
   void mine();
+  bool problem() const { 
+    return this->errors.load(std::memory_order_relaxed) >= ERROR_THRESHOLD; 
+  }
 
   std::atomic<uint32_t> hashrate{0};
   std::atomic<uint32_t> difficulty{0};
@@ -44,6 +49,7 @@ class MiningJob {
 
   std::unique_ptr<esphome::socket::Socket> client_sock{nullptr};
   bool is_connected{false};
+  std::atomic<uint32_t> errors{0};
 
   void handleSystemEvents(void);
 

@@ -61,7 +61,7 @@ void MiningJob::mine() {
     }
     if (!this->config->is_ready) {
       handleSystemEvents();
-      break;
+      return;
     }
 
     if (memcmp(this->expected_hash, this->hashArray, 20) == 0) {
@@ -92,7 +92,7 @@ void MiningJob::mine() {
 void MiningJob::handleSystemEvents(void) {
 // Reset the FreeRTOS Task Watchdog directly via ESP-IDF API
 #if defined(ESP32)
-  esp_task_wdt_reset();
+  // esp_task_wdt_reset();
 #endif
 
 #if defined(ESP32)
@@ -267,12 +267,21 @@ void MiningJob::submit(uint32_t counter, uint32_t hashrate, float elapsed_time_s
 
   bool is_good = (this->client_buffer.find("GOOD") != std::string::npos);
   if (is_good) {
+    this->errors = 0;
     this->accepted_share_count++;
+  } else {
+    this->errors++;
   }
 
-  ESP_LOGI(TAG, "Core [%d] - %s share #%d (%lu) hashrate: %.2f kH/s (%.2fs) Ping: %lums (%s)", this->core,
-           this->client_buffer.c_str(), this->share_count.load(), counter, hashrate / 1000.0f, elapsed_time_s,
-           this->ping.load(), this->config->node_id.c_str());
+  if (is_good) {
+    ESP_LOGI(TAG, "Core [%d] - %s share #%d (%lu) hashrate: %.2f kH/s (%.2fs) Ping: %lums (%s)", this->core,
+             this->client_buffer.c_str(), this->share_count.load(), counter, hashrate / 1000.0f, elapsed_time_s,
+             this->ping.load(), this->config->node_id.c_str());
+  } else {
+    ESP_LOGW(TAG, "Core [%d] - %s share #%d (%lu) hashrate: %.2f kH/s (%.2fs) Ping: %lums (%s)", this->core,
+             this->client_buffer.c_str(), this->share_count.load(), counter, hashrate / 1000.0f, elapsed_time_s,
+             this->ping.load(), this->config->node_id.c_str());
+  }
   this->client_buffer.clear();
 }
 
@@ -317,7 +326,6 @@ bool MiningJob::parse() {
     return false;
   }
   this->difficulty = (static_cast<uint32_t>(parsed_diff) * 100);
-
   return true;
 }
 
@@ -379,6 +387,7 @@ void MiningJob::askForJob() {
     ESP_LOGD(TAG, "Core [%d] - Parsed job: %s %s %lu", this->core, this->last_block_hash.c_str(),
              this->expected_hash_str.c_str(), this->difficulty.load());
   } else {
+    this->errors++;
     ESP_LOGE(TAG, "Core [%d] - Job parsing failed!", this->core);
   }
 }

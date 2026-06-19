@@ -5,8 +5,14 @@
 #include "esphome/core/component.h"
 #include "esphome/core/defines.h"
 
+#ifdef USE_BINARY_SENSOR
+#include "esphome/components/binary_sensor/binary_sensor.h"
+#endif
 #ifdef USE_SENSOR
 #include "esphome/components/sensor/sensor.h"
+#endif
+#ifdef USE_TEXT_SENSOR
+#include "esphome/components/text_sensor/text_sensor.h"
 #endif
 
 #ifdef USE_OTA_STATE_LISTENER
@@ -63,28 +69,34 @@ class Duco : public Component
   void set_cputemp_sensor(sensor::Sensor *cputemp_sensor) { this->cputemp_sensor_ = cputemp_sensor; }
 #endif
 
+#ifdef USE_BINARY_SENSOR
+  void set_status(binary_sensor::BinarySensor *status) { this->status_ = status; }
+#endif
+#ifdef USE_SENSOR
+  void set_hashrate(sensor::Sensor *hashrate) { hashrate_ = hashrate; }
+  void set_accepted_shares(sensor::Sensor *accepted_shares) { accepted_shares_ = accepted_shares; }
+  void set_total_shares(sensor::Sensor *total_shares) { total_shares_ = total_shares; }
+  void set_difficulty(sensor::Sensor *difficulty) { difficulty_ = difficulty; }
+  void set_share_rate(sensor::Sensor *share_rate) { share_rate_ = share_rate; }
+  void set_accept_rate(sensor::Sensor *accept_rate) { accept_rate_ = accept_rate; }
+  void set_ping(sensor::Sensor *ping) { ping_ = ping; }
+#endif
+#ifdef USE_TEXT_SENSOR
+  void set_pool(text_sensor::TextSensor *pool) { pool_ = pool; }
+  void set_cores_status(text_sensor::TextSensor *cores_status) { cores_status_ = cores_status; }
+#endif
+
 #ifdef USE_OTA_STATE_LISTENER
   void on_ota_global_state(ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) override;
 #endif
 
   void check_for_problem();
-  std::string getCoresStatus();
 
   void on_share_found_callback();
 
   template<typename F> void add_on_share_found_callback(F &&callback) {
     this->share_found_callback.add(std::forward<F>(callback));
   }
-
-  bool getMinerState();
-  std::string getPool();
-  uint32_t getHashRate();
-  uint32_t getTotalShares();
-  uint32_t getAcceptedShares();
-  uint32_t getDifficulty();
-  float getShareRate();
-  float getAcceptedRate();
-  uint32_t getPing();
 
 #ifdef USE_SENSOR
   std::string get_temperature_string() const {
@@ -112,8 +124,9 @@ class Duco : public Component
 #endif
 
  protected:
-  uint32_t last_fetch_time{0};
-  uint32_t last_check_time{0};
+  uint32_t last_fetch_time_{0};
+  uint32_t last_check_time_{0};
+  uint32_t last_sensor_update_{0};
 
   TaskHandle_t miner1_handle{nullptr};
   TaskHandle_t miner2_handle{nullptr};
@@ -127,6 +140,24 @@ class Duco : public Component
   sensor::Sensor *cputemp_sensor_{nullptr};
 #endif
 
+#ifdef USE_BINARY_SENSOR
+  binary_sensor::BinarySensor *status_{nullptr};
+#endif
+#ifdef USE_SENSOR
+  sensor::Sensor *hashrate_{nullptr};
+  sensor::Sensor *accepted_shares_{nullptr};
+  sensor::Sensor *total_shares_{nullptr};
+  sensor::Sensor *difficulty_{nullptr};
+  sensor::Sensor *share_rate_{nullptr};
+  sensor::Sensor *accept_rate_{nullptr};
+  sensor::Sensor *ping_{nullptr};
+#endif
+#ifdef USE_TEXT_SENSOR
+  text_sensor::TextSensor *pool_{nullptr};
+  text_sensor::TextSensor *cores_status_{nullptr};
+#endif
+
+  void update_sensors();
   bool fetch_pool_node();
   void generate_identifier();
 

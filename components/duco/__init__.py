@@ -52,7 +52,7 @@ logging.info("Load Duino Coin Miner (Duco) component https://github.com/andrewjs
 logging.info("If you like the Duino Coin Miner (Duco) component, you can support it with a star ⭐ on GitHub.")
 
 duco_ns = cg.esphome_ns.namespace("duco")
-DUCO_ = duco_ns.class_("Duco", cg.Component)
+DucoComponent = duco_ns.class_("Duco", cg.Component)
 
 CONF_CPU_TEMPERATURE = "cpu_temperature"
 
@@ -73,7 +73,7 @@ def _consume_sockets(config: ConfigType) -> ConfigType:
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
-            cv.Required(CONF_ID): cv.declare_id(DUCO_),
+            cv.Required(CONF_ID): cv.declare_id(DucoComponent),
             cv.Required(CONF_USERNAME): cv.string,
             cv.Required(CONF_KEY): cv.string,
             cv.Optional(CONF_NAME, default="Auto"): cv.string,

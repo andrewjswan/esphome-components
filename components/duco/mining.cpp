@@ -90,11 +90,6 @@ void MiningJob::mine() {
 }
 
 void MiningJob::handleSystemEvents(void) {
-// Reset the FreeRTOS Task Watchdog directly via ESP-IDF API
-#if defined(ESP32)
-  // esp_task_wdt_reset();
-#endif
-
 #if defined(ESP32)
   // Critical: Suspend the current thread for 10ms to let ESPHome run its automation loops.
   // pdMS_TO_TICKS(10) ensures that the tick-rate conversion is accurate across different ESP32 variants.

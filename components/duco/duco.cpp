@@ -10,7 +10,7 @@
 
 #include <algorithm>
 #include <cctype>
-#include <esp_task_wdt.h>
+// #include <esp_task_wdt.h>
 #include <soc/soc_caps.h>
 
 #if defined(USE_ESP32)
@@ -22,8 +22,7 @@
 namespace esphome::duco {
 
 #define CHECK_INTERVAL 60000
-// 15 minutes WDT for miner task
-#define WDT_MINER_TIMEOUT 900000
+#define UPDATE_INTERVAL 15000
 
 void Duco::setup() {
   ESP_LOGCONFIG(TAG, "Setting up Duco...");
@@ -33,9 +32,7 @@ void Duco::setup() {
 #endif
 
   this->configuration = new MiningConfig(DUCO_USERNAME, DUCO_WORKER, DUCO_KEY);
-
   this->configuration->WALLET_ID = random_uint32() % 2811;  // Needed for miner grouping in the wallet
-
   this->generate_identifier();
 
   this->start();
@@ -44,50 +41,43 @@ void Duco::setup() {
 #ifdef USE_OTA_STATE_LISTENER
 void Duco::on_ota_global_state(ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *comp) {
   if (state == ota::OTA_STARTED) {
+    this->disable_loop();
     this->stop();
   }
 }
 #endif
 
 void Duco::loop() {
+  this->update_sensors();
+
   if (!network::is_connected()) {
     this->configuration->is_ready = false;
     return;
   }
     
   uint32_t current_time = millis();
-  if (current_time - this->last_check_time >= CHECK_INTERVAL) {
-    this->last_check_time = current_time;
+  if (current_time - this->last_check_time_ >= CHECK_INTERVAL) {
+    this->last_check_time_ = current_time;
     check_for_problem();
   }
 
   if (this->configuration->is_ready)
     return;
 
-  if (this->last_fetch_time != 0 && (current_time - this->last_fetch_time < CHECK_INTERVAL)) {
+  if (this->last_fetch_time_ != 0 && (current_time - this->last_fetch_time_ < CHECK_INTERVAL)) {
     return;
   }
-  this->last_fetch_time = current_time;
+  this->last_fetch_time_ = current_time;
   this->fetch_pool_node();
 }
 
 void Duco::start() {
-//   esp_task_wdt_config_t wdt_config = {
-//       .timeout_ms = WDT_MINER_TIMEOUT,
-//       .idle_core_mask = (1 << SOC_CPU_CORES_NUM) - 1,  // Bitmask of all cores
-//       .trigger_panic = true,
-//   };
-//   esp_task_wdt_init(&wdt_config);
-//   esp_task_wdt_reconfigure(&wdt_config);
-
   this->job[0] = new MiningJob(0, this->configuration, this);
   xTaskCreatePinnedToCore(Duco::duco_thread_entry, "Miner/0", 10000, (void *) this->job[0], 1, &this->miner1_handle, 0);
-//  esp_task_wdt_add(this->miner1_handle);
 
 #if (SOC_CPU_CORES_NUM >= 2)
   this->job[1] = new MiningJob(1, this->configuration, this);
   xTaskCreatePinnedToCore(Duco::duco_thread_entry, "Miner/1", 10000, (void *) this->job[1], 1, &this->miner2_handle, 1);
-//  esp_task_wdt_add(this->miner2_handle);
 #endif
 
   ESP_LOGCONFIG(TAG, "Duco started...");
@@ -100,13 +90,11 @@ void Duco::stop() {
 
 #if defined(ESP32)
   if (this->miner1_handle != nullptr) {
-//    esp_task_wdt_delete(this->miner1_handle);
     vTaskDelete(this->miner1_handle);
     this->miner1_handle = nullptr;
   }
 #if (SOC_CPU_CORES_NUM >= 2)
   if (this->miner2_handle != nullptr) {
-//    esp_task_wdt_delete(this->miner2_handle);
     vTaskDelete(this->miner2_handle);
     this->miner2_handle = nullptr;
   }
@@ -122,6 +110,22 @@ void Duco::dump_config() {
   ESP_LOGCONFIG(TAG, "Duco version: %s", DUCO_VERSION);
   ESP_LOGCONFIG(TAG, "      Worker: %s", this->configuration->RIG_IDENTIFIER.c_str());
   ESP_LOGCONFIG(TAG, "       Cores: %d", SOC_CPU_CORES_NUM);
+#ifdef USE_BINARY_SENSOR
+  LOG_BINARY_SENSOR("  ", "Status", this->status_);
+#endif
+#ifdef USE_SENSOR
+  LOG_SENSOR("  ", "Accepted shares", this->accepted_shares_);
+  LOG_SENSOR("  ", "Total shares", this->total_shares_);
+  LOG_SENSOR("  ", "Difficulty", this->difficulty_);
+
+  LOG_SENSOR("  ", "Share rate", this->share_rate_);
+  LOG_SENSOR("  ", "Accept rate", this->accept_rate_);
+  LOG_SENSOR("  ", "Ping", this->ping_);
+#endif  
+#ifdef USE_TEXTSENSOR
+  LOG_SENSOR("  ", "Pool", this->pool_);
+  LOG_SENSOR("  ", "Cores status", this->cores_status_);
+#endif
 }  // dump_config()
 
 void Duco::duco_thread_entry(void *params) {
@@ -351,147 +355,108 @@ void Duco::check_for_problem() {
   }
 }
 
-std::string Duco::getCoresStatus() {
-  std::string status = "";
-  status.reserve(SOC_CPU_CORES_NUM); 
+void Duco::update_sensors() {
+  uint32_t current_time = millis();
+  bool is_system_ready = this->configuration->is_ready.load(std::memory_order_relaxed);
 
-  for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
-    if (this->job[i] == nullptr) {
-      status += "-";
-    } else if (this->job[i]->problem()) {
-      status += "X";
-    } else {
-      status += "*";
+#ifdef USE_BINARY_SENSOR
+  if (this->status_ != nullptr && this->status_->state != is_system_ready) {
+    this->status_->publish_state(is_system_ready);
+  }
+#endif
+
+  if (this->last_sensor_update_ == 0 || (current_time - this->last_sensor_update_ >= UPDATE_INTERVAL)) {
+    this->last_sensor_update_ = current_time;
+
+#ifdef USE_TEXT_SENSOR
+  if (this->cores_status_ != nullptr) {
+    std::string current_cores_status = "";
+    current_cores_status.reserve(SOC_CPU_CORES_NUM); 
+
+    for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
+      if (this->job[i] == nullptr) {
+        current_cores_status += "-";
+      } else if (this->job[i]->problem()) {
+        current_cores_status += "X";
+      } else {
+        current_cores_status += "*";
+      }
+    }
+    if (this->cores_status_->state != current_cores_status) {
+      this->cores_status_->publish_state(current_cores_status);
     }
   }
-  return status;
-}
+#endif
 
-bool Duco::getMinerState() { return this->configuration->is_ready.load(); }
-
-std::string Duco::getPool() { return this->configuration->host; }
-
-uint32_t Duco::getHashRate() {
-  uint32_t total_hashrate = 0;
-  for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
-    if (this->job[i] != nullptr) {
-      total_hashrate += this->job[i]->hashrate.load();
+#ifdef USE_SENSOR
+    if (!is_system_ready) {
+      if (this->hashrate_ != nullptr && !std::isnan(this->hashrate_->state)) {
+        this->hashrate_->publish_state(NAN);
+      }
+      if (this->ping_ != nullptr && !std::isnan(this->ping_->state)) {
+        this->ping_->publish_state(NAN);
+      }
+      if (this->share_rate_ != nullptr && !std::isnan(this->share_rate_->state)) {
+        this->share_rate_->publish_state(NAN);
+      }
+      return;
     }
-  }
-  return total_hashrate / 1000;
-}
 
-uint32_t Duco::getTotalShares() {
-  uint32_t total_shares = 0;
-  for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
-    if (this->job[i] != nullptr) {
-      total_shares += this->job[i]->share_count.load();
-    }
-  }
-  return total_shares;
-}
-
-uint32_t Duco::getAcceptedShares() {
-  uint32_t total_accepted = 0;
-  for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
-    if (this->job[i] != nullptr) {
-      total_accepted += this->job[i]->accepted_share_count.load();
-    }
-  }
-  return total_accepted;
-}
-
-uint32_t Duco::getDifficulty() {
-  for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
-    if (this->job[i] != nullptr) {
-      return this->job[i]->difficulty.load();
-    }
-  }
-  return 0;
-}
-
-float Duco::getShareRate() {
-  uint32_t total_secs = millis() / 1000;
-  if (total_secs > 0) {
-    return static_cast<float>(getTotalShares()) / total_secs;
-  }
-  return 0.0f;
-}
-
-float Duco::getAcceptedRate() {
-  uint32_t total_shares = getTotalShares();
-  if (total_shares > 0) {
-    return (static_cast<float>(getAcceptedShares()) * 100.0f) / total_shares;
-  }
-  return 0.0f;
-}
-
-uint32_t Duco::getPing() {
-  for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
-    if (this->job[i] != nullptr) {
-      return this->job[i]->ping.load();
-    }
-  }
-  return 0;
-}
-
-/*
-void Duco::print_and_display_report() {
     uint32_t total_hashrate = 0;
     uint32_t total_accepted = 0;
-    uint32_t total_shares = 0;
-    uint32_t current_ping = 0;
+    uint32_t total_shares_count = 0;
+    uint32_t max_ping = 0;
     uint32_t current_diff = 0;
 
-    // 1. Automatically traverse the workers array across all available CPU cores
     for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
-        if (this->job[i] != nullptr) {
-            // Using .load() for thread-safe atomic reading from Core 1 to Core 0
-            total_hashrate += this->job[i]->hashrate.load();
-            total_accepted += this->job[i]->accepted_share_count.load();
-            total_shares   += this->job[i]->share_count.load();
+      if (this->job[i] != nullptr) {
+        total_hashrate     += this->job[i]->hashrate.load(std::memory_order_relaxed);
+        total_accepted     += this->job[i]->accepted_share_count.load(std::memory_order_relaxed);
+        total_shares_count += this->job[i]->share_count.load(std::memory_order_relaxed);
+        
+        uint32_t j_ping = this->job[i]->ping.load(std::memory_order_relaxed);
+        if (j_ping > max_ping) max_ping = j_ping;
 
-            // Extract ping and difficulty from the first available active core
-            if (current_ping == 0) current_ping = this->job[i]->ping.load();
-            if (current_diff == 0) current_diff = this->job[i]->difficulty.load();
+        if (current_diff == 0) {
+          current_diff = this->job[i]->difficulty.load(std::memory_order_relaxed);
         }
+      }
     }
 
-    // Convert raw hashrate to kH/s
-    float hashrate_kH = total_hashrate / 1000.0f;
-
-    // 2. Calculate Uptime strictly using standard types (Safe from memory fragmentation)
-    uint32_t total_secs = millis() / 1000;
-
-    // 3. Calculate efficiency (Accept Rate) with division-by-zero protection
-    float accept_rate = 100.0f;
-    if (total_shares > 0) {
-        accept_rate = (static_cast<float>(total_accepted) * 100.0f) / total_shares;
+    if (this->hashrate_ != nullptr) {
+      this->hashrate_->publish_state(static_cast<float>(total_hashrate) / 1000.0f);
     }
 
-    // 4. Calculate shares found per second (Share Rate)
-    float sharerate = 0.0f;
-    if (total_secs > 0) {
-        sharerate = static_cast<float>(total_shares) / total_secs;
+    if (this->ping_ != nullptr) {
+      this->ping_->publish_state(max_ping);
     }
 
-    // 5. Output beautiful and clean metrics into the native ESPHome logger
-    ESP_LOGI("duco", "Report - Hashrate: %.1f kH/s | Accepted: %u/%u (%.1f%%) | Uptime: %s | ShareRate: %.1f/s | Ping:
-%ums", hashrate_kH, total_accepted, total_shares, accept_rate, uptime_buf, sharerate, current_ping);
+    if (this->accepted_shares_ != nullptr) {
+      this->accepted_shares_->publish_state(total_accepted);
+    }
+    if (this->total_shares_ != nullptr) {
+      this->total_shares_->publish_state(total_shares_count);
+    }
 
-    // 6. Forward processed data to your display output engine using standard std::string conversion
-    // If your display function expects raw 'const char*', append '.c_str()' to variables accordingly.
-    display_mining_results(
-        std::to_string(hashrate_kH),
-        std::to_string(total_accepted),
-        std::to_string(total_shares),
-        std::string(uptime_buf),
-        this->configuration->host, // Directly accesses the active pool IP stored in config
-        std::to_string(current_diff),
-        std::to_string(sharerate),
-        std::to_string(current_ping),
-        std::to_string(accept_rate)
-    );
+    if (this->difficulty_ != nullptr && this->difficulty_->state != current_diff) {
+      this->difficulty_->publish_state(current_diff);
+    }
+
+    if (this->accept_rate_ != nullptr && total_shares_count > 0) {
+      float a_rate = (static_cast<float>(total_accepted) / total_shares_count) * 100.0f;
+      this->accept_rate_->publish_state(a_rate);
+    }
+    if (this->share_rate_ != nullptr) {
+      float total_secs = static_cast<float>(millis()) / 1000.0f;
+      if (total_secs > 0.0f) {
+        float sharerate = static_cast<float>(total_shares_count) / total_secs;
+        this->share_rate_->publish_state(sharerate);
+      } else {
+        this->share_rate_->publish_state(0);
+      }
+    }
+#endif // USE_SENSOR
+  }
 }
-*/
+
 }  // namespace esphome::duco

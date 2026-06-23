@@ -26,7 +26,7 @@ External components for ESPHome
   [Shadow]: shadow.md
   [Fastled Helper]: fastled-helper.md
   [NerdMiner]: nerdminer.md
-  [Duco]: ducominer.md
   [Music Leds / Sound Reactive]: music-leds.md
   [CUBIC CM1106]: https://esphome.io/components/sensor/cm1106/
   [CUBIC PM2005/PM2105]: https://esphome.io/components/sensor/pm2005/
+  [Duco]: (https://andrewjswan.github.io/duco-miner/

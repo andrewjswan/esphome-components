@@ -29,4 +29,4 @@ External components for ESPHome
   [Music Leds / Sound Reactive]: music-leds.md
   [CUBIC CM1106]: https://esphome.io/components/sensor/cm1106/
   [CUBIC PM2005/PM2105]: https://esphome.io/components/sensor/pm2005/
-  [Duco]: (https://andrewjswan.github.io/duco-miner/
+  [Duco]: https://andrewjswan.github.io/duco-miner/

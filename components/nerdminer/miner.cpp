@@ -12,6 +12,7 @@
 #include <ArduinoJson.h>
 
 #if defined(CONFIG_IDF_TARGET_ESP32)
+#include <sha/sha_parallel_engine.h>  // esp_sha_try_lock_engine (permanent claim)
 #include <soc/dport_reg.h>
 #include <soc/hwcrypto_reg.h>
 #endif
@@ -22,13 +23,13 @@
 #include "nerdminer.h"
 #include "miner.h"
 #include "sha256_types.h"
-#include "sha256_hw.h"            // Hardware SHA-256 wrapper
-#include "sha256_ll.h"            // Low-level hardware SHA register access
-#include "sha256_s3.h"            // S3-specific SHA (proven working with self-test)
-#include "sha256_s3_dma.h"        // DMA-based SHA test
-#include "sha256_asm.h"           // Pipelined assembly mining (Core 1) - ESP32
-#include "sha256_pipelined_s3.h"  // Pipelined assembly mining (Core 1) - ESP32-S3
-#include "miner_sha256.h"         // BitsyMiner software SHA-256 (verification + Core 0)
+#include "sha256_hw.h"                // Hardware SHA-256 wrapper
+#include "sha256_ll.h"                // Low-level hardware SHA register access
+#include "sha256_s3.h"                // S3-specific SHA (proven working with self-test)
+#include "sha256_s3_dma.h"            // DMA-based SHA test
+#include "sha256_asm.h"               // Pipelined assembly mining (Core 1) - ESP32
+#include "sha256_pipelined_s3.h"      // Pipelined assembly mining (Core 1) - ESP32-S3
+#include "miner_sha256.h"             // BitsyMiner software SHA-256 (verification + Core 0)
 #include "stratum.h"
 #include "esp_random.h"
 
@@ -402,6 +403,30 @@ void miner_init() {
   ESP_LOGD(TAG, "[MINER] Initialized (Hardware SHA-256 via direct register access)");
   ESP_LOGD(TAG, "[MINER] Dual-core hardware SHA sharing enabled");
 
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    // Claim ALL SHA engine locks permanently on behalf of the mining
+    // assembly (which drives the SHA registers directly and never locks).
+    // mbedtls try-locks an engine and falls back to SOFTWARE when it's
+    // held - so TLS (direct HTTPS stats) can never touch the hardware
+    // mid-mine. Without this, a TLS hash interleaves with the pipelined
+    // assembly on the shared SHA_TEXT registers and both sides wedge:
+    // mining cores freeze in busy-waits and the TLS session hangs holding
+    // ~40KB heap (or trips the task WDT - the "HTTPS causes WDT crashes"
+    // that led to enableHttpsStats being disabled by default).
+    // ALL engines must be claimed, not just SHA-256: a TLS suite hashing
+    // with SHA-384 through a free engine corrupts the same registers.
+    // try-lock, not lock: SHA-384/512 share one lock and a blocking
+    // second acquisition deadlocks boot.
+    // Must run AFTER the self-tests above, which use mbedtls hardware SHA.
+    const esp_sha_type shaTypes[] = {SHA1, SHA2_256, SHA2_384, SHA2_512};
+    for (size_t i = 0; i < sizeof(shaTypes) / sizeof(shaTypes[0]); i++) {
+        bool claimed = esp_sha_try_lock_engine(shaTypes[i]);
+        ESP_LOGD(TAG, "[MINER] HW SHA engine %d %s\n", (int)shaTypes[i],
+                      claimed ? "claimed for mining" : "already covered");
+    }
+    ESP_LOGD(TAG, "[MINER] TLS/mbedtls will fall back to software SHA");
+#endif
+
 #ifdef BENCHMARK_SHA_VERSIONS
   run_sha_benchmark();
 #endif
@@ -535,15 +560,10 @@ void miner_task_core0(void *param) {
       header_swapped[i] = __builtin_bswap32(header_words[i]);
     }
 
-    // Try to compute hardware midstate if we can grab the mutex
-    bool hasHwMidstate = false;
-    if (!s_core1HasSha && xSemaphoreTake(s_shaMutex, 0) == pdTRUE) {
-      sha256_ll_acquire();
-      sha256_ll_midstate(hw_midstate, (const uint8_t *) header_swapped);
-      sha256_ll_release();
-      xSemaphoreGive(s_shaMutex);
-      hasHwMidstate = true;
-    }
+    // NOTE: the old opportunistic hardware-midstate grab was removed.
+    // Its result was never used (the loop below is pure software), and
+    // with the SHA engine locks now held permanently for Core 1's
+    // assembly, sha256_ll_acquire() here would deadlock this task.
 
     while (s_miningActive) {
       // Pure software SHA - no hardware contention with Core 1

@@ -19,7 +19,7 @@
 namespace esphome::music_leds {
 
 static const char *const TAG = "music_leds";
-static const char *const MUSIC_LEDS_VERSION = "2025.7.1";
+static const char *const MUSIC_LEDS_VERSION = "2026.7.1";
 
 enum PLAYMODE {
   MODE_GRAV,
@@ -46,10 +46,10 @@ enum State : uint8_t { STOPPED = 0, STARTING, RUNNING, STOPPING };
 class MusicLedsSoundLoopTrigger;
 #endif
 
-class MusicLeds : public Component
+class MusicLeds final : public Component
 #ifdef USE_OTA_STATE_LISTENER
     ,
-                  public ota::OTAGlobalStateListener
+                        public ota::OTAGlobalStateListener
 #endif
 {
  public:

@@ -13,12 +13,12 @@
 namespace esphome::nerdminer {
 
 static const char *const TAG = "nerdminer";
-static const char *const NERDMINER_VERSION = "2026.2.1-1.7.0";
+static const char *const NERDMINER_VERSION = "2026.7.1-1.7.0";
 
-class NerdMiner : public Component
+class NerdMiner final : public Component
 #ifdef USE_OTA_STATE_LISTENER
     ,
-                  public ota::OTAGlobalStateListener
+                        public ota::OTAGlobalStateListener
 #endif
 {
  public:

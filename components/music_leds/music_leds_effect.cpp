@@ -8,7 +8,7 @@ namespace esphome::music_leds {
 MusicLedsLightEffect::MusicLedsLightEffect(const char *name) : AddressableLightEffect(name) {}
 
 void MusicLedsLightEffect::start() {
-  ESP_LOGD(TAG, "Effect: %s", this->get_name());
+  ESP_LOGD(TAG, "Effect: %s", this->get_name().c_str());
 
   if (this->music_leds_) {
     this->music_leds_->StartFrame();

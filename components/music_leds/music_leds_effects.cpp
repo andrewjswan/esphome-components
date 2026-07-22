@@ -341,14 +341,14 @@ void MusicLeds::visualize_midnoise(CRGB *physic_leds) {  // Midnoise. By Andrew 
   static int y = 0;
 
   // Smoothly fade out old pixels based on speed setting
-  fastled_helper::fade_out(physic_leds, this->leds_num, 
-                          (static_cast<int>(this->speed) * static_cast<int>(this->speed)) / 255, 
+  fastled_helper::fade_out(physic_leds, this->leds_num,
+                          (static_cast<int>(this->speed) * static_cast<int>(this->speed)) / 255,
                           this->back_color);
 
   // --- OPTIMIZED AUDIO PIPELINE INTEGRATION ---
   // Using maximum 32-bit floating point precision for sub-pixel noise smoothness
   float tmpSound = this->features_.smoothed_volume * 255.0f;
-  
+
   // Condense complex division scale chains into a single high-performance math expression
   float variant_factor = static_cast<float>(this->variant);
   float tmpSound2 = tmpSound * (variant_factor * variant_factor) / 32768.0f;
@@ -362,7 +362,7 @@ void MusicLeds::visualize_midnoise(CRGB *physic_leds) {  // Midnoise. By Andrew 
   // Generate dynamic Perlin Noise texture expanding symmetrically from the center
   for (int i = (this->leds_num / 2 - maxLen); i < (this->leds_num / 2 + maxLen); i++) {
     // Inject the raw audio volume directly into the noise coordinates to warp the texture with audio waves
-    uint8_t index = fastled_helper::perlin8(static_cast<uint16_t>(i * tmpSound + x), 
+    uint8_t index = fastled_helper::perlin8(static_cast<uint16_t>(i * tmpSound + x),
                                             static_cast<uint16_t>(y + i * tmpSound));
     physic_leds[i] = fastled_helper::color_from_palette(index, this->main_color);
   }
@@ -567,10 +567,10 @@ void MusicLeds::puddles_base(CRGB *physic_leds, bool peakdetect) {
       // Calculate flash length inside safe float boundaries to eliminate wrap-around bugs
       float volume_scaled = this->features_.smoothed_volume * 255.0f;
       float variant_factor = static_cast<float>(this->variant);
-      
+
       // Replicating original scaling logic but optimized: /256/4 is mathematically close to /1024
       size = static_cast<unsigned>((volume_scaled * variant_factor) / 1024.0f) + 1;
-      
+
       if (pos + size >= this->leds_num) {
         size = this->leds_num - pos;
       }
@@ -578,13 +578,13 @@ void MusicLeds::puddles_base(CRGB *physic_leds, bool peakdetect) {
   } else {  // --- PUDDLES STANDARD MODE ---
     // Link straight to our fresh frame-local raw volume transient tracker
     if (this->features_.raw_volume > 0.01f) {
-      
+
       float raw_volume_scaled = this->features_.raw_volume * 255.0f;
       float variant_factor = static_cast<float>(this->variant);
-      
+
       // Replicating original scaling logic but optimized: /256/8 is mathematically close to /2048
       size = static_cast<unsigned>((raw_volume_scaled * variant_factor) / 2048.0f) + 1;
-      
+
       if (pos + size >= this->leds_num) {
         size = this->leds_num - pos;
       }
@@ -628,7 +628,7 @@ void MusicLeds::visualize_DJLight(CRGB *physic_leds) {  // DJLight. Written by ?
     uint8_t b = static_cast<uint8_t>(this->features_.high_energy * 127.5f);
 
     CRGB color = CRGB(r, g, b);
-    
+
     // Scale central pixel dynamic dampening using midrange instrumentation energy
     // Map float [0.0f .. 1.0f] into inverted fade mask [255 .. 4]
     uint8_t fade_amount = static_cast<uint8_t>(4.0f + (251.0f * (1.0f - this->features_.mid_energy)));
@@ -662,7 +662,7 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds) { // Waterfall. By: Andre
     this->store = secondHand;
 
     float current_pitch = this->features_.dominant_frequency_hz;
-    
+
     // Andrew Tuline's native base-10 logarithmic pitch-to-palette index mapping
     uint8_t pixCol = 0;
     if (current_pitch >= 182.0f) {
@@ -678,7 +678,7 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds) { // Waterfall. By: Andre
       uint8_t blend_amount = this->features_.volume_smth();
 
       pixels[k] = fastled_helper::color_blend(
-          this->back_color, 
+          this->back_color,
           fastled_helper::color_from_palette(pixCol + this->variant, this->main_color),
           blend_amount
       );

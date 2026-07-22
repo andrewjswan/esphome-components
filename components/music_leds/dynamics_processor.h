@@ -29,7 +29,7 @@ class DynamicsProcessor {
     uint32_t now = micros();
     uint32_t delta_micros = now - this->last_execution_time_;
     this->last_execution_time_ = now;
-    
+
     // Fallback filter capping extreme unexpected thread scheduling gaps
     float delta_ms = static_cast<float>(delta_micros) / 1000.0f;
     if (delta_ms > 200.0f) delta_ms = 20.0f;
@@ -43,7 +43,7 @@ class DynamicsProcessor {
 
     float safe_vol_peak = std::max(this->vol_agc_peak_, 0.05f);
     float normalized_vol = std::clamp(raw_vol / safe_vol_peak, 0.0f, 1.0f);
-    
+
     // Traditional exponential smoothing for the overall global loudness envelope
     float vol_coeff = (normalized_vol > smoothed_vol) ? 0.35f : 0.06f;
     smoothed_vol = (vol_coeff * normalized_vol) + ((1.0f - vol_coeff) * smoothed_vol);
@@ -56,7 +56,7 @@ class DynamicsProcessor {
 
  private:
   uint32_t last_execution_time_{0};
-  
+
   // Persistent tracking fields for AGC history
   float vol_agc_peak_{0.05f};
   float bass_agc_peak_{0.05f};

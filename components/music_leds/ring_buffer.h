@@ -36,7 +36,7 @@ class RingBuffer {
 
     size_t write_overwrite(const T *data, size_t count) {
         if (count == 0) return 0;
-        
+
         // If incoming batch is larger than total capacity, take only the last N elements
         if (count > N) {
           data += (count - N);
@@ -46,7 +46,7 @@ class RingBuffer {
         size_t sz = RING_LOAD(size_);
         size_t space = N - sz;
 
-        // If there isn't enough space, forcefully advance the read pointer 
+        // If there isn't enough space, forcefully advance the read pointer
         // to evict the exact amount of oldest samples before copying the new block
         if (count > space) {
             size_t to_evict = count - space;

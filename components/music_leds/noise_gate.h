@@ -10,7 +10,7 @@ class NoiseGate {
    * @brief Explicit constructor defining the strict silence floor threshold.
    * @param threshold_floor Minimum raw volume magnitude to allow signal propagation.
    */
-  explicit NoiseGate(float threshold_floor = 0.05f) 
+  explicit NoiseGate(float threshold_floor = 0.05f)
       : threshold_floor_(threshold_floor) {}
 
   /**
@@ -38,4 +38,3 @@ class NoiseGate {
 };
 
 }  // namespace esphome::music_leds
-

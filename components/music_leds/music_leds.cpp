@@ -82,7 +82,7 @@ void MusicLeds::setup() {
 #ifdef DEBUG
     static uint32_t last_cb_log = 0;
     if (millis() - last_cb_log > 2000) {
-      ESP_LOGD(TAG, "DEBUG AUDIO: Callback triggered. Vector bytes: %d | Ring available: %d/%d", 
+      ESP_LOGD(TAG, "DEBUG AUDIO: Callback triggered. Vector bytes: %d | Ring available: %d/%d",
                data.size(), this->ring_buffer_.available(), RING_BUFFER_SIZE);
       last_cb_log = millis();
     }
@@ -101,7 +101,7 @@ void MusicLeds::setup() {
   this->beat_detector_ = std::make_unique<BeatDetector>(65);           // Sensitivity 65 (1-100)
   this->peak_latch_ = std::make_unique<PeakLatch>(100, 80, 50, 0.5f);  // 100ms freq lockout, 80ms vol lockout, 50ms hold window, 0.5 threshold
   this->noise_gate_ = std::make_unique<NoiseGate>(0.05f);              // 0.05f silence floor threshold
-  this->pre_amplifier_ = std::make_unique<PreAmplifier>(4.5f); 
+  this->pre_amplifier_ = std::make_unique<PreAmplifier>(4.5f);
 
   ESP_LOGCONFIG(TAG, "Music Leds initialized");
   this->start();
@@ -278,10 +278,10 @@ void MusicLeds::on_loop() {
   if ((event_group_bits & EventGroupBits::TASK_INFO)) {
     static uint32_t last_task_log = 0;
     if (millis() - last_task_log > 2000) {
-      ESP_LOGE(TAG, "DEBUG LOOP: Samples: High: %f | volumeSmth: %f | Bass: %f | Mid: %f", 
-               this->features_.high_energy, 
-               this->features_.smoothed_volume, 
-               this->features_.bass_energy, 
+      ESP_LOGE(TAG, "DEBUG LOOP: Samples: High: %f | volumeSmth: %f | Bass: %f | Mid: %f",
+               this->features_.high_energy,
+               this->features_.smoothed_volume,
+               this->features_.bass_energy,
                this->features_.mid_energy);
       last_task_log = millis();
     }
@@ -326,7 +326,7 @@ void MusicLeds::process_audio_to_ring_(const std::vector<uint8_t> &data) {
   for (uint32_t frame_index = 0; frame_index < total_frames; ++frame_index) {
     float frame_mono_mix = 0.0f;
     for (uint32_t channel_index = 0; channel_index < source_channels; ++channel_index) {
-      const uint32_t sample_index = (frame_index * source_bytes_per_frame) + 
+      const uint32_t sample_index = (frame_index * source_bytes_per_frame) +
                                     (channel_index * source_bytes_per_sample);
 
       // Unpack raw hardware bytes natively using ESPHome's internal adaptive bit-depth parser
@@ -403,8 +403,8 @@ void MusicLeds::FFTcode(void *parameter) {
     );
 
     // Compute raw preliminary mean volume to feed the AGC dynamics engine directly
-    float raw_volume_bridge = (this_task->features_.bass_energy + 
-                               this_task->features_.mid_energy + 
+    float raw_volume_bridge = (this_task->features_.bass_energy +
+                               this_task->features_.mid_energy +
                                this_task->features_.high_energy) / 3.0f;
 
     // Apply temporal rate limiting and AGC normalization
@@ -418,8 +418,8 @@ void MusicLeds::FFTcode(void *parameter) {
     );
 
     // Re-compute final calibrated mean volume from the clean normalized bands
-    raw_volume_bridge  = (this_task->features_.bass_energy + 
-                          this_task->features_.mid_energy + 
+    raw_volume_bridge  = (this_task->features_.bass_energy +
+                          this_task->features_.mid_energy +
                           this_task->features_.high_energy) / 3.0f;
 
     // Transient Beat Onset Detection runs on normalized energy
@@ -450,9 +450,9 @@ void MusicLeds::FFTcode(void *parameter) {
 #ifdef DEBUG
     if (millis() - last_task_log >= 2000) {
       ESP_LOGD(TAG, "DEBUG_FEATURES: DSP Done -> VolRaw: %.3f | VolSmth: %.3f | Bass: %.3f | Mid: %.3f | Beat: %d | Peak: %d",
-               this_task->features_.raw_volume, 
-               this_task->features_.smoothed_volume, 
-               this_task->features_.bass_energy, 
+               this_task->features_.raw_volume,
+               this_task->features_.smoothed_volume,
+               this_task->features_.bass_energy,
                this_task->features_.mid_energy,
                this_task->features_.is_beat_detected,
                this_task->features_.sample_peak);

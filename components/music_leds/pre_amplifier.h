@@ -8,7 +8,7 @@ class PreAmplifier {
    * @brief Explicit constructor defining the default hardware DSP gain multiplier.
    * @param dynamic_gain Input multiplier constant matching microphone dynamic curves.
    */
-  explicit PreAmplifier(float dynamic_gain = 4.5f) 
+  explicit PreAmplifier(float dynamic_gain = 4.5f)
       : dynamic_gain_(dynamic_gain) {}
 
   /**

@@ -9,8 +9,8 @@ class PeakLatch {
   /**
    * @brief Explicit constructor to define timing windows and the volume jump threshold.
    */
-  explicit PeakLatch(uint32_t frequency_lockout_ms = 100, 
-                     uint32_t volume_lockout_ms = 80, 
+  explicit PeakLatch(uint32_t frequency_lockout_ms = 100,
+                     uint32_t volume_lockout_ms = 80,
                      uint32_t hold_ms = 50,
                      float volume_threshold = 0.5f)
       : freq_lockout_ms_(frequency_lockout_ms),
@@ -43,7 +43,7 @@ class PeakLatch {
     if (raw_volume > this->sample_max_) {
       // Smoothly adjust internal tracking register (filtering the envelope rise)
       this->sample_max_ += 0.5f * (raw_volume - this->sample_max_);
-      
+
       // Secondary fallback logic: fires on intense un-metered loudness jumps (Matching legacy backup)
       if ((raw_volume > this->vol_threshold_) && (now_ms - this->last_vol_peak_time_ > this->vol_lockout_ms_)) {
         trigger_activated = true;
@@ -51,7 +51,7 @@ class PeakLatch {
       }
     } else {
       // Decay the maximum volume register slowly over time to reset the floor
-      this->sample_max_ *= 0.985f; 
+      this->sample_max_ *= 0.985f;
     }
 
     // Unified Latch Engine

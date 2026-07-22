@@ -27,7 +27,7 @@ namespace esphome::music_leds {
 
 class FFTEngine {
  public:
-  explicit FFTEngine(uint32_t sample_rate) 
+  explicit FFTEngine(uint32_t sample_rate)
       : sample_rate_(sample_rate),
         v_real_(SAMPLES_FFT, 0.0f),
         v_imag_(SAMPLES_FFT, 0.0f),
@@ -44,10 +44,10 @@ class FFTEngine {
 
     // Weigh data using "Flat Top" function for optimal amplitude accuracy
     this->fft_.windowing(FFTWindow::Flat_top, FFTDirection::Forward);
-    
+
     // Compute Radix-4 Forward complex Fast Fourier Transform
     this->fft_.compute(FFTDirection::Forward);
-    
+
     // Convert complex outputs to absolute voltage magnitude coefficients
     this->fft_.complexToMagnitude();
 
@@ -72,13 +72,13 @@ class FFTEngine {
 
  protected:
   uint32_t sample_rate_;
-  
+
   std::vector<float> v_real_;
   std::vector<float> v_imag_;
-  
+
   std::vector<float> magnitudes_;
   float dominant_frequency_hz_{1.0f};
-  
+
   ArduinoFFT<float> fft_;
 };
 

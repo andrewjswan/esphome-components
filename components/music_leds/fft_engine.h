@@ -25,60 +25,92 @@
 
 namespace esphome::music_leds {
 
+#pragma once
+
+#include <vector>
+#include <cmath>
+#include <cstring>
+#include <algorithm>
+#include <arduinoFFT.h>
+#include "esphome/core/log.h"
+
+// Set strict compile flags for the underlying library if not already declared
+#ifndef FFT_SPEED_OVER_PRECISION
+#define FFT_SPEED_OVER_PRECISION
+#endif
+#ifndef FFT_SQRT_APPROXIMATION
+#define FFT_SQRT_APPROXIMATION
+#endif
+
 class FFTEngine {
  public:
-  explicit FFTEngine(uint32_t sample_rate)
+  /**
+   * @brief Constructor allocating required vector tables for complex processing.
+   * @param sample_rate Physical I2S microphone sample frequency (e.g. 22050 or 44100).
+   * @param samples_fft Total samples per processing window (Must be a power of two).
+   */
+  FFTEngine(uint32_t sample_rate, size_t samples_fft = 512) 
       : sample_rate_(sample_rate),
-        v_real_(SAMPLES_FFT, 0.0f),
-        v_imag_(SAMPLES_FFT, 0.0f),
-        magnitudes_(SAMPLES_FFT / 2, 0.0f),
-        fft_(v_real_.data(), v_imag_.data(), SAMPLES_FFT, static_cast<float>(sample_rate), true) {
+        samples_fft_(samples_fft),
+        v_real_(samples_fft, 0.0f),
+        v_imag_(samples_fft, 0.0f),
+        magnitudes_(samples_fft / 2, 0.0f),
+        fft_(v_real_.data(), v_imag_.data(), samples_fft, static_cast<float>(sample_rate), true) {
   }
 
+  /**
+   * @brief Computes forward Radix-4 FFT using dedicated Blackman-Harris windowing.
+   * @param incoming_window Pointer to the raw sliding time-domain audio sample array.
+   */
   void process(const float *incoming_window) {
-    std::memcpy(this->v_real_.data(), incoming_window, SAMPLES_FFT * sizeof(float));
-    std::memset(this->v_imag_.data(), 0, SAMPLES_FFT * sizeof(float));
+    // Ingest sliding raw time-domain buffer into active processing registers
+    std::memcpy(this->v_real_.data(), incoming_window, this->samples_fft_ * sizeof(float));
+    std::memset(this->v_imag_.data(), 0, this->samples_fft_ * sizeof(float));
 
     // Remove DC offset to balance the signal envelope around zero axis
     this->fft_.dcRemoval();
 
-    // Weigh data using "Flat Top" function for optimal amplitude accuracy
-    this->fft_.windowing(FFTWindow::Flat_top, FFTDirection::Forward);
-
-    // Compute Radix-4 Forward complex Fast Fourier Transform
+    // Weigh data using the Blackman-Harris windowing algorithm.
+    // Provides exceptional sideband rejection (-92dB) and narrow main lobes, 
+    // ensuring clean frequency separation and preventing bass from bleeding into midrange.
+    this->fft_.windowing(FFTWindow::Blackman_Harris, FFTDirection::Forward);
+    
+    // Compute Radix-4 Forward complex Fast Fourier Transform on the hardware FPU
     this->fft_.compute(FFTDirection::Forward);
-
-    // Convert complex outputs to absolute voltage magnitude coefficients
+    
+    // Convert complex outputs to absolute magnitude coefficients (Overwrites v_real_)
     this->fft_.complexToMagnitude();
 
-    // Eliminate the persistent DC offset spike on position 0 to avoid artifacts
+    // The remaining DC offset on the signal produces a strong spike on position 0 that should be eliminated to avoid issues.
     this->v_real_[0] = 0.0f;
 
-    // Identify the most dominant frequency peak and its magnitude value
+    // Identify the most dominant frequency peak and its absolute magnitude value.
     float major_peak_hz = 0.0f;
     float peak_magnitude = 0.0f;
     this->fft_.majorPeak(&major_peak_hz, &peak_magnitude);
 
-    // Restrict value to range expected by visual effects engines [1.0f .. 11025.0f]
-    this->dominant_frequency_hz_ = std::clamp(major_peak_hz, 1.0f, 11025.0f);
-    // this->fft_magnitude_ = std::abs(peak_magnitude);
+    // Restrict frequency scale to standard ranges expected by visual effects engines
+    float high_nyquist_bound = static_cast<float>(this->sample_rate_) / 2.0f;
+    this->dominant_frequency_hz_ = std::clamp(major_peak_hz, 1.0f, high_nyquist_bound);
 
     // Safely isolate and export computed frequencies to the persistent output array
-    std::memcpy(this->magnitudes_.data(), this->v_real_.data(), (SAMPLES_FFT / 2) * sizeof(float));
+    std::memcpy(this->magnitudes_.data(), this->v_real_.data(), (this->samples_fft_ / 2) * sizeof(float));
   }
 
+  // --- Read-Only Component Data Accessors ---
   const float* magnitudes() const { return this->magnitudes_.data(); }
   float dominant_frequency_hz() const { return this->dominant_frequency_hz_; }
+  size_t spectrum_size() const { return this->samples_fft_ / 2; }
 
  protected:
   uint32_t sample_rate_;
-
+  size_t samples_fft_;
+  
   std::vector<float> v_real_;
   std::vector<float> v_imag_;
-
   std::vector<float> magnitudes_;
+  
   float dominant_frequency_hz_{1.0f};
-
   ArduinoFFT<float> fft_;
 };
 

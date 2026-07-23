@@ -8,6 +8,7 @@
 #include <cstring>
 
 #include "esphome/core/defines.h"
+#include "esphome/core/log.h"
 
 namespace esphome::music_leds {
 
@@ -53,14 +54,16 @@ class BeatDetector {
       return false; // Skip execution until history data buffer is sufficiently warmed up
     }
 
-    float n = static_cast<float>(this->history_count_);
-    float mean = this->history_sum_ / n;
-    float variance = (this->history_sq_sum_ / n) - (mean * mean);
+    // Optimization: replace divisions with a single hardware multiplication inverse
+    float inv_n = 1.0f / static_cast<float>(this->history_count_);
+    float mean = this->history_sum_ * inv_n;
+    float variance = (this->history_sq_sum_ * inv_n) - (mean * mean);
     float std_dev = sqrtf(std::max(0.0f, variance));
-    std_dev = std::max(std_dev, mean * 0.1f); // Establish floor constraints
+    std_dev = std::max(std_dev, mean * 0.1f); // Establish baseline structural variance floor
 
-    // The core absent42 psychoacoustic trigger threshold boundary formula
-    float threshold = mean + (this->multiplier_ * std_dev);
+    // Core psychoacoustic trigger threshold with a strict global minimum constraint (0.08f).
+    // This absolute floor prevents false ghost triggers when the buffer clears to 0.0f during silence.
+    float threshold = std::max(mean + (this->multiplier_ * std_dev), 0.08f);
 
     // 3. Evaluate trigger conditions with hysteresis and temporal lockouts
     bool interval_ok = (this->last_onset_ms_ == 0) || ((timestamp_ms - this->last_onset_ms_) >= this->min_interval_ms_);
@@ -69,6 +72,7 @@ class BeatDetector {
     if (normalized_bass > threshold && interval_ok && this->hysteresis_armed_) {
       triggered = true;
       this->hysteresis_armed_ = false; // Disarm immediately upon beat confirmation
+      ESP_LOGVV("music_leds.beat", "Beat Detected! Bass: %.2f, Threshold: %.2f", normalized_bass, threshold);
     } else if (normalized_bass < threshold * 0.7f) {
       this->hysteresis_armed_ = true;  // Rearm safely only when energy drops below 70% threshold
     }
@@ -105,7 +109,7 @@ class BeatDetector {
   float multiplier_{1.5f};
   bool hysteresis_armed_{true};
 
-  // Fixed fixed-size internal array tracking ~3 seconds of execution timeline history
+  // Fixed fixed-size internal array tracking execution timeline history
   static constexpr size_t WINDOW_SIZE = 60;
   float history_ring_[WINDOW_SIZE];
   size_t history_count_{0};

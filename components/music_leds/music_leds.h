@@ -61,7 +61,7 @@ struct AudioPipelineFeatures {
 
   // Frequency Analysis
   float dominant_frequency_hz{1.0f};  // Major pitch tone in Hz (e.g., 440.0f for dynamic color hues)
-
+  
   // Band Energies (0.0f To 1.0f, Agc Normalized)
   float bass_energy{0.0f};            // Sub-bass & low kick punch power (reds / physical thumping)
   float mid_energy{0.0f};             // Vocals, guitars, and main instrumentation (greens / core movement)
@@ -73,13 +73,13 @@ struct AudioPipelineFeatures {
   bool sample_peak{false};            // Time-locked high activity latch (Auto-resets after 50ms)
 
   // Returns overall loudness scaled to standard 8-bit byte integer [0 .. 255]
-  inline uint8_t volume_smth() const {
-    return static_cast<uint8_t>(this->smoothed_volume * 255.0f);
+  inline uint8_t volume_smth() const { 
+    return static_cast<uint8_t>(this->smoothed_volume * 255.0f); 
   }
 
   // Returns instantaneous loudness scaled to standard 8-bit byte integer [0 .. 255]
-  inline uint8_t volume_raw() const {
-    return static_cast<uint8_t>(this->raw_volume * 255.0f);
+  inline uint8_t volume_raw() const { 
+    return static_cast<uint8_t>(this->raw_volume * 255.0f); 
   }
 };
 
@@ -110,6 +110,11 @@ class MusicLeds final : public Component
   void set_speed(int index) { this->speed = index; }
   void set_variant(int index) { this->variant = index; }
 
+  void set_scaling_mode(FFTScalingMode mode) { this->scaling_mode_ = mode; }
+  void set_beat_sensitivity(int sensitivity) { this->beat_sensitivity_ = sensitivity; }
+  void set_noise_gate_floor(float floor) { this->noise_gate_floor_ = floor; }
+  void set_pre_amp_gain(float gain) { this->pre_amp_gain_ = gain; }
+
   void StartFrame() { this->start_effect_ = true; };
   void ShowFrame(PLAYMODE CurrentMode, Color current_color, light::AddressableLight *p_it);
 
@@ -135,6 +140,11 @@ class MusicLeds final : public Component
 
   static void FFTcode(void *params);
   TaskHandle_t FFT_Task{nullptr};
+
+  FFTScalingMode scaling_mode_{FFTScalingMode::SQUARE_ROOT};
+  int beat_sensitivity_{65};
+  float noise_gate_floor_{0.05f};
+  float pre_amp_gain_{4.5f};
 
   float *fft_buffer_{nullptr};
   std::unique_ptr<FFTEngine> fft_engine_{nullptr};

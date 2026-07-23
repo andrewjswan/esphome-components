@@ -9,8 +9,8 @@ class PeakLatch {
   /**
    * @brief Explicit constructor to define timing windows and the volume jump threshold.
    */
-  explicit PeakLatch(uint32_t frequency_lockout_ms = 100, 
-                     uint32_t volume_lockout_ms = 80, 
+  explicit PeakLatch(uint32_t frequency_lockout_ms = 100,
+                     uint32_t volume_lockout_ms = 80,
                      uint32_t hold_ms = 50,
                      float volume_threshold = 0.5f)
       : freq_lockout_ms_(frequency_lockout_ms),
@@ -31,7 +31,7 @@ class PeakLatch {
    */
   void process(bool is_beat, float raw_volume, bool &current_sample_peak) {
     uint32_t now_ms = millis();
-    
+
     // Calculate accurate delta time for time-locked envelope decay
     uint32_t now_us = micros();
     float delta_ms = static_cast<float>(now_us - this->last_execution_time_) / 1000.0f;

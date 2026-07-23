@@ -82,7 +82,7 @@ void MusicLeds::setup() {
 #ifdef DEBUG
     static uint32_t last_cb_log = 0;
     if (millis() - last_cb_log > 2000) {
-      ESP_LOGD(TAG, "DEBUG AUDIO: Callback triggered. Vector bytes: %d | Ring available: %d/%d", 
+      ESP_LOGD(TAG, "DEBUG AUDIO: Callback triggered. Vector bytes: %d | Ring available: %d/%d",
                data.size(), this->ring_buffer_.available(), RING_BUFFER_SIZE);
       last_cb_log = millis();
     }
@@ -101,7 +101,7 @@ void MusicLeds::setup() {
   this->dynamics_processor_->set_scaling_mode(this->scaling_mode_);
   this->beat_detector_ = std::make_unique<BeatDetector>(this->beat_sensitivity_);
   this->noise_gate_ = std::make_unique<NoiseGate>(this->noise_gate_floor_);
-  this->pre_amplifier_ = std::make_unique<PreAmplifier>(this->pre_amp_gain_); 
+  this->pre_amplifier_ = std::make_unique<PreAmplifier>(this->pre_amp_gain_);
   this->peak_latch_ = std::make_unique<PeakLatch>(100, 80, 50, 0.5f);  // 100ms freq lockout, 80ms vol lockout, 50ms hold window, 0.5 threshold
 
   ESP_LOGCONFIG(TAG, "Music Leds initialized");
@@ -202,7 +202,7 @@ void MusicLeds::dump_config() {
     const auto &stream_info = this->microphone_->get_audio_stream_info();
     ESP_LOGCONFIG(TAG, "  Stream Bit Depth: %u bit", stream_info.get_bits_per_sample());
     ESP_LOGCONFIG(TAG, "       Sample rate: %u Hz", static_cast<unsigned int>(stream_info.get_sample_rate()));
-    
+
   }
 
   // Extract independent internal pipeline features and scaling styles
@@ -293,10 +293,10 @@ void MusicLeds::on_loop() {
   if ((event_group_bits & EventGroupBits::TASK_INFO)) {
     static uint32_t last_task_log = 0;
     if (millis() - last_task_log > 2000) {
-      ESP_LOGE(TAG, "DEBUG LOOP: Samples: High: %f | volumeSmth: %f | Bass: %f | Mid: %f", 
-               this->features_.high_energy, 
-               this->features_.smoothed_volume, 
-               this->features_.bass_energy, 
+      ESP_LOGE(TAG, "DEBUG LOOP: Samples: High: %f | volumeSmth: %f | Bass: %f | Mid: %f",
+               this->features_.high_energy,
+               this->features_.smoothed_volume,
+               this->features_.bass_energy,
                this->features_.mid_energy);
       last_task_log = millis();
     }
@@ -341,7 +341,7 @@ void MusicLeds::process_audio_to_ring_(const std::vector<uint8_t> &data) {
   for (uint32_t frame_index = 0; frame_index < total_frames; ++frame_index) {
     float frame_mono_mix = 0.0f;
     for (uint32_t channel_index = 0; channel_index < source_channels; ++channel_index) {
-      const uint32_t sample_index = (frame_index * source_bytes_per_frame) + 
+      const uint32_t sample_index = (frame_index * source_bytes_per_frame) +
                                     (channel_index * source_bytes_per_sample);
 
       // Unpack raw hardware bytes natively using ESPHome's internal adaptive bit-depth parser
@@ -489,7 +489,7 @@ void MusicLeds::FFTcode(void *parameter) {
       // Print first 20 bins with their calculated center frequencies (assuming 10240Hz / 512 window)
       char bin_log_buffer[128];
       for (int i = 0; i < 20; i += 5) {
-        snprintf(bin_log_buffer, sizeof(bin_log_buffer), 
+        snprintf(bin_log_buffer, sizeof(bin_log_buffer),
                  "  Bin[%02d..%02d]: #%02d(%.1fHz):%.3f | #%02d(%.1fHz):%.3f | #%02d(%.1fHz):%.3f | #%02d(%.1fHz):%.3f | #%02d(%.1fHz):%.3f",
                  i, i+4,
                  i,   (i * 20.0f),   raw_mags[i],
@@ -506,9 +506,9 @@ void MusicLeds::FFTcode(void *parameter) {
       ESP_LOGD(TAG, "[STEP PRE-AMP   ] Bass: %.4f | Mid: %.4f | High: %.4f", amp_b, amp_m, amp_h);
       ESP_LOGD(TAG, "[STEP DYNAMICS  ] Bass: %.4f | Mid: %.4f | High: %.4f | VolLinear: %.4f", dyn_b, dyn_m, dyn_h, dyn_vol);
       ESP_LOGD(TAG, "[FINAL FEATURES ] VolRaw(Scaled): %.3f | VolSmth: %.3f | Bass: %.3f | Mid: %.3f | Hi: %.3f | Beat: %d | Peak: %d",
-               this_task->features_.raw_volume, 
-               this_task->features_.smoothed_volume, 
-               this_task->features_.bass_energy, 
+               this_task->features_.raw_volume,
+               this_task->features_.smoothed_volume,
+               this_task->features_.bass_energy,
                this_task->features_.mid_energy,
                this_task->features_.high_energy,
                this_task->features_.is_beat_detected,

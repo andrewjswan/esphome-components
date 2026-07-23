@@ -11,9 +11,9 @@ class NoiseGate {
    * @brief Explicit constructor defining the strict silence floor threshold with hysteresis support.
    * @param threshold_floor Minimum weighted band magnitude to trigger the gate closure.
    */
-  explicit NoiseGate(float threshold_floor = 0.10f) 
+  explicit NoiseGate(float threshold_floor = 0.10f)
       : threshold_floor_(threshold_floor),
-        threshold_open_(threshold_floor * 1.5f) {} 
+        threshold_open_(threshold_floor * 1.5f) {}
 
   /**
    * @brief Evaluates pure un-amplified hardware macro band lines prior to any AGC loops.
@@ -22,7 +22,7 @@ class NoiseGate {
    * @param high In/Out reference to the high frequency band energy pool.
    */
   void process(float &bass, float &mid, float &high) {
-    // Lowered to 0.50f to capture maximum organic low-end micro-pauses 
+    // Lowered to 0.50f to capture maximum organic low-end micro-pauses
     // without triggering a permanent gate blowout from ADC fluctuations
     float clean_bass = (bass > 0.50f) ? (bass - 0.50f) : 0.0f;
     // Optimized weight matrix for the 0.50f setup:
@@ -63,8 +63,8 @@ class NoiseGate {
   /**
    * @brief Direct diagnostic inspector returning the inner state of the gate.
    */
-  bool is_closed() const { 
-    return this->gate_closed_; 
+  bool is_closed() const {
+    return this->gate_closed_;
   }
 
  private:

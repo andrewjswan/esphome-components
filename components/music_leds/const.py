@@ -3,6 +3,8 @@
 CONF_BEAT_SENSITIVITY = "beat_sensitivity"
 CONF_NOISE_GATE_FLOOR = "noise_gate_floor"
 CONF_PRE_AMP_GAIN = "pre_amp_gain"
+CONF_SAMPLE_GAIN = "sample_gain"
+CONF_SAMPLE_SCALE = "sample_scale"
 CONF_SCALING_MODE = "scaling_mode"
 
 CONF_TASK_CORE = "task_core"

@@ -22,6 +22,8 @@ CONF_MUSIC_LEDS_ID,
 CONF_NOISE_GATE_FLOOR,
 CONF_ON_SOUND_LOOP,
 CONF_PRE_AMP_GAIN,
+CONF_SAMPLE_GAIN,
+CONF_SAMPLE_SCALE,
 CONF_SCALING_MODE,
 CONF_TASK_CORE,
 CONF_TASK_PRIORITY,
@@ -85,6 +87,8 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_BEAT_SENSITIVITY, default=65): cv.int_range(1, 100),
         cv.Optional(CONF_NOISE_GATE_FLOOR, default=0.10): cv.float_range(0.001, 0.5),
         cv.Optional(CONF_PRE_AMP_GAIN, default=1.0): cv.float_range(1.0, 20.0),
+        cv.Optional(CONF_SAMPLE_GAIN, default=60): cv.int_range(0, 255),
+        cv.Optional(CONF_SAMPLE_SCALE, default=24): cv.int_range(1, 255),
         cv.Optional(CONF_ON_SOUND_LOOP): automation.validate_automation(
             {
                 cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(SoundLoopTrigger),
@@ -112,6 +116,8 @@ async def to_code(config) -> None:
     cg.add(var.set_beat_sensitivity(int(config[CONF_BEAT_SENSITIVITY])))
     cg.add(var.set_noise_gate_floor(float(config[CONF_NOISE_GATE_FLOOR])))
     cg.add(var.set_pre_amp_gain(float(config[CONF_PRE_AMP_GAIN])))
+    cg.add(var.set_sample_gain(int(config[CONF_SAMPLE_GAIN])))
+    cg.add(var.set_sample_scale(int(config[CONF_SAMPLE_SCALE])))
 
     # FFTTASK_CORE 0 standard: Core #0
     # FFTTASK_CORE 1 standard: Core #1

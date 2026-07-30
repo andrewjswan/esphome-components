@@ -6,6 +6,7 @@
 #include "beat_detector.h"
 #include "dynamics_processor.h"
 #include "fft_engine.h"
+#include "geq_processor.h"
 #include "noise_gate.h"
 #include "peak_latch.h"
 #include "pre_amplifier.h"
@@ -56,30 +57,32 @@ class MusicLedsSoundLoopTrigger;
 
 struct AudioPipelineFeatures {
   // Amplitude & Volume (0.0f To 1.0f)
-  float smoothed_volume{0.0f};        // Filtered overall loudness (perfect for smooth brightness)
-  float raw_volume{0.0f};             // Instantaneous frame loudness (perfect for strobes and sharp pulses)
+  float smoothed_volume{0.0f};              // Filtered overall loudness (perfect for smooth brightness)
+  float raw_volume{0.0f};                   // Instantaneous frame loudness (perfect for strobes and sharp pulses)
 
   // Frequency Analysis
-  float dominant_frequency_hz{1.0f};  // Major pitch tone in Hz (e.g., 440.0f for dynamic color hues)
-
+  float dominant_frequency_hz{1.0f};        // Major pitch tone in Hz (e.g., 440.0f for dynamic color hues)
+  float magnitude{0.0f};                    // Un-normalized raw peak magnitude
+  uint8_t fft_result[NUM_GEQ_CHANNELS]{0};  // 16-channel array / fftResult
+    
   // Band Energies (0.0f To 1.0f, Agc Normalized)
-  float bass_energy{0.0f};            // Sub-bass & low kick punch power (reds / physical thumping)
-  float mid_energy{0.0f};             // Vocals, guitars, and main instrumentation (greens / core movement)
-  float high_energy{0.0f};            // Cymbals, hi-hats, shakers, and crisp air (blues / sparkles)
+  float bass_energy{0.0f};                  // Sub-bass & low kick punch power (reds / physical thumping)
+  float mid_energy{0.0f};                   // Vocals, guitars, and main instrumentation (greens / core movement)
+  float high_energy{0.0f};                  // Cymbals, hi-hats, shakers, and crisp air (blues / sparkles)
 
   // Musical Beat & Attacks
-  bool  is_beat_detected{false};      // True for a single frame when a sharp audio attack occurs (onset)
+  bool is_beat_detected{false};             // True for a single frame when a sharp audio attack occurs (onset)
 
-  bool sample_peak{false};            // Time-locked high activity latch (Auto-resets after 50ms)
+  bool sample_peak{false};                  // Time-locked high activity latch (Auto-resets after 50ms)
 
   // Returns overall loudness scaled to standard 8-bit byte integer [0 .. 255]
-  inline uint8_t volume_smth() const {
-    return static_cast<uint8_t>(this->smoothed_volume * 255.0f);
+  inline uint8_t volume_smth() const { 
+    return static_cast<uint8_t>(this->smoothed_volume * 255.0f); 
   }
 
   // Returns instantaneous loudness scaled to standard 8-bit byte integer [0 .. 255]
-  inline uint8_t volume_raw() const {
-    return static_cast<uint8_t>(this->raw_volume * 255.0f);
+  inline uint8_t volume_raw() const { 
+    return static_cast<uint8_t>(this->raw_volume * 255.0f); 
   }
 };
 
@@ -114,6 +117,8 @@ class MusicLeds final : public Component
   void set_beat_sensitivity(int sensitivity) { this->beat_sensitivity_ = sensitivity; }
   void set_noise_gate_floor(float floor) { this->noise_gate_floor_ = floor; }
   void set_pre_amp_gain(float gain) { this->pre_amp_gain_ = gain; }
+  void set_sample_gain(uint8_t gain) { this->sample_gain_ = gain; }
+  void set_sample_scale(uint8_t scale) { this->sample_scale_ = 1.0f / static_cast<float>(scale); }
 
   void StartFrame() { this->start_effect_ = true; };
   void ShowFrame(PLAYMODE CurrentMode, Color current_color, light::AddressableLight *p_it);
@@ -145,6 +150,8 @@ class MusicLeds final : public Component
   int beat_sensitivity_{65};
   float noise_gate_floor_{0.05f};
   float pre_amp_gain_{4.5f};
+  uint8_t sample_gain_{60};
+  float sample_scale_{1.0f / 24.0f};
 
   float *fft_buffer_{nullptr};
   std::unique_ptr<FFTEngine> fft_engine_{nullptr};
@@ -154,6 +161,7 @@ class MusicLeds final : public Component
   std::unique_ptr<PeakLatch> peak_latch_{nullptr};
   std::unique_ptr<NoiseGate> noise_gate_{nullptr};
   std::unique_ptr<PreAmplifier> pre_amplifier_{nullptr};
+  std::unique_ptr<GEQProcessor> geq_processor_{nullptr};
 
   State state_{State::STOPPED};
   void set_state_(State state);

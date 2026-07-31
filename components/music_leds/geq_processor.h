@@ -16,9 +16,9 @@
 
 namespace esphome::music_leds {
 
-constexp float FFT_DOWNSCALE = 0.40f;
-// constexp float FFT_DOWNSCALE = 0.39f;
-// constexp float FFT_DOWNSCALE = 0.38f;
+constexpr float FFT_DOWNSCALE = 0.40f;
+// constexpr float FFT_DOWNSCALE = 0.39f;
+// constexpr float FFT_DOWNSCALE = 0.38f;
 
 class GEQProcessor {
  public:

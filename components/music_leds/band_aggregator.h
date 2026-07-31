@@ -17,7 +17,7 @@ class BandAggregator {
     size_t num_bins = SAMPLES_FFT / 2; // Maximum positions in the magnitude spectrum
 
     // Anti-Aliasing Brickwall Guard (Dynamic Scaling)
-    // Don't use the last bins from 216 to 255. They are usually contaminated by aliasing (aka noise) 
+    // Don't use the last bins from 216 to 255. They are usually contaminated by aliasing (aka noise)
     // Enforces constraint dynamically. For 512 samples, it cuts off strictly at bin 216.
     // If scaled to 1024 samples, it automatically scales to keep the same physical frequency cutoff window.
     size_t absolute_safe_ceiling = static_cast<size_t>(static_cast<float>(num_bins) * 0.84375f);
@@ -25,10 +25,10 @@ class BandAggregator {
     for (int b = 0; b < NUM_GEQ_CHANNELS; b++) {
       size_t start = freq_to_bin(BAND_FREQ_BOUNDARIES[b]);
       size_t end = freq_to_bin(BAND_FREQ_BOUNDARIES[b + 1]);
-      
+
       // Enforce the dynamic safety ceiling across all 16 calculated sub-bands
       this->bands_[b] = {
-        std::min(start, absolute_safe_ceiling), 
+        std::min(start, absolute_safe_ceiling),
         std::min(end, absolute_safe_ceiling)
       };
     }
@@ -58,7 +58,7 @@ class BandAggregator {
    */
   size_t freq_to_bin(float freq_hz) const {
     size_t calculated_bin = static_cast<size_t>(roundf(freq_hz / this->hz_per_bin_));
-    
+
     // Integrated High-Pass Sub-Sonic Filter (10240hz Legacy Guard)
     // Clamps the lowest processed spectrum bin strictly to index 3 (~60 Hz).
     // This removes invisible sub-bass room rumble, DC jitter, and floor noise artifacts.

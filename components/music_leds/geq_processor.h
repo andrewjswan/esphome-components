@@ -76,7 +76,7 @@ class GEQProcessor {
 
 #ifdef DEBUG
         // Retain tracking sums (Legacy compatibility placeholder for raw diagnostics)
-        trace_raw_sum[i] = bin_energy_sum; 
+        trace_raw_sum[i] = bin_energy_sum;
 #endif
 
         // Compute true Root Mean Square (RMS) linear amplitude.
@@ -105,7 +105,7 @@ class GEQProcessor {
         if (this->fft_calc_[i] < 0.0f) {
           this->fft_calc_[i] = 0.0f;
         }
-      } 
+      }
       // Gate Closed: Smoothly decay existing value to absolute zero
       else {
         this->fft_calc_[i] *= 0.85f;
@@ -139,11 +139,11 @@ class GEQProcessor {
           // Standard psychoacoustic curve execution on a pure fraction.
           // Quiet signals are expanded, while maximum peaks converge perfectly at 1.0f.
           float compressed_curve = sqrtf(normalized_fraction);
-          
+
           // Apply balanced ISO 226 human hearing equalization curve.
           // Gently scales higher channels from 0.85 up to 1.60 to prevent flatline clipping.
           compressed_curve *= (0.85f + (static_cast<float>(i) / 20.0f));
-          
+
           // Map directly into the full 8-bit viewport array [0 .. 255]
           current_result = compressed_curve * 255.0f;
           break;
@@ -153,10 +153,10 @@ class GEQProcessor {
           // Normalized natural logarithm transformation avoiding log(0) exceptions.
           // Scaled explicitly so that 0.0f maps to 0.0f, and 1.0f maps perfectly to 1.0f.
           float compressed_curve = logf(normalized_fraction * 9.0f + 1.0f) / 2.30258509f; // Divide by log(10)
-          
+
           // Tailored high-frequency balance adapted for aggressive logarithmic density
           compressed_curve *= (0.85f + (static_cast<float>(i) / 25.0f));
-          
+
           current_result = compressed_curve * 255.0f;
           break;
         }
@@ -166,7 +166,7 @@ class GEQProcessor {
           // Clean, uncompressed baseline viewport mapping profile.
           // Relies on a sharper pre-emphasis slope to maintain high frequency visibility.
           float linear_curve = normalized_fraction * (0.85f + (static_cast<float>(i) / 15.0f));
-          
+
           current_result = linear_curve * 255.0f;
           break;
         }
@@ -186,11 +186,11 @@ class GEQProcessor {
       ESP_LOGD("GEQ_TRACE", "=====================================================");
       const uint8_t target_channels[] = {0, 4, 15};
       for (uint8_t ch : target_channels) {
-        ESP_LOGD("GEQ_TRACE", 
-                 "CH[%02d] Bins[%d..%d] | RawSum:%.2f | AfterGain:%.2f | Compressed:%.2f | FFTCalc:%.2f | FFTAvg:%.2f | Byte:%d | GateClosed:%s", 
-                 ch, this->bands_[ch].bin_start, this->bands_[ch].bin_end, 
-                 trace_raw_sum[ch], trace_after_gain[ch], trace_compressed[ch], 
-                 this->fft_calc_[ch], this->fft_avg_[ch], output_array[ch], 
+        ESP_LOGD("GEQ_TRACE",
+                 "CH[%02d] Bins[%d..%d] | RawSum:%.2f | AfterGain:%.2f | Compressed:%.2f | FFTCalc:%.2f | FFTAvg:%.2f | Byte:%d | GateClosed:%s",
+                 ch, this->bands_[ch].bin_start, this->bands_[ch].bin_end,
+                 trace_raw_sum[ch], trace_after_gain[ch], trace_compressed[ch],
+                 this->fft_calc_[ch], this->fft_avg_[ch], output_array[ch],
                  is_gate_closed ? "YES" : "NO");
       }
     }
@@ -202,11 +202,11 @@ class GEQProcessor {
 
  private:
   BandDefinition bands_[NUM_GEQ_CHANNELS];
-  float fft_calc_[NUM_GEQ_CHANNELS]; 
-  float fft_avg_[NUM_GEQ_CHANNELS];  
-  
+  float fft_calc_[NUM_GEQ_CHANNELS];
+  float fft_avg_[NUM_GEQ_CHANNELS];
+
   uint8_t sample_gain_{60};
-  FFTScalingMode scaling_mode_{FFTScalingMode::SQUARE_ROOT}; 
+  FFTScalingMode scaling_mode_{FFTScalingMode::SQUARE_ROOT};
 };
 
 } // namespace esphome::music_leds

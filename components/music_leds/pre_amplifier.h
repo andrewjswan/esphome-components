@@ -13,7 +13,7 @@ class PreAmplifier {
    * @param sample_scale The amplitude division factor passed from the main component (e.g., 1.0f / 24.0f).
    * @param global_gain Multiplier scale defined in YAML. Defaults to a safe 1.0f unity gain.
    */
-  explicit PreAmplifier(float sample_scale, float global_gain = 1.0f) 
+  explicit PreAmplifier(float sample_scale, float global_gain = 1.0f)
       : sample_scale_(sample_scale), global_gain_(global_gain) {
     this->calculate_constraints();
   }
@@ -26,16 +26,16 @@ class PreAmplifier {
    */
   void process(float &bass, float &mid, float &high) {
     // Accumulate normalized Pink Noise compensation scaling sub-factors per macro group.
-    // Bass spans sub-bands 0 to 3 
-    float pink_bass = (PINK_NOISE_CURVE_NORM[0] + PINK_NOISE_CURVE_NORM[1] + 
+    // Bass spans sub-bands 0 to 3
+    float pink_bass = (PINK_NOISE_CURVE_NORM[0] + PINK_NOISE_CURVE_NORM[1] +
                        PINK_NOISE_CURVE_NORM[2] + PINK_NOISE_CURVE_NORM[3]) * 0.25f;
-    
-    // Mid spans sub-bands 4 to 9 
-    float pink_mid  = (PINK_NOISE_CURVE_NORM[4] + PINK_NOISE_CURVE_NORM[5] + PINK_NOISE_CURVE_NORM[6] + 
+
+    // Mid spans sub-bands 4 to 9
+    float pink_mid  = (PINK_NOISE_CURVE_NORM[4] + PINK_NOISE_CURVE_NORM[5] + PINK_NOISE_CURVE_NORM[6] +
                        PINK_NOISE_CURVE_NORM[7] + PINK_NOISE_CURVE_NORM[8] + PINK_NOISE_CURVE_NORM[9]) * 0.16666667f;
-                       
-    // High spans sub-bands 10 to 15 
-    float pink_high = (PINK_NOISE_CURVE_NORM[10] + PINK_NOISE_CURVE_NORM[11] + PINK_NOISE_CURVE_NORM[12] + 
+
+    // High spans sub-bands 10 to 15
+    float pink_high = (PINK_NOISE_CURVE_NORM[10] + PINK_NOISE_CURVE_NORM[11] + PINK_NOISE_CURVE_NORM[12] +
                        PINK_NOISE_CURVE_NORM[13] + PINK_NOISE_CURVE_NORM[14] + PINK_NOISE_CURVE_NORM[15]) * 0.16666667f;
 
     // Multiplicatively couple the dynamic pink curves with the global preamp multiplier.

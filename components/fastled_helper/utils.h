@@ -457,9 +457,9 @@ static CRGB getCRGBForBand(int x, int pal) {
       value = CRGB(ch0, ch4, ch10);
     }
   } else if (pal == 1) {
-    int b = map(x, 1, 255, 0, 8); 
+    int b = map(x, 1, 255, 0, 8);
     uint8_t band_val = g_fft_result_ptr[b];
-    
+
     // Maintain genuine integer constraints while picking the dynamic hue
     hsv = CHSV(band_val, 255, uint8_t(map(band_val, 0, 255, 30, 255)));
     hsv2rgb_rainbow(hsv, value);

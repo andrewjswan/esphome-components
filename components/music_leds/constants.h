@@ -64,7 +64,7 @@ inline constexpr PinkNoiseBuffer PINK_NOISE_CURVE = {{
 
 constexpr PinkNoiseBuffer generate_normalized_pink_noise() {
   PinkNoiseBuffer normalized_array = {};
-  
+
   // Dynamically divide each element by the sub-bass anchor coefficient (1.70f)
   // to enforce a true 1.0f baseline floor for the Bass macro band.
   for (size_t i = 0; i < 16; ++i) {

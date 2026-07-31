@@ -47,7 +47,7 @@ class NoiseGate {
     }
 
     // Zero out macro bands if the noise gate is closed.
-    // This stops background room sounds and open window rumble from leaking 
+    // This stops background room sounds and open window rumble from leaking
     // into the beat detector, completely eliminating false triggers in silence.
     if (this->gate_closed_) {
       bass = 0.0f;
@@ -72,8 +72,8 @@ class NoiseGate {
   /**
    * @brief Direct diagnostic inspector returning the inner state of the gate.
    */
-  bool is_closed() const { 
-    return this->gate_closed_; 
+  bool is_closed() const {
+    return this->gate_closed_;
   }
 
  private:

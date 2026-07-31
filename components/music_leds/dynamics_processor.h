@@ -15,10 +15,10 @@ class DynamicsProcessor {
    */
   explicit DynamicsProcessor(float sample_scale) : sample_scale_(sample_scale) {
     this->last_execution_time_ = micros();
-    
+
     // Pre-calculate hardware-calibrated structural constraints once on initialization
     float base_pcm_scale = AMPLITUDE_SCALE_16BIT * this->sample_scale_;
-    
+
     this->agc_min_floor_shift_   = 0.05f * base_pcm_scale;
     this->safe_vol_peak_floor_   = 0.35f * base_pcm_scale;
 
@@ -38,7 +38,7 @@ class DynamicsProcessor {
     uint32_t now = micros();
     uint32_t delta_micros = now - this->last_execution_time_;
     this->last_execution_time_ = now;
-    
+
     float delta_ms = static_cast<float>(delta_micros) / 1000.0f;
     if (delta_ms > 200.0f) delta_ms = 20.0f;
 
@@ -54,7 +54,7 @@ class DynamicsProcessor {
       this->high_smoothed_ = 0.0f;
 
       this->vol_agc_peak_ = std::max(this->agc_min_floor_shift_, this->vol_agc_peak_ * 0.90f);
-      return; 
+      return;
     }
 
     // High-performance single-precision computation of the input raw frame volume (Large scales)
@@ -68,7 +68,7 @@ class DynamicsProcessor {
     }
 
     float safe_vol_peak = std::max(this->vol_agc_peak_, this->safe_vol_peak_floor_);
-    
+
     // Map current instantaneous frame volume to clean standardized [0.0f .. 1.0f] scale
     float normalized_vol = std::clamp(incoming_raw_volume / safe_vol_peak, 0.0f, 1.0f);
 
@@ -93,9 +93,9 @@ class DynamicsProcessor {
     this->volume_smoothed_ = std::clamp(this->volume_smoothed_ + delta_sample, 0.0f, 1.0f);
 
     // Normalize and apply independent time-locked linear rate limiting per frequency band group
-    bass = apply_time_limiter(bass, this->bass_smoothed_, 40.0f, 1200.0f, delta_ms); 
-    mid  = apply_time_limiter(mid,  this->mid_smoothed_,  60.0f, 1400.0f, delta_ms); 
-    high = apply_time_limiter(high, this->high_smoothed_, 30.0f, 800.0f,  delta_ms); 
+    bass = apply_time_limiter(bass, this->bass_smoothed_, 40.0f, 1200.0f, delta_ms);
+    mid  = apply_time_limiter(mid,  this->mid_smoothed_,  60.0f, 1400.0f, delta_ms);
+    high = apply_time_limiter(high, this->high_smoothed_, 30.0f, 800.0f,  delta_ms);
 
     // Write final clean linear post-AGC envelopes to reference interfaces
     smoothed_vol = this->volume_smoothed_;
@@ -114,9 +114,9 @@ class DynamicsProcessor {
     }
 
     // Genuine Psychoacoustic Compression (Weber-Fechner Law Implementation)
-    // Instead of destructive re-computation via arithmetic mean, we apply the non-linear 
-    // scaling mode to each parameter independently. This preserves the precise dynamic purpose 
-    // of raw_vol (instantaneous pulses) and smoothed_vol (smooth tracking) while lifting 
+    // Instead of destructive re-computation via arithmetic mean, we apply the non-linear
+    // scaling mode to each parameter independently. This preserves the precise dynamic purpose
+    // of raw_vol (instantaneous pulses) and smoothed_vol (smooth tracking) while lifting
     // them into the expected 120-180 byte bracket for visual rendering.
     switch (this->scaling_mode_) {
       case FFTScalingMode::SQUARE_ROOT:
@@ -146,10 +146,10 @@ class DynamicsProcessor {
   }
 
  private:
-  float sample_scale_; 
+  float sample_scale_;
   uint32_t last_execution_time_{0};
-  FFTScalingMode scaling_mode_{FFTScalingMode::SQUARE_ROOT}; 
-  
+  FFTScalingMode scaling_mode_{FFTScalingMode::SQUARE_ROOT};
+
   // Pre-calculated audio scale boundaries to eliminate intensive runtime FPU multiplications
   float agc_min_floor_shift_{0.0f};  // 0.05f threshold
   float safe_vol_peak_floor_{0.0f};  // 0.35f threshold
@@ -158,7 +158,7 @@ class DynamicsProcessor {
   float vol_agc_peak_{0.05f};
 
   // Persistent tracking fields for temporal rate-limiting histories
-  float volume_smoothed_{0.0f};  
+  float volume_smoothed_{0.0f};
   float bass_smoothed_{0.0f};
   float mid_smoothed_{0.0f};
   float high_smoothed_{0.0f};

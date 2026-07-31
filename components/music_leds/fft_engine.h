@@ -49,7 +49,7 @@ class FFTEngine {
    * @param sample_rate Physical I2S microphone sample frequency (e.g. 22050 or 44100).
    * @param samples_fft Total samples per processing window (Must be a power of two).
    */
-  FFTEngine(uint32_t sample_rate, size_t samples_fft = 512) 
+  FFTEngine(uint32_t sample_rate, size_t samples_fft = 512)
       : sample_rate_(sample_rate),
         samples_fft_(samples_fft),
         v_real_(samples_fft, 0.0f),
@@ -75,7 +75,7 @@ class FFTEngine {
       dc_sum += this->v_real_[i];
     }
     float exact_dc_offset = dc_sum / static_cast<float>(this->samples_fft_);
-    
+
     for (size_t i = 0; i < this->samples_fft_; i++) {
       this->v_real_[i] -= exact_dc_offset;
     }
@@ -84,13 +84,13 @@ class FFTEngine {
     this->fft_.dcRemoval();
 
     // Weigh data using the Blackman-Harris windowing algorithm.
-    // Provides exceptional sideband rejection (-92dB) and narrow main lobes, 
+    // Provides exceptional sideband rejection (-92dB) and narrow main lobes,
     // ensuring clean frequency separation and preventing bass from bleeding into midrange.
     this->fft_.windowing(FFTWindow::Blackman_Harris, FFTDirection::Forward);
-    
+
     // Compute Radix-4 Forward complex Fast Fourier Transform on the hardware FPU
     this->fft_.compute(FFTDirection::Forward);
-    
+
     // Convert complex outputs to absolute magnitude coefficients (Overwrites v_real_)
     this->fft_.complexToMagnitude();
 
@@ -120,11 +120,11 @@ class FFTEngine {
  protected:
   uint32_t sample_rate_;
   size_t samples_fft_;
-  
+
   std::vector<float> v_real_;
   std::vector<float> v_imag_;
   std::vector<float> magnitudes_;
-  
+
   float dominant_frequency_hz_{1.0f};
   float magnitude_{0.0f};
 

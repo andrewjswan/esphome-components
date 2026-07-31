@@ -208,7 +208,7 @@ void MusicLeds::mode_gravcenter_base(unsigned mode, CRGB *physic_leds) {
   // Gravity tracker calculation
   uint8_t gravity = 8 - this->speed / 32;
   if (gravity == 0) gravity = 1; // Division by zero protection
-  
+
   int offset = (mode == 2) ? 0 : 1;
   if (tempsamp >= gravcen->topLED) {
     gravcen->topLED = tempsamp - offset;
@@ -222,7 +222,7 @@ void MusicLeds::mode_gravcenter_base(unsigned mode, CRGB *physic_leds) {
   if (mode == 1) {  // Gravcentric
     uint8_t index = (uint8_t)(segmentSampleAvg * 24.0f) + (uint8_t)(ms / 200);
     CRGB color = fastled_helper::color_from_palette(index, this->main_color);
-    
+
     for (int i = 0; i < tempsamp; i++) {
       physic_leds[i + this->leds_num / 2] = color;
       physic_leds[this->leds_num / 2 - 1 - i] = color;
@@ -231,7 +231,7 @@ void MusicLeds::mode_gravcenter_base(unsigned mode, CRGB *physic_leds) {
       physic_leds[gravcen->topLED + this->leds_num / 2] = CRGB::Gray;
       physic_leds[this->leds_num / 2 - 1 - gravcen->topLED] = CRGB::Gray;
     }
-    
+
   } else if (mode == 2) {  // Gravimeter
     uint8_t blend_weight = constrain((int)(segmentSampleAvg * 8.0f), 0, 255);
     for (int i = 0; i < tempsamp; i++) {
@@ -242,11 +242,11 @@ void MusicLeds::mode_gravcenter_base(unsigned mode, CRGB *physic_leds) {
     if (gravcen->topLED > 0 && gravcen->topLED < this->leds_num) {
       physic_leds[gravcen->topLED] = fastled_helper::color_from_palette(ms, this->main_color);
     }
-    
+
   } else if (mode == 3) {  // Gravfreq (Frequency mapping zone)
     float hz = this->features_.dominant_frequency_hz;
     if (hz < 20.0f) hz = 20.0f; // Cut off infrasound/silence to protect log10f
-    
+
     // Map absolute frequency [20Hz .. 11025Hz] to palette index [0 .. 255]
     // log10f(20) ≈ 1.301, log10f(11025) ≈ 4.042. Range span is ~2.741
     uint8_t index = constrain((int)((log10f(hz) - 1.301f) * 93.0f), 0, 255);
@@ -260,7 +260,7 @@ void MusicLeds::mode_gravcenter_base(unsigned mode, CRGB *physic_leds) {
       physic_leds[gravcen->topLED + this->leds_num / 2] = CRGB::Gray;
       physic_leds[this->leds_num / 2 - 1 - gravcen->topLED] = CRGB::Gray;
     }
-    
+
   } else {  // Gravcenter (mode == 0)
     uint8_t blend_weight = constrain((int)(segmentSampleAvg * 8.0f), 0, 255);
     for (int i = 0; i < tempsamp; i++) {
@@ -337,11 +337,11 @@ void MusicLeds::visualize_pixels(CRGB *physic_leds)  // Pixels. By Andrew Tuline
   int loop_limit = (int)this->variant / 8;
   for (int i = 0; i < loop_limit; i++) {
     uint16_t segLoc = fastled_helper::hw_random16(this->leds_num);
-    
+
     // Pick color index from circular history buffer
     uint8_t palette_index = myVals[i % 32] + (i * 4);
     CRGB target_color = fastled_helper::color_from_palette(palette_index, this->main_color);
-    
+
     // Blend background and palette color using current volume as intensity weight
     physic_leds[segLoc] = fastled_helper::color_blend(this->back_color, target_color, current_volume);
   }
@@ -366,11 +366,11 @@ void MusicLeds::visualize_juggles(CRGB *physic_leds)  // Juggles. By Andrew Tuli
     // Generate sine-wave coordinate projection for current pixel index
     uint16_t speed_param = (int)this->speed / 4 + (i * 2);
     uint16_t led_index = beatsin16(speed_param, 0, this->leds_num - 1);
-    
+
     // Pick shifting color index from selected palette mapping
     uint8_t palette_index = (uint8_t)(ms / 4) + (i * 2);
     CRGB target_color = fastled_helper::color_from_palette(palette_index, this->main_color);
-    
+
     // Render modulated point with reactive scaling by current sound volume
     physic_leds[led_index] = fastled_helper::color_blend(this->back_color, target_color, dynamic_volume);
   }
@@ -392,7 +392,7 @@ void MusicLeds::visualize_midnoise(CRGB *physic_leds)  // Midnoise. By Andrew Tu
 
   // Process math scaling using modern float-based features API
   float audio_vol = (float)this->features_.volume_smth();
-  
+
   // Re-scale sensitivity chains based on original variant slider intent
   float dynamic_scale = audio_vol * ((float)this->variant / 256.0f);
   dynamic_scale *= ((float)this->variant / 128.0f);
@@ -432,7 +432,7 @@ void MusicLeds::visualize_ripplepeak(CRGB *physic_leds)  // Ripple peak. By Andr
   constexpr uint8_t max_steps = 16;
   constexpr unsigned max_ripples = 16;
   const unsigned dataSize = sizeof(Ripple) * max_ripples;
-  
+
   if (!this->allocateData(dataSize)) {
     return;  // allocation failed
   }
@@ -443,7 +443,7 @@ void MusicLeds::visualize_ripplepeak(CRGB *physic_leds)  // Ripple peak. By Andr
 
   // Read the 50ms latched peak token to prevent missing fast triggers on Core 0
   bool is_peak_triggered = this->features_.sample_peak;
-  
+
   // Variant slider controls the density of concurrent ripples allowed
   int max_active_ripples = this->variant / 16;
 
@@ -458,12 +458,12 @@ void MusicLeds::visualize_ripplepeak(CRGB *physic_leds)  // Ripple peak. By Andr
 
       case 255:  // Initialize ripple configuration on peak onset
         ripples[i].pos = fastled_helper::hw_random16(this->leds_num);
-        
+
         // Translate absolute frequency [20Hz .. 11025Hz] to palette index [0 .. 255]
         {
           float hz = this->features_.dominant_frequency_hz;
           if (hz < 20.0f) hz = 20.0f; // Limit infrasound to guard log10f
-          
+
           // log10f(20) ≈ 1.301, log10f(11025) ≈ 4.042. Scale span factor is ~93.0f
           ripples[i].color = constrain((int)((log10f(hz) - 1.301f) * 93.0f), 0, 255);
         }
@@ -489,7 +489,7 @@ void MusicLeds::visualize_ripplepeak(CRGB *physic_leds)  // Ripple peak. By Andr
 
           physic_leds[forward_idx] = fastled_helper::color_blend(this->back_color, wave_color, blend_weight);
           physic_leds[backward_idx] = fastled_helper::color_blend(this->back_color, wave_color, blend_weight);
-          
+
           ripples[i].state++;  // Advance propagation step
         }
         break;
@@ -513,7 +513,7 @@ void MusicLeds::visualize_matripix(CRGB *physic_leds)  // Matripix. By Andrew Tu
   if (speed_divisor < 1) speed_divisor = 1; // Strict protection against zero division crackups
 
   uint8_t secondHand = (micros() / speed_divisor / 500) % 16;
-  
+
   // Perform matrix block execution when execution time-frame steps advance
   if (this->store != secondHand) {
     this->store = secondHand;
@@ -523,17 +523,17 @@ void MusicLeds::visualize_matripix(CRGB *physic_leds)  // Matripix. By Andrew Tu
     if (pixBri > 255) pixBri = 255; // Clamp intensity factor to valid byte boundaries
 
     unsigned k = this->leds_num - 1;
-    
+
     // Shift the internal historical data array left and copy to physical layout
     for (unsigned i = 0; i < k; i++) {
       pixels[i] = pixels[i + 1];
       physic_leds[i] = pixels[i];
     }
-    
+
     // Inject new responsive audio-modulated pixel at the terminal boundary index
     uint32_t ms = millis();
     CRGB new_color = fastled_helper::color_from_palette((uint8_t)ms, this->main_color);
-    
+
     pixels[k] = fastled_helper::color_blend(this->back_color, new_color, (uint8_t)pixBri);
     physic_leds[k] = pixels[k];
   }
@@ -546,9 +546,9 @@ void MusicLeds::visualize_noisefire(CRGB *physic_leds)  // Noisefire. By Andrew 
 {
   // Fire palette definition. Lower value = darker.
   CRGBPalette16 myPal = CRGBPalette16(
-    CHSV(0, 255, 2),       CHSV(0, 255, 4),       CHSV(0, 255, 8),       CHSV(0, 255, 8), 
-    CHSV(0, 255, 16),      CRGB::Red,             CRGB::Red,             CRGB::Red, 
-    CRGB::DarkOrange,      CRGB::DarkOrange,      CRGB::Orange,          CRGB::Orange, 
+    CHSV(0, 255, 2),       CHSV(0, 255, 4),       CHSV(0, 255, 8),       CHSV(0, 255, 8),
+    CHSV(0, 255, 16),      CRGB::Red,             CRGB::Red,             CRGB::Red,
+    CRGB::DarkOrange,      CRGB::DarkOrange,      CRGB::Orange,          CRGB::Orange,
     CRGB::Yellow,          CRGB::Orange,          CRGB::Yellow,          CRGB::Yellow
   );
 
@@ -571,7 +571,7 @@ void MusicLeds::visualize_noisefire(CRGB *physic_leds)  // Noisefire. By Andrew 
   for (unsigned i = 0; i < this->leds_num; i++) {
     // X location is constant, but we move along the Y at the rate of millis(). By Andrew Tuline.
     uint8_t index = fastled_helper::perlin8(i * this->speed / 64, y_time_axis);
-    
+
     // Now we need to scale index so that it gets blacker as we get close to one of the ends.
     // This is a simple y=mx+b equation that's been scaled. index/128 is another scaling.
     uint32_t spatial_scale = 255 - (i * 256 / this->leds_num);
@@ -591,7 +591,7 @@ void MusicLeds::visualize_pixelwave(CRGB *physic_leds)  // Pixelwave. By Andrew 
   if (speed_divisor < 1) speed_divisor = 1;
 
   uint8_t secondHand = ((micros() / speed_divisor / 500) + 1) % 16;
-  
+
   // Perform wave propagation when execution time-frame steps advance
   if (this->store != secondHand) {
     this->store = secondHand;
@@ -607,7 +607,7 @@ void MusicLeds::visualize_pixelwave(CRGB *physic_leds)  // Pixelwave. By Andrew 
     for (unsigned i = this->leds_num - 1; i > center_idx; i--) {
       physic_leds[i] = physic_leds[i - 1];
     }
-    
+
     // Shift left half outwards (from center toward the start of the strand)
     // Fixed iteration order to prevent pixel data destruction/cloning loops
     for (unsigned i = 0; i < center_idx; i++) {
@@ -617,7 +617,7 @@ void MusicLeds::visualize_pixelwave(CRGB *physic_leds)  // Pixelwave. By Andrew 
     // Inject new audio-modulated pixel at the center boundary anchor
     uint32_t ms = millis();
     CRGB new_color = fastled_helper::color_from_palette((uint8_t)ms, this->main_color);
-    
+
     physic_leds[center_idx] = fastled_helper::color_blend(this->back_color, new_color, (uint8_t)pixBri);
   }
 }  // visualize_pixelwave()
@@ -658,7 +658,7 @@ void MusicLeds::visualize_plasmoid(CRGB *physic_leds)  // Plasmoid. By Andrew Tu
     thisbright += cos8(wave_arg_2) / 2;
 
     uint8_t colorIndex = thisbright;
-    
+
     // Dynamic noise gate cutoff: clamp pixel brightness if sound energy is insufficient
     if (audio_threshold < (uint16_t)thisbright) {
       thisbright = 0;
@@ -739,7 +739,7 @@ void MusicLeds::visualize_DJLight(CRGB *physic_leds)  // DJLight. Written by ???
 
   // Enforce rigid bounded wrapping steps matching the original modulo 64 cycle clock
   uint8_t secondHand = ((micros() / speed_divisor / 500) + 1) % 64;
-  
+
   // Perform frequency wave propagation when execution time-frame steps advance
   if (this->store != secondHand) {
     this->store = secondHand;
@@ -763,7 +763,7 @@ void MusicLeds::visualize_DJLight(CRGB *physic_leds)  // DJLight. Written by ???
     for (uint16_t i = this->leds_num - 1; i > mid; i--) {
       physic_leds[i] = physic_leds[i - 1];
     }
-    
+
     // Shift left half outwards (from center toward the start of the strand)
     for (uint16_t i = 0; i < mid; i++) {
       physic_leds[i] = physic_leds[i + 1];
@@ -788,7 +788,7 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
   if (speed_divisor < 1) speed_divisor = 1;
 
   uint8_t secondHand = ((micros() / speed_divisor / 500) + 1) % 16;
-  
+
   // Perform waterfall shift when execution time-frame steps advance
   if (this->store != secondHand) {
     this->store = secondHand;
@@ -803,7 +803,7 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
     }
 
     unsigned k = this->leds_num - 1;
-    
+
     // Check the 50ms latched peak token to prevent missing rapid triggers on Core 0
     if (this->features_.sample_peak) {
       // use gamma inversion on brightness to restore pre 16.0 looks
@@ -811,7 +811,7 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
     } else {
       // Extract the un-normalized physical magnitude directly from the integrated pipeline
       float mag = this->features_.magnitude;
-      
+
       // Enforce strict bounding to fit inside the standard 8-bit byte fluid scale [0 .. 255]
       uint8_t blend_weight = constrain((uint8_t)mag, 0, 255);
 

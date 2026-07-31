@@ -33,7 +33,7 @@ class BeatDetector {
   }
   /**
    * @brief Analyzes the fresh normalized bass energy using rolling standard deviation.
-   * @param raw_bass Pure, sharp, un-smoothed physical bass energy 
+   * @param raw_bass Pure, sharp, un-smoothed physical bass energy
    * @return True for exactly ONE frame when a valid rhythmic hit is isolated.
    */
   bool process(float raw_bass) {
@@ -41,7 +41,7 @@ class BeatDetector {
 
     float ref_max_bass = AMPLITUDE_SCALE_16BIT * this->sample_scale_;
     if (ref_max_bass <= 0.0f) ref_max_bass = 1.0f;
-    float normalized_bass = raw_bass / ref_max_bass;    
+    float normalized_bass = raw_bass / ref_max_bass;
 
 #ifdef DEBUG
     if (esphome::music_leds::debug::should_log()) {

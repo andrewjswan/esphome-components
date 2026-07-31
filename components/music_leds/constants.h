@@ -55,6 +55,7 @@ struct PinkNoiseBuffer {
     return data[index];
   }
 };
+
 // Hardcoded native multiplication table to flatten the microphone frequency response (Pink Noise Equalization)
 inline constexpr PinkNoiseBuffer PINK_NOISE_CURVE = {{
     1.70f, 1.71f, 1.73f, 1.78f, 1.68f, 1.56f, 1.55f, 1.63f,

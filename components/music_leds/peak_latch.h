@@ -40,13 +40,13 @@ class PeakLatch {
 
     bool trigger_activated = false;
 
-    // 1. Frequency-Domain Statistical Beat Attack
+    // Frequency-Domain Statistical Beat Attack
     if (is_beat && (now_ms - this->last_freq_peak_time_ >= this->freq_lockout_ms_)) {
       trigger_activated = true;
       this->last_freq_peak_time_ = now_ms;
     }
 
-    // 2. Amplitude-Domain Volume Surge Peak (True Peak Envelope Follower)
+    // Amplitude-Domain Volume Surge Peak (True Peak Envelope Follower)
     if (raw_volume > this->sample_max_) {
       this->sample_max_ = raw_volume; // Instant attack latch for transients
     } else {
@@ -65,7 +65,7 @@ class PeakLatch {
       }
     }
 
-    // 3. Unified Latch Engine State Machine
+    // Unified Latch Engine State Machine
     if (trigger_activated) {
       current_sample_peak = true;
       this->global_peak_time_ = now_ms;

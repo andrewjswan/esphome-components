@@ -6,7 +6,7 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
-#define DEBUG
+// #define DEBUG
 
 #ifdef DEBUG
 #include "debug.h"
@@ -296,7 +296,7 @@ void MusicLeds::on_loop() {
              this->features_.smoothed_volume, 
              this->features_.high_energy, 
              this->features_.mid_energy,
-             this->features_.bass_energy) 
+             this->features_.bass_energy);
     xEventGroupClearBits(this->event_group_, EventGroupBits::TASK_INFO);
   }
 #endif
@@ -442,12 +442,6 @@ void MusicLeds::FFTcode(void *parameter) {
         this_task->noise_gate_->is_closed()
     );
 
-    if (this_task->noise_gate_->is_closed()) {
-      this_task->features_.magnitude = 0.0f;
-    } else {
-      this_task->features_.magnitude = this_task->fft_engine_->magnitude();
-    }
-
     // Calibrate aggregated macro band magnitudes using the Pre-Amplifier gain
     // If the gate is closed, multiplying 0.0f by any pink noise curves remains safely 0.0f
     this_task->pre_amplifier_->process(
@@ -496,12 +490,19 @@ void MusicLeds::FFTcode(void *parameter) {
         this_task->features_.high_energy
     );
 
-    // Dual-Channel temporal peak latch window calculation for WLED effect compatibility
+    // Dual-Channel temporal peak latch window calculation
     this_task->peak_latch_->process(
         this_task->features_.is_beat_detected,
         this_task->features_.raw_volume,
         this_task->features_.sample_peak
     );
+
+    // Magnitude
+    if ((this_task->features_.smoothed_volume * 255.0f) < 1.0f) {
+      this_task->features_.magnitude = 0.001f;
+    } else {
+      this_task->features_.magnitude = this_task->fft_engine_->magnitude();
+    }
 
 #ifdef DEBUG
     if (esphome::music_leds::debug::should_log()) {
@@ -558,7 +559,7 @@ void MusicLeds::FFTcode(void *parameter) {
       ESP_LOGD(TAG, "[STEP NOISEGATE ] Bass: %.4f | Mid: %.4f | High: %.4f | GateClosed: %s", gate_b, gate_m, gate_h, gate_active ? "YES" : "NO");
       ESP_LOGD(TAG, "[STEP PRE-AMP   ] Bass: %.4f | Mid: %.4f | High: %.4f", amp_b, amp_m, amp_h);
       ESP_LOGD(TAG, "[STEP DYNAMICS  ] Bass: %.4f | Mid: %.4f | High: %.4f | VolRaw: %.4f", dyn_b, dyn_m, dyn_h, dyn_vol);
-      ESP_LOGD(TAG, "[ENGINE STATUS  ] Raw Peak Magnitude: %.4f", this_task->features_.magnitude);
+      ESP_LOGD(TAG, "[ENGINE STATUS  ] Raw Peak Magnitude: %.4f | Dominant Frequency %.4f", this_task->features_.magnitude, this_task->features_.dominant_frequency_hz);
       ESP_LOGD(TAG, "[FINAL FEATURES ] VolRaw: %.3f | VolSmth: %.3f | Bass: %.3f | Mid: %.3f | Hi: %.3f | Beat: %s | Peak: %s",
                this_task->features_.raw_volume, 
                this_task->features_.smoothed_volume, 

@@ -10,7 +10,7 @@
 #include "esphome/core/defines.h"
 #include "esphome/core/log.h"
 
-#define DEBUG
+// #define DEBUG
 
 #ifdef DEBUG
 #include "debug.h"
@@ -49,7 +49,7 @@ class BeatDetector {
     }
 #endif
 
-    // 1. Manage circular buffer accumulation mechanics and incremental statistics
+    // Manage circular buffer accumulation mechanics and incremental statistics
     if (this->history_count_ >= WINDOW_SIZE) {
       float evicted_value = this->history_ring_[this->history_head_];
       this->history_sum_ -= evicted_value;
@@ -65,7 +65,7 @@ class BeatDetector {
       this->history_count_++;
     }
 
-    // 2. Compute dynamic background noise threshold using mean and standard deviation
+    // Compute dynamic background noise threshold using mean and standard deviation
     if (this->history_count_ < WINDOW_SIZE / 2) {
       return false; // Skip execution until history data buffer is sufficiently warmed up
     }
@@ -81,7 +81,7 @@ class BeatDetector {
     // This absolute floor prevents false ghost triggers when the buffer clears to 0.0f during silence.
     float threshold = std::max(mean + (this->multiplier_ * std_dev), 0.08f);
 
-    // 3. Evaluate trigger conditions with hysteresis and temporal lockouts
+    // Evaluate trigger conditions with hysteresis and temporal lockouts
     bool interval_ok = (this->last_onset_ms_ == 0) || ((timestamp_ms - this->last_onset_ms_) >= this->min_interval_ms_);
     bool triggered = false;
 

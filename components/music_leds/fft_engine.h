@@ -67,11 +67,9 @@ class FFTEngine {
     std::memcpy(this->v_real_.data(), incoming_window, this->samples_fft_ * sizeof(float));
     std::memset(this->v_imag_.data(), 0, this->samples_fft_ * sizeof(float));
 
-    // =========================================================================
-    // HIGH-ACCURACY HARDWARE DC BLOCKER FILTER
+    // High-Accuracy Hardware Dc Blocker Filter
     // Calculates the true arithmetic mean of the current frame and subtracts it
     // with 100% precision. This eliminates the -1426.4 offset leakage before windowing.
-    // =========================================================================
     float dc_sum = 0.0f;
     for (size_t i = 0; i < this->samples_fft_; i++) {
       dc_sum += this->v_real_[i];

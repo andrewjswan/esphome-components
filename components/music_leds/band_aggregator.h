@@ -59,7 +59,7 @@ class BandAggregator {
   size_t freq_to_bin(float freq_hz) const {
     size_t calculated_bin = static_cast<size_t>(roundf(freq_hz / this->hz_per_bin_));
     
-    // --- INTEGRATED HIGH-PASS SUB-SONIC FILTER (10240Hz Legacy Guard) ---
+    // Integrated High-Pass Sub-Sonic Filter (10240hz Legacy Guard)
     // Clamps the lowest processed spectrum bin strictly to index 3 (~60 Hz).
     // This removes invisible sub-bass room rumble, DC jitter, and floor noise artifacts.
     return std::max(calculated_bin, static_cast<size_t>(3));

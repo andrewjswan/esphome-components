@@ -43,7 +43,7 @@ class PreAmplifier {
     mid  *= (pink_mid  * this->global_gain_);
     high *= (pink_high * this->global_gain_);
 
-    // --- ARCHITECTURALLY CORRECT SCALE CLAMPING ---
+    // Scale Clamping
     // Enforces constraints adjusted directly for the current spectrum power limits.
     // Prevents clipping flat-tops on transients while securing safe upper FPU boundaries.
     bass = std::clamp(bass, 0.0f, this->max_energy_ceiling_);
@@ -73,11 +73,10 @@ class PreAmplifier {
    */
   void calculate_constraints() {
     // Calibrates upper limit constraints proportional to the current sample division vector.
-    // Since sample_scale_ is 1/24, we multiply by its inverse to lift the gate ceiling correctly.
     if (this->sample_scale_ > 0.0f) {
       this->max_energy_ceiling_ = AMPLITUDE_SCALE_16BIT / this->sample_scale_;
     } else {
-      this->max_energy_ceiling_ = AMPLITUDE_SCALE_16BIT * 24.0f; // Safe fallback configuration
+      this->max_energy_ceiling_ = AMPLITUDE_SCALE_16BIT; // Safe fallback configuration
     }
   }
 };

@@ -24,8 +24,8 @@ static CRGBPalette16 randomPalette;
 
 static uint32_t randomPaletteChange = 0;
 
-static CRGB color_from_palette(int index, esphome::Color current_color, uint8_t brightness);
-static CRGB color_from_palette(int index, CRGB current_color, uint8_t brightness);
+inline CRGB color_from_palette(int index, esphome::Color current_color, uint8_t brightness);
+inline CRGB color_from_palette(int index, CRGB current_color, uint8_t brightness);
 
 #ifdef MUSIC_LEDS
 static CRGBPalette16 getAudioPalette(int pal);
@@ -35,20 +35,20 @@ static CRGB getCRGBForBand(int x, int pal);
 #endif
 
 // *****************************************************************************************************************************************************************
-static void InitLeds(int size) {
+inline void InitLeds(int size) {
   if (leds == NULL) {
     leds = new CRGB[size];
   }
 }
 
 // *****************************************************************************************************************************************************************
-static void FreeLeds() {
+inline void FreeLeds() {
   delete[] leds;
   leds = nullptr;
 }
 
 // *****************************************************************************************************************************************************************
-static CRGB IRAM_ATTR color_blend(CRGB color1, CRGB color2, uint16_t blend, bool b16 = false) {
+inline CRGB IRAM_ATTR color_blend(CRGB color1, CRGB color2, uint16_t blend, bool b16 = false) {
   if (blend == 0) {
     return color1;
   }
@@ -76,7 +76,7 @@ static CRGB IRAM_ATTR color_blend(CRGB color1, CRGB color2, uint16_t blend, bool
 }
 
 // *****************************************************************************************************************************************************************
-static void fade_out(CRGB *physic_leds, uint16_t _leds_num, uint8_t rate, CRGB back_color) {
+inline void fade_out(CRGB *physic_leds, uint16_t _leds_num, uint8_t rate, CRGB back_color) {
   rate = (255 - rate) >> 1;
   float mappedRate = float(rate) + 1.1;
 
@@ -105,7 +105,7 @@ static void fade_out(CRGB *physic_leds, uint16_t _leds_num, uint8_t rate, CRGB b
 
 // *****************************************************************************************************************************************************************
 // Generates an 8-bit cosine wave at a given BPM that oscillates within a given range. see fastled for details.
-static uint8_t beatcos8(accum88 beats_per_minute, uint8_t lowest = 0, uint8_t highest = 255, uint32_t timebase = 0,
+inline uint8_t beatcos8(accum88 beats_per_minute, uint8_t lowest = 0, uint8_t highest = 255, uint32_t timebase = 0,
                         uint8_t phase_offset = 0) {
   uint8_t beat = beat8(beats_per_minute, timebase);
   uint8_t beatcos = cos8(beat + phase_offset);
@@ -271,33 +271,48 @@ static int32_t perlin3D_raw(uint32_t x, uint32_t y, uint32_t z, bool is16bit = f
 }
 
 // scaling functions for fastled replacement
-static uint16_t perlin16(uint32_t x) {
+inline uint16_t perlin16(uint32_t x) {
   return ((perlin1D_raw(x) * 1159) >> 10) + 32803;  // scale to 16bit and offset (fastled range: about 4838 to 60766)
 }
 
-static uint16_t perlin16(uint32_t x, uint32_t y) {
+inline uint16_t perlin16(uint32_t x, uint32_t y) {
   return ((perlin2D_raw(x, y) * 1537) >> 10) + 32725;  // scale to 16bit and offset (fastled range: about 1748 to 63697)
 }
 
-static uint16_t perlin16(uint32_t x, uint32_t y, uint32_t z) {
+inline uint16_t perlin16(uint32_t x, uint32_t y, uint32_t z) {
   return ((perlin3D_raw(x, y, z) * 1731) >> 10) +
          33147;  // scale to 16bit and offset (fastled range: about 4766 to 60840)
 }
 
-static uint8_t perlin8(uint16_t x) {
+inline uint8_t perlin8(uint16_t x) {
   return (((perlin1D_raw((uint32_t) x << 8, true) * 1353) >> 10) + 32769) >>
          8;  // scale to 16 bit, offset, then scale to 8bit
 }
 
-static uint8_t perlin8(uint16_t x, uint16_t y) {
+inline uint8_t perlin8(uint16_t x, uint16_t y) {
   return (((perlin2D_raw((uint32_t) x << 8, (uint32_t) y << 8, true) * 1620) >> 10) + 32771) >>
          8;  // scale to 16 bit, offset, then scale to 8bit
 }
 
-static uint8_t perlin8(uint16_t x, uint16_t y, uint16_t z) {
+inline uint8_t perlin8(uint16_t x, uint16_t y, uint16_t z) {
   return (((perlin3D_raw((uint32_t) x << 8, (uint32_t) y << 8, (uint32_t) z << 8, true) * 2015) >> 10) + 33168) >>
          8;  // scale to 16 bit, offset, then scale to 8bit
 }
+
+/**
+ * @brief Computes the inverse gamma correction for a single 8-bit color channel value.
+ * @details Replicates the original mathematical transformation curve using a standard 2.8 gamma scale factor.
+ * @param val The incoming linear 8-bit channel intensity value [0 .. 255].
+ * @return The inverse gamma corrected 8-bit byte value [0 .. 255].
+ */
+inline uint8_t gamma8inv(uint8_t val) {
+  if (val == 0) return 0;
+  // Standard internal inverse calculation: 1.0f / 2.8f ≈ 0.35714287f
+  constexpr float gamma_inv = 0.35714287f;
+  float normalized = (static_cast<float>(val) - 0.5f) / 255.0f;
+  return static_cast<uint8_t>(powf(normalized, gamma_inv) * 255.0f + 0.5f);
+}
+
 
 // fast (true) random numbers using hardware RNG, all functions return values in the range lowerlimit to upperlimit-1
 // note: for true random numbers with high entropy, do not call faster than every 200ns (5MHz)
@@ -332,12 +347,12 @@ inline uint8_t hw_random8(uint32_t lowerlimit, uint32_t upperlimit) {
 #ifdef PALETTES
 
 // *****************************************************************************************************************************************************************
-static CRGB color_from_palette(int index, esphome::Color current_color, uint8_t brightness = 255) {
+inline CRGB color_from_palette(int index, esphome::Color current_color, uint8_t brightness = 255) {
   return color_from_palette(index, CRGB(current_color.r, current_color.g, current_color.b), brightness);
 }
 
 // *****************************************************************************************************************************************************************
-static CRGB color_from_palette(int index, CRGB current_color, uint8_t brightness = 255) {
+inline CRGB color_from_palette(int index, CRGB current_color, uint8_t brightness = 255) {
   if (current_palette == 0)  // Current led color
   {
     return ColorFromPalette(CRGBPalette16(current_color), index, brightness, LINEARBLEND);
@@ -374,6 +389,18 @@ static CRGB color_from_palette(int index, CRGB current_color, uint8_t brightness
 
 #ifdef MUSIC_LEDS  // MUSIC_LEDS
 // *****************************************************************************************************************************************************************
+// Protected static pointer to the modern container equalizer buffer
+inline const uint8_t *g_fft_result_ptr = nullptr;
+
+/**
+ * @brief Registers the active pipeline equalizer array interface for downstream rendering routines.
+ * @param array_ptr Pointer to the continuous 16-channel 8-bit array within the features structure.
+ */
+inline void register_fft_spectrum(const uint8_t *array_ptr) {
+  g_fft_result_ptr = array_ptr;
+}
+
+// *****************************************************************************************************************************************************************
 static CRGBPalette16 getAudioPalette(int pal) {
   // https://forum.makerforums.info/t/hi-is-it-possible-to-define-a-gradient-palette-at-runtime-the-define-gradient-palette-uses-the/63339
 
@@ -408,24 +435,36 @@ static CRGBPalette16 getAudioPalette(int pal) {
 
 // *****************************************************************************************************************************************************************
 static CRGB getCRGBForBand(int x, int pal) {
-  extern int fftResult[];  // Summary of bins Array. 16 summary bins.
-
-  CRGB value;
+  CRGB value = CRGB::Black; // Safe default fallback color
   CHSV hsv;
 
+  // Intercept uninitialized or missing data pipelines safely
+  if (g_fft_result_ptr == nullptr) {
+    return value;
+  }
+
   if (pal == 0) {
+    // Read directly from the registered modern pipeline buffer memory layout
+    uint8_t ch10 = g_fft_result_ptr[10] / 2;
+    uint8_t ch4  = g_fft_result_ptr[4] / 2;
+    uint8_t ch0  = g_fft_result_ptr[0] / 2;
+
     if (x == 1) {
-      value = CRGB(uint8_t(fftResult[10] / 2), uint8_t(fftResult[4] / 2), uint8_t(fftResult[0] / 2));
+      value = CRGB(ch10, ch4, ch0);
     } else if (x == 255) {
-      value = CRGB(uint8_t(fftResult[10] / 2), uint8_t(fftResult[0] / 2), uint8_t(fftResult[4] / 2));
+      value = CRGB(ch10, ch0, ch4);
     } else {
-      value = CRGB(uint8_t(fftResult[0] / 2), uint8_t(fftResult[4] / 2), uint8_t(fftResult[10] / 2));
+      value = CRGB(ch0, ch4, ch10);
     }
   } else if (pal == 1) {
-    int b = map(x, 1, 255, 0, 8);  // Convert palette position to lower half of freq band
-    hsv = CHSV(uint8_t(fftResult[b]), 255, uint8_t(map(fftResult[b], 0, 255, 30, 255)));  // Pick hue
-    hsv2rgb_rainbow(hsv, value);                                                          // Convert to R,G,B
+    int b = map(x, 1, 255, 0, 8); 
+    uint8_t band_val = g_fft_result_ptr[b];
+    
+    // Maintain genuine integer constraints while picking the dynamic hue
+    hsv = CHSV(band_val, 255, uint8_t(map(band_val, 0, 255, 30, 255)));
+    hsv2rgb_rainbow(hsv, value);
   }
+
   return value;
 }
 #endif  // MUSIC_LEDS

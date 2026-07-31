@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cstdint>
 
-#define DEBUG
+// #define DEBUG
 
 #ifdef DEBUG
 #include "debug.h"
@@ -16,7 +16,9 @@
 
 namespace esphome::music_leds {
 
-static const float FFT_DOWNSCALE = 0.40f;
+constexp float FFT_DOWNSCALE = 0.40f;
+// constexp float FFT_DOWNSCALE = 0.39f;
+// constexp float FFT_DOWNSCALE = 0.38f;
 
 class GEQProcessor {
  public:
@@ -47,7 +49,7 @@ class GEQProcessor {
 
   void process(const float *magnitudes, uint8_t *output_array, bool is_gate_closed) {
     // Standardize input user slider gain into a proportional linear scaler
-    float dynamic_gain_scaler = static_cast<float>(this->sample_gain_) / 40.0f + 1.0f/16.0f;
+    float dynamic_gain_scaler = static_cast<float>(this->sample_gain_) / 40.0f + 1.0f / 16.0f;
 
 #ifdef DEBUG
     // Zero-initialize tracking arrays to capture pure current frame execution state
@@ -57,7 +59,7 @@ class GEQProcessor {
 #endif
 
     for (uint8_t i = 0; i < 16; i++) {
-      // GATE IS OPEN: Compute fresh channel energy
+      // Gate Open: Compute fresh channel energy
       if (!is_gate_closed && magnitudes != nullptr) {
         // Compute Band Energy via True Integrated RMS Amplitude
         float bin_energy_sum = 0.00001f;
@@ -77,24 +79,24 @@ class GEQProcessor {
         trace_raw_sum[i] = bin_energy_sum; 
 #endif
 
-        // Step 1: Compute true Root Mean Square (RMS) linear amplitude.
+        // Compute true Root Mean Square (RMS) linear amplitude.
         // Extract total band amplitude from power domain using square root first,
         // then divide by the physical bin count to normalize spectral density.
         // Then apply the attenuation factor (1/16).
         float rms_amplitude = sqrtf(bin_energy_sum) / static_cast<float>(bin_count);
         this->fft_calc_[i] = rms_amplitude * 0.0625f;
 
-        // Step 2: Apply high-frequency dampening curve (Converted to squared power domain multipliers)
+        // Apply high-frequency dampening curve (Converted to squared power domain multipliers)
         if (i == 14) {
           this->fft_calc_[i] *= 0.88f;  // High-mid dampener
         } else if (i == 15) {
           this->fft_calc_[i] *= 0.70f;  // Nyquist guard dampener
         }
 
-        // Step 3: Apply pink noise equalization curve
+        // Apply pink noise equalization curve
         this->fft_calc_[i] *= PINK_NOISE_CURVE[i];
 
-        // Step 4: Apply window downscale and volume multipliers directly to fft_calc_
+        // Apply window downscale and volume multipliers
         if (this->scaling_mode_ != FFTScalingMode::LINEAR) {
           this->fft_calc_[i] *= FFT_DOWNSCALE;
         }
@@ -104,7 +106,7 @@ class GEQProcessor {
           this->fft_calc_[i] = 0.0f;
         }
       } 
-      // GATE IS CLOSED: Smoothly decay existing value to absolute zero
+      // Gate Closed: Smoothly decay existing value to absolute zero
       else {
         this->fft_calc_[i] *= 0.85f;
         if (this->fft_calc_[i] < 5.0f) {
@@ -116,20 +118,19 @@ class GEQProcessor {
       trace_after_gain[i] = this->fft_calc_[i];
 #endif
 
-      // FILTERS PHASE: Execute asymmetric temporal filters (Always runs in background)
+      // Filters Phase: Execute asymmetric temporal filters
       if (this->fft_calc_[i] > this->fft_avg_[i]) {
         // Rapid adaptive attack tracking on fast transient energy bursts
         this->fft_avg_[i] = (this->fft_calc_[i] * 0.75f) + (this->fft_avg_[i] * 0.25f);
       } else {
-        // Smooth standard release decay profile tracking (Default WLED 1400ms decay window)
+        // Smooth standard release decay profile tracking (Default 1400ms decay window)
         this->fft_avg_[i] = (this->fft_calc_[i] * 0.17f) + (this->fft_avg_[i] * 0.83f);
       }
 
-      // COMPRESSION PHASE: Map the instant frame value into the 8-bit viewport
+      // Compression Phase: Map the instant frame value into the 8-bit viewport
       float current_result = this->fft_calc_[i];
 
       // Convert the internal power register safely into a clean fraction [0.0 .. 1.0].
-      // Our Phase 1 squared attenuation guarantees that maximum musical peaks naturally anchor to 1023.0f.
       float normalized_fraction = current_result / 1023.0f;
       normalized_fraction = std::clamp(normalized_fraction, 0.0f, 1.0f);
 

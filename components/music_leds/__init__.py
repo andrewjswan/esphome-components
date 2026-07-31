@@ -4,7 +4,7 @@ import logging
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome import automation, core
+from esphome import automation
 from esphome.components import microphone, ota
 from esphome.components.light.effects import register_addressable_effect
 from esphome.components.light.types import AddressableLightEffect
@@ -17,18 +17,17 @@ from esphome.const import (
 )
 
 from .const import (
-CONF_BEAT_SENSITIVITY,
-CONF_MUSIC_LEDS_ID,
-CONF_NOISE_GATE_FLOOR,
-CONF_ON_SOUND_LOOP,
-CONF_PRE_AMP_GAIN,
-CONF_SAMPLE_GAIN,
-CONF_SAMPLE_SCALE,
-CONF_SCALING_MODE,
-CONF_TASK_CORE,
-CONF_TASK_PRIORITY,
+    CONF_BEAT_SENSITIVITY,
+    CONF_MUSIC_LEDS_ID,
+    CONF_NOISE_GATE_FLOOR,
+    CONF_ON_SOUND_LOOP,
+    CONF_PRE_AMP_GAIN,
+    CONF_SAMPLE_GAIN,
+    CONF_SAMPLE_SCALE,
+    CONF_SCALING_MODE,
+    CONF_TASK_CORE,
+    CONF_TASK_PRIORITY,
 )
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -94,7 +93,7 @@ CONFIG_SCHEMA = cv.Schema(
                 cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(SoundLoopTrigger),
             },
         ),
-    }
+    },
 )
 
 

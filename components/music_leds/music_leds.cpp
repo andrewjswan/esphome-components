@@ -78,7 +78,8 @@ void MusicLeds::setup() {
 
   // Register callback for incoming raw byte vector
   this->microphone_->add_data_callback([this](const std::vector<uint8_t> &data) {
-    if (data.empty()) return;
+    if (data.empty())
+      return;
 
     // Stream bytes straight into the float ring buffer
     this->process_audio_to_ring_(data);
@@ -97,9 +98,10 @@ void MusicLeds::setup() {
   this->beat_detector_ = std::make_unique<BeatDetector>(this->sample_scale_, this->beat_sensitivity_);
   this->noise_gate_ = std::make_unique<NoiseGate>(this->sample_scale_, this->noise_gate_floor_);
   this->pre_amplifier_ = std::make_unique<PreAmplifier>(this->sample_scale_, this->pre_amp_gain_);
-  this->peak_latch_ = std::make_unique<PeakLatch>(100, 80, 50, 0.5f);  // 100ms freq lockout, 80ms vol lockout, 50ms hold window, 0.5 threshold
   this->geq_processor_ = std::make_unique<GEQProcessor>(this->sample_gain_);
   this->geq_processor_->set_scaling_mode(this->scaling_mode_);
+  // 100ms freq lockout, 80ms vol lockout, 50ms hold window, 0.5 threshold
+  this->peak_latch_ = std::make_unique<PeakLatch>(100, 80, 50, 0.5f);
 
   ESP_LOGCONFIG(TAG, "Music Leds initialized");
   this->start();
@@ -192,33 +194,37 @@ void MusicLeds::dump_config() {
   }
 
   // Core scheduling parameters
-  ESP_LOGCONFIG(TAG, "         Task Core: %u", FFTTASK_CORE);
-  ESP_LOGCONFIG(TAG, "     Task Priority: %u", FFTTASK_PRIORITY);
+  ESP_LOGCONFIG(TAG, "          Task Core: %u", FFTTASK_CORE);
+  ESP_LOGCONFIG(TAG, "      Task Priority: %u", FFTTASK_PRIORITY);
 
   // Fetch runtime stream info dynamically straight from the active microphone object
   if (this->microphone_ != nullptr) {
     const auto &stream_info = this->microphone_->get_audio_stream_info();
-    ESP_LOGCONFIG(TAG, "  Stream Bit Depth: %d bit", stream_info.get_bits_per_sample());
-    ESP_LOGCONFIG(TAG, "       Sample rate: %ld Hz", static_cast<int32_t>(stream_info.get_sample_rate()));
-
+    ESP_LOGCONFIG(TAG, "   Stream Bit Depth: %d bit", stream_info.get_bits_per_sample());
+    ESP_LOGCONFIG(TAG, "        Sample rate: %ld Hz", static_cast<int32_t>(stream_info.get_sample_rate()));
   }
 
   // Extract independent internal pipeline features and scaling styles
-  ESP_LOGCONFIG(TAG, "     Pre-Amp Gain: %.1f", this->pre_amp_gain_);
-  ESP_LOGCONFIG(TAG, " Noise Gate Floor: %.3f", this->noise_gate_floor_);
-  ESP_LOGCONFIG(TAG, " Beat Sensitivity: %d (1-100)", this->beat_sensitivity_);
-  ESP_LOGCONFIG(TAG, "  Sample Scale Factor: %.6f (1.0f / %d)",
-                this->sample_scale_,
+  ESP_LOGCONFIG(TAG, "       Pre-Amp Gain: %.1f", this->pre_amp_gain_);
+  ESP_LOGCONFIG(TAG, "   Noise Gate Floor: %.3f", this->noise_gate_floor_);
+  ESP_LOGCONFIG(TAG, "   Beat Sensitivity: %d (1-100)", this->beat_sensitivity_);
+  ESP_LOGCONFIG(TAG, "Sample Scale Factor: %.6f (1.0f / %d)", this->sample_scale_,
                 (this->sample_scale_ > 0.0f) ? static_cast<int16_t>(1.0f / this->sample_scale_) : 0);
 
   // Map the strongly-typed scaling enum to descriptive human logs
   const char *scaling_str = "UNKNOWN";
   switch (this->scaling_mode_) {
-    case FFTScalingMode::LINEAR:      scaling_str = "Linear (None)"; break;
-    case FFTScalingMode::LOGARITHMIC: scaling_str = "Logarithmic (True Hearing Curve)"; break;
-    case FFTScalingMode::SQUARE_ROOT: scaling_str = "Square Root (Psychoacoustic Standard)"; break;
+    case FFTScalingMode::LINEAR:
+      scaling_str = "Linear (None)";
+      break;
+    case FFTScalingMode::LOGARITHMIC:
+      scaling_str = "Logarithmic (True Hearing Curve)";
+      break;
+    case FFTScalingMode::SQUARE_ROOT:
+      scaling_str = "Square Root (Psychoacoustic Standard)";
+      break;
   }
-  ESP_LOGCONFIG(TAG, " FFTResult scaling: %s", scaling_str);
+  ESP_LOGCONFIG(TAG, "  FFTResult scaling: %s", scaling_str);
 }  // dump_config() end
 
 void MusicLeds::on_shutdown() { this->stop(); }
@@ -292,11 +298,8 @@ void MusicLeds::on_loop() {
 #ifdef DEBUG
   uint32_t event_group_bits = xEventGroupGetBits(this->event_group_);
   if ((event_group_bits & EventGroupBits::TASK_INFO)) {
-    ESP_LOGE(TAG, "LOOP: Samples: VolSmth: %f | High: %f | Mid: %f | Bass: %f",
-             this->features_.smoothed_volume,
-             this->features_.high_energy,
-             this->features_.mid_energy,
-             this->features_.bass_energy);
+    ESP_LOGE(TAG, "LOOP: Samples: VolSmth: %f | High: %f | Mid: %f | Bass: %f", this->features_.smoothed_volume,
+             this->features_.high_energy, this->features_.mid_energy, this->features_.bass_energy);
     xEventGroupClearBits(this->event_group_, EventGroupBits::TASK_INFO);
   }
 #endif
@@ -304,8 +307,8 @@ void MusicLeds::on_loop() {
 #if defined(MUSIC_LEDS_TRIGGERS)
   if (current_millis - lastTrigger > 200) {
     float scaled_smth = this->features_.volume_smth();
-    float scaled_raw  = this->features_.volume_raw();
-    float pitch_val   = this->features_.dominant_frequency_hz;
+    float scaled_raw = this->features_.volume_raw();
+    float pitch_val = this->features_.dominant_frequency_hz;
     bool sample_peak = this->features_.sample_peak;
 
     for (auto *t : on_sound_loop_triggers_) {
@@ -330,7 +333,8 @@ void MusicLeds::process_audio_to_ring_(const std::vector<uint8_t> &data) {
   const size_t source_bytes_per_frame = stream_info.frames_to_bytes(1);
   const uint32_t total_frames = stream_info.bytes_to_frames(data.size());
 
-  if (total_frames == 0) return;
+  if (total_frames == 0)
+    return;
 
   // Authentic Audio Scaler: Integrates standard Q31 bit-depth translation
   // with the native initialization scale factor (e.g., 1.0f / 24.0f) matched to your hardware profile.
@@ -342,8 +346,9 @@ void MusicLeds::process_audio_to_ring_(const std::vector<uint8_t> &data) {
   for (uint32_t frame_index = 0; frame_index < total_frames; ++frame_index) {
     float frame_mono_mix = 0.0f;
     for (uint32_t channel_index = 0; channel_index < source_channels; ++channel_index) {
-      const uint32_t sample_index = (frame_index * source_bytes_per_frame) +
-                                    (channel_index * source_bytes_per_frame / source_channels); // Secure precise indexing bounds
+      const uint32_t sample_index =
+          (frame_index * source_bytes_per_frame) +
+          (channel_index * source_bytes_per_frame / source_channels);  // Secure precise indexing bounds
 
       // Unpack raw hardware bytes natively using ESPHome's internal adaptive bit-depth parser
       int32_t q31_sample = audio::unpack_audio_sample_to_q31(&data[sample_index], source_bytes_per_sample);
@@ -403,12 +408,8 @@ void MusicLeds::FFTcode(void *parameter) {
     this_task->features_.dominant_frequency_hz = pitch;
 
     // Aggregate frequency bins from the FFT magnitudes spectrum into macro bands
-    this_task->band_aggregator_->process(
-        this_task->fft_engine_->magnitudes(),
-        this_task->features_.bass_energy,
-        this_task->features_.mid_energy,
-        this_task->features_.high_energy
-    );
+    this_task->band_aggregator_->process(this_task->fft_engine_->magnitudes(), this_task->features_.bass_energy,
+                                         this_task->features_.mid_energy, this_task->features_.high_energy);
 
 #ifdef DEBUG
     // Diagnostics: Snapshot immediately after Aggregator (Pure physical bins energy)
@@ -420,11 +421,8 @@ void MusicLeds::FFTcode(void *parameter) {
     // Noise Gate (Enforced prior to pre-amplification and AGC loops)
     // Evaluates pure un-amplified hardware macro band lines.
     // Intercepts the signal chain and purges registers to absolute 0.0f if silence is hit.
-    this_task->noise_gate_->process(
-        this_task->features_.bass_energy,
-        this_task->features_.mid_energy,
-        this_task->features_.high_energy
-    );
+    this_task->noise_gate_->process(this_task->features_.bass_energy, this_task->features_.mid_energy,
+                                    this_task->features_.high_energy);
 
 #ifdef DEBUG
     // Diagnostics: Snapshot immediately after NoiseGate (Did it successfully zero values?)
@@ -436,19 +434,13 @@ void MusicLeds::FFTcode(void *parameter) {
 
     // Execute the self-contained 16-band graphic equalizer pass
     // Completely standalone - accepts raw magnitudes and writes directly to target features array
-    this_task->geq_processor_->process(
-        this_task->fft_engine_->magnitudes(),
-        this_task->features_.fft_result,
-        this_task->noise_gate_->is_closed()
-    );
+    this_task->geq_processor_->process(this_task->fft_engine_->magnitudes(), this_task->features_.fft_result,
+                                       this_task->noise_gate_->is_closed());
 
     // Calibrate aggregated macro band magnitudes using the Pre-Amplifier gain
     // If the gate is closed, multiplying 0.0f by any pink noise curves remains safely 0.0f
-    this_task->pre_amplifier_->process(
-        this_task->features_.bass_energy,
-        this_task->features_.mid_energy,
-        this_task->features_.high_energy
-    );
+    this_task->pre_amplifier_->process(this_task->features_.bass_energy, this_task->features_.mid_energy,
+                                       this_task->features_.high_energy);
 
 #ifdef DEBUG
     // Diagnostics: Snapshot immediately after Pre-Amplifier (Amplified raw signal)
@@ -458,19 +450,13 @@ void MusicLeds::FFTcode(void *parameter) {
 #endif
 
     // Transient Beat Onset Detection runs on filtered linear energy
-    this_task->features_.is_beat_detected = this_task->beat_detector_->process(
-        this_task->features_.bass_energy
-    );
+    this_task->features_.is_beat_detected = this_task->beat_detector_->process(this_task->features_.bass_energy);
 
     // Apply Linear AGC normalization and temporal Slew-Rate limiting
     // Controlled by the zero-line decay tail lock to reset persistent history registers instantly.
-    this_task->dynamics_processor_->process(
-        this_task->features_.smoothed_volume,
-        this_task->features_.raw_volume,
-        this_task->features_.bass_energy,
-        this_task->features_.mid_energy,
-        this_task->features_.high_energy
-    );
+    this_task->dynamics_processor_->process(this_task->features_.smoothed_volume, this_task->features_.raw_volume,
+                                            this_task->features_.bass_energy, this_task->features_.mid_energy,
+                                            this_task->features_.high_energy);
 
 #ifdef DEBUG
     // Diagnostics: Snapshot immediately after Dynamics Stage 1 (AGC applied, still linear)
@@ -483,19 +469,12 @@ void MusicLeds::FFTcode(void *parameter) {
     // Psychoacoustic Scaling Stage - Enforced strictly after gate and beat tasks!
     // Compresses clean linear bands using selected curves (e.g. Square Root)
     this_task->dynamics_processor_->apply_psychoacoustic_scaling(
-        this_task->features_.smoothed_volume,
-        this_task->features_.raw_volume,
-        this_task->features_.bass_energy,
-        this_task->features_.mid_energy,
-        this_task->features_.high_energy
-    );
+        this_task->features_.smoothed_volume, this_task->features_.raw_volume, this_task->features_.bass_energy,
+        this_task->features_.mid_energy, this_task->features_.high_energy);
 
     // Dual-Channel temporal peak latch window calculation
-    this_task->peak_latch_->process(
-        this_task->features_.is_beat_detected,
-        this_task->features_.raw_volume,
-        this_task->features_.sample_peak
-    );
+    this_task->peak_latch_->process(this_task->features_.is_beat_detected, this_task->features_.raw_volume,
+                                    this_task->features_.sample_peak);
 
     // Magnitude
     if ((this_task->features_.smoothed_volume * 255.0f) < 1.0f) {
@@ -511,28 +490,28 @@ void MusicLeds::FFTcode(void *parameter) {
       float sum_val = 0.0f;
 
       for (int i = 0; i < SAMPLES_FFT; i++) {
-        if (fft_buffer[i] < min_val) min_val = fft_buffer[i];
-        if (fft_buffer[i] > max_val) max_val = fft_buffer[i];
+        if (fft_buffer[i] < min_val)
+          min_val = fft_buffer[i];
+        if (fft_buffer[i] > max_val)
+          max_val = fft_buffer[i];
         sum_val += fft_buffer[i];
       }
       float dc_offset = sum_val / SAMPLES_FFT;
 
-      ESP_LOGD("FFT_WAVE", "[RAW WAVE SHAPE] Min: %.1f | Max: %.1f | DC_Offset (Avg): %.1f",
-               min_val, max_val, dc_offset);
+      ESP_LOGD("FFT_WAVE", "[RAW WAVE SHAPE] Min: %.1f | Max: %.1f | DC_Offset (Avg): %.1f", min_val, max_val,
+               dc_offset);
 
-      const float* raw_mags = this_task->fft_engine_->magnitudes();
+      const float *raw_mags = this_task->fft_engine_->magnitudes();
       ESP_LOGD(TAG, "================ BINS SPECTRUM RADAR ================");
       // Print first 20 bins with their calculated center frequencies (assuming 10240Hz / 512 window)
       char bin_log_buffer[128];
       for (int i = 0; i < 20; i += 5) {
         snprintf(bin_log_buffer, sizeof(bin_log_buffer),
-                 "Bin[%02d..%02d]: #%02d(%.1fHz):%.3f | #%02d(%.1fHz):%.3f | #%02d(%.1fHz):%.3f | #%02d(%.1fHz):%.3f | #%02d(%.1fHz):%.3f",
-                 i, i+4,
-                 i,   (i * 20.0f),   raw_mags[i],
-                 i+1, ((i+1) * 20.0f), raw_mags[i+1],
-                 i+2, ((i+2) * 20.0f), raw_mags[i+2],
-                 i+3, ((i+3) * 20.0f), raw_mags[i+3],
-                 i+4, ((i+4) * 20.0f), raw_mags[i+4]);
+                 "Bin[%02d..%02d]: #%02d(%.1fHz):%.3f | #%02d(%.1fHz):%.3f | #%02d(%.1fHz):%.3f | #%02d(%.1fHz):%.3f | "
+                 "#%02d(%.1fHz):%.3f",
+                 i, i + 4, i, (i * 20.0f), raw_mags[i], i + 1, ((i + 1) * 20.0f), raw_mags[i + 1], i + 2,
+                 ((i + 2) * 20.0f), raw_mags[i + 2], i + 3, ((i + 3) * 20.0f), raw_mags[i + 3], i + 4,
+                 ((i + 4) * 20.0f), raw_mags[i + 4]);
         ESP_LOGD(TAG, "%s", bin_log_buffer);
       }
 
@@ -548,7 +527,7 @@ void MusicLeds::FFTcode(void *parameter) {
 
       snprintf(geq_log_buffer, sizeof(geq_log_buffer),
                "GEQ CH[08..15]: %03d | %03d | %03d | %03d | %03d | %03d | %03d | %03d",
-               this_task->features_.fft_result[8],  this_task->features_.fft_result[9],
+               this_task->features_.fft_result[8], this_task->features_.fft_result[9],
                this_task->features_.fft_result[10], this_task->features_.fft_result[11],
                this_task->features_.fft_result[12], this_task->features_.fft_result[13],
                this_task->features_.fft_result[14], this_task->features_.fft_result[15]);
@@ -556,18 +535,19 @@ void MusicLeds::FFTcode(void *parameter) {
 
       ESP_LOGD(TAG, "=======================================================");
       ESP_LOGD(TAG, "[STEP AGGREGATOR] Bass: %.4f | Mid: %.4f | High: %.4f", agg_b, agg_m, agg_h);
-      ESP_LOGD(TAG, "[STEP NOISEGATE ] Bass: %.4f | Mid: %.4f | High: %.4f | GateClosed: %s", gate_b, gate_m, gate_h, gate_active ? "YES" : "NO");
+      ESP_LOGD(TAG, "[STEP NOISEGATE ] Bass: %.4f | Mid: %.4f | High: %.4f | GateClosed: %s", gate_b, gate_m, gate_h,
+               gate_active ? "YES" : "NO");
       ESP_LOGD(TAG, "[STEP PRE-AMP   ] Bass: %.4f | Mid: %.4f | High: %.4f", amp_b, amp_m, amp_h);
-      ESP_LOGD(TAG, "[STEP DYNAMICS  ] Bass: %.4f | Mid: %.4f | High: %.4f | VolRaw: %.4f", dyn_b, dyn_m, dyn_h, dyn_vol);
-      ESP_LOGD(TAG, "[ENGINE STATUS  ] Raw Peak Magnitude: %.4f | Dominant Frequency %.4f", this_task->features_.magnitude, this_task->features_.dominant_frequency_hz);
-      ESP_LOGD(TAG, "[FINAL FEATURES ] VolRaw: %.3f | VolSmth: %.3f | Bass: %.3f | Mid: %.3f | Hi: %.3f | Beat: %s | Peak: %s",
-               this_task->features_.raw_volume,
-               this_task->features_.smoothed_volume,
-               this_task->features_.bass_energy,
-               this_task->features_.mid_energy,
-               this_task->features_.high_energy,
-               this_task->features_.is_beat_detected ? "YES" : "NO",
-               this_task->features_.sample_peak ? "YES" : "NO");
+      ESP_LOGD(TAG, "[STEP DYNAMICS  ] Bass: %.4f | Mid: %.4f | High: %.4f | VolRaw: %.4f", dyn_b, dyn_m, dyn_h,
+               dyn_vol);
+      ESP_LOGD(TAG, "[ENGINE STATUS  ] Raw Peak Magnitude: %.4f | Dominant Frequency %.4f",
+               this_task->features_.magnitude, this_task->features_.dominant_frequency_hz);
+      ESP_LOGD(
+          TAG,
+          "[FINAL FEATURES ] VolRaw: %.3f | VolSmth: %.3f | Bass: %.3f | Mid: %.3f | Hi: %.3f | Beat: %s | Peak: %s",
+          this_task->features_.raw_volume, this_task->features_.smoothed_volume, this_task->features_.bass_energy,
+          this_task->features_.mid_energy, this_task->features_.high_energy,
+          this_task->features_.is_beat_detected ? "YES" : "NO", this_task->features_.sample_peak ? "YES" : "NO");
       esphome::music_leds::debug::commit_timestamp();
     }
 #endif

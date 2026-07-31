@@ -25,35 +25,38 @@ class PreAmplifier {
    * @param high In/Out reference for total High frequency energy pool.
    */
   void process(float &bass, float &mid, float &high) {
+    // clang-format off
     // Accumulate normalized Pink Noise compensation scaling sub-factors per macro group.
     // Bass spans sub-bands 0 to 3
-    float pink_bass = (PINK_NOISE_CURVE_NORM[0] + PINK_NOISE_CURVE_NORM[1] +
-                       PINK_NOISE_CURVE_NORM[2] + PINK_NOISE_CURVE_NORM[3]) * 0.25f;
+    float pink_bass =
+        (PINK_NOISE_CURVE_NORM[0] + PINK_NOISE_CURVE_NORM[1] + PINK_NOISE_CURVE_NORM[2] + PINK_NOISE_CURVE_NORM[3]) *
+        0.25f;
 
     // Mid spans sub-bands 4 to 9
-    float pink_mid  = (PINK_NOISE_CURVE_NORM[4] + PINK_NOISE_CURVE_NORM[5] + PINK_NOISE_CURVE_NORM[6] +
-                       PINK_NOISE_CURVE_NORM[7] + PINK_NOISE_CURVE_NORM[8] + PINK_NOISE_CURVE_NORM[9]) * 0.16666667f;
+    float pink_mid = (PINK_NOISE_CURVE_NORM[4] + PINK_NOISE_CURVE_NORM[5] + PINK_NOISE_CURVE_NORM[6] +
+                      PINK_NOISE_CURVE_NORM[7] + PINK_NOISE_CURVE_NORM[8] + PINK_NOISE_CURVE_NORM[9]) *
+                     0.16666667f;
 
     // High spans sub-bands 10 to 15
     float pink_high = (PINK_NOISE_CURVE_NORM[10] + PINK_NOISE_CURVE_NORM[11] + PINK_NOISE_CURVE_NORM[12] +
-                       PINK_NOISE_CURVE_NORM[13] + PINK_NOISE_CURVE_NORM[14] + PINK_NOISE_CURVE_NORM[15]) * 0.16666667f;
+                       PINK_NOISE_CURVE_NORM[13] + PINK_NOISE_CURVE_NORM[14] + PINK_NOISE_CURVE_NORM[15]) *
+                      0.16666667f;
+    // clang-format on
 
     // Multiplicatively couple the dynamic pink curves with the global preamp multiplier.
     bass *= (pink_bass * this->global_gain_);
-    mid  *= (pink_mid  * this->global_gain_);
+    mid *= (pink_mid * this->global_gain_);
     high *= (pink_high * this->global_gain_);
 
     // Scale Clamping
     // Enforces constraints adjusted directly for the current spectrum power limits.
     // Prevents clipping flat-tops on transients while securing safe upper FPU boundaries.
     bass = std::clamp(bass, 0.0f, this->max_energy_ceiling_);
-    mid  = std::clamp(mid,  0.0f, this->max_energy_ceiling_);
+    mid = std::clamp(mid, 0.0f, this->max_energy_ceiling_);
     high = std::clamp(high, 0.0f, this->max_energy_ceiling_);
   }
 
-  void set_global_gain(float gain) {
-    this->global_gain_ = gain;
-  }
+  void set_global_gain(float gain) { this->global_gain_ = gain; }
 
   /**
    * @brief Dynamic injector allowing scale factor updates on runtime parameters adjustments.
@@ -76,9 +79,9 @@ class PreAmplifier {
     if (this->sample_scale_ > 0.0f) {
       this->max_energy_ceiling_ = AMPLITUDE_SCALE_16BIT / this->sample_scale_;
     } else {
-      this->max_energy_ceiling_ = AMPLITUDE_SCALE_16BIT; // Safe fallback configuration
+      this->max_energy_ceiling_ = AMPLITUDE_SCALE_16BIT;  // Safe fallback configuration
     }
   }
 };
 
-} // namespace esphome::music_leds
+}  // namespace esphome::music_leds

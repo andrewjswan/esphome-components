@@ -57,8 +57,8 @@ class MusicLedsSoundLoopTrigger;
 
 struct AudioPipelineFeatures {
   // Amplitude & Volume (0.0f To 1.0f)
-  float smoothed_volume{0.0f};              // Filtered overall loudness (perfect for smooth brightness)
-  float raw_volume{0.0f};                   // Instantaneous frame loudness (perfect for strobes and sharp pulses)
+  float smoothed_volume{0.0f};  // Filtered overall loudness (perfect for smooth brightness)
+  float raw_volume{0.0f};       // Instantaneous frame loudness (perfect for strobes and sharp pulses)
 
   // Frequency Analysis
   float dominant_frequency_hz{1.0f};        // Major pitch tone in Hz (e.g., 440.0f for dynamic color hues)
@@ -66,24 +66,20 @@ struct AudioPipelineFeatures {
   uint8_t fft_result[NUM_GEQ_CHANNELS]{0};  // 16-channel array / fftResult
 
   // Band Energies (0.0f To 1.0f, Agc Normalized)
-  float bass_energy{0.0f};                  // Sub-bass & low kick punch power (reds / physical thumping)
-  float mid_energy{0.0f};                   // Vocals, guitars, and main instrumentation (greens / core movement)
-  float high_energy{0.0f};                  // Cymbals, hi-hats, shakers, and crisp air (blues / sparkles)
+  float bass_energy{0.0f};  // Sub-bass & low kick punch power (reds / physical thumping)
+  float mid_energy{0.0f};   // Vocals, guitars, and main instrumentation (greens / core movement)
+  float high_energy{0.0f};  // Cymbals, hi-hats, shakers, and crisp air (blues / sparkles)
 
   // Musical Beat & Attacks
-  bool is_beat_detected{false};             // True for a single frame when a sharp audio attack occurs (onset)
+  bool is_beat_detected{false};  // True for a single frame when a sharp audio attack occurs (onset)
 
-  bool sample_peak{false};                  // Time-locked high activity latch (Auto-resets after 50ms)
+  bool sample_peak{false};  // Time-locked high activity latch (Auto-resets after 50ms)
 
   // Returns overall loudness scaled to standard 8-bit byte integer [0 .. 255]
-  inline uint8_t volume_smth() const {
-    return static_cast<uint8_t>(this->smoothed_volume * 255.0f);
-  }
+  inline uint8_t volume_smth() const { return static_cast<uint8_t>(this->smoothed_volume * 255.0f); }
 
   // Returns instantaneous loudness scaled to standard 8-bit byte integer [0 .. 255]
-  inline uint8_t volume_raw() const {
-    return static_cast<uint8_t>(this->raw_volume * 255.0f);
-  }
+  inline uint8_t volume_raw() const { return static_cast<uint8_t>(this->raw_volume * 255.0f); }
 };
 
 class MusicLeds final : public Component

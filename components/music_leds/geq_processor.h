@@ -22,20 +22,18 @@ constexp float FFT_DOWNSCALE = 0.40f;
 
 class GEQProcessor {
  public:
-  explicit GEQProcessor(uint8_t sample_gain = 60)
-      : sample_gain_(sample_gain) {
-
+  explicit GEQProcessor(uint8_t sample_gain = 60) : sample_gain_(sample_gain) {
     // Native 22050Hz mapping matrix from softhack007
-    this->bands_[0]  = {1, 2};      // 43Hz   - 86Hz sub-bass
-    this->bands_[1]  = {2, 3};      // 86Hz   - 129Hz bass
-    this->bands_[2]  = {3, 5};      // 129Hz  - 216Hz bass
-    this->bands_[3]  = {5, 7};      // 216Hz  - 301Hz bass + midrange
-    this->bands_[4]  = {7, 10};     // 301Hz  - 430Hz midrange
-    this->bands_[5]  = {10, 13};    // 430Hz  - 560Hz midrange
-    this->bands_[6]  = {13, 19};    // 560Hz  - 818Hz midrange
-    this->bands_[7]  = {19, 26};    // 818Hz  - 1120Hz midrange (1Khz center anchor)
-    this->bands_[8]  = {26, 33};    // 1120Hz - 1421Hz midrange
-    this->bands_[9]  = {33, 44};    // 1421Hz - 1895Hz midrange
+    this->bands_[0] = {1, 2};       // 43Hz   - 86Hz sub-bass
+    this->bands_[1] = {2, 3};       // 86Hz   - 129Hz bass
+    this->bands_[2] = {3, 5};       // 129Hz  - 216Hz bass
+    this->bands_[3] = {5, 7};       // 216Hz  - 301Hz bass + midrange
+    this->bands_[4] = {7, 10};      // 301Hz  - 430Hz midrange
+    this->bands_[5] = {10, 13};     // 430Hz  - 560Hz midrange
+    this->bands_[6] = {13, 19};     // 560Hz  - 818Hz midrange
+    this->bands_[7] = {19, 26};     // 818Hz  - 1120Hz midrange (1Khz center anchor)
+    this->bands_[8] = {26, 33};     // 1120Hz - 1421Hz midrange
+    this->bands_[9] = {33, 44};     // 1421Hz - 1895Hz midrange
     this->bands_[10] = {44, 56};    // 1895Hz - 2412Hz midrange + high mid
     this->bands_[11] = {56, 70};    // 2412Hz - 3015Hz high mid
     this->bands_[12] = {70, 86};    // 3015Hz - 3704Hz high mid
@@ -152,7 +150,7 @@ class GEQProcessor {
         case FFTScalingMode::LOGARITHMIC: {
           // Normalized natural logarithm transformation avoiding log(0) exceptions.
           // Scaled explicitly so that 0.0f maps to 0.0f, and 1.0f maps perfectly to 1.0f.
-          float compressed_curve = logf(normalized_fraction * 9.0f + 1.0f) / 2.30258509f; // Divide by log(10)
+          float compressed_curve = logf(normalized_fraction * 9.0f + 1.0f) / 2.30258509f;  // Divide by log(10)
 
           // Tailored high-frequency balance adapted for aggressive logarithmic density
           compressed_curve *= (0.85f + (static_cast<float>(i) / 25.0f));
@@ -187,10 +185,10 @@ class GEQProcessor {
       const uint8_t target_channels[] = {0, 4, 15};
       for (uint8_t ch : target_channels) {
         ESP_LOGD("GEQ_TRACE",
-                 "CH[%02d] Bins[%d..%d] | RawSum:%.2f | AfterGain:%.2f | Compressed:%.2f | FFTCalc:%.2f | FFTAvg:%.2f | Byte:%d | GateClosed:%s",
-                 ch, this->bands_[ch].bin_start, this->bands_[ch].bin_end,
-                 trace_raw_sum[ch], trace_after_gain[ch], trace_compressed[ch],
-                 this->fft_calc_[ch], this->fft_avg_[ch], output_array[ch],
+                 "CH[%02d] Bins[%d..%d] | RawSum:%.2f | AfterGain:%.2f | Compressed:%.2f | FFTCalc:%.2f | FFTAvg:%.2f "
+                 "| Byte:%d | GateClosed:%s",
+                 ch, this->bands_[ch].bin_start, this->bands_[ch].bin_end, trace_raw_sum[ch], trace_after_gain[ch],
+                 trace_compressed[ch], this->fft_calc_[ch], this->fft_avg_[ch], output_array[ch],
                  is_gate_closed ? "YES" : "NO");
       }
     }
@@ -209,4 +207,4 @@ class GEQProcessor {
   FFTScalingMode scaling_mode_{FFTScalingMode::SQUARE_ROOT};
 };
 
-} // namespace esphome::music_leds
+}  // namespace esphome::music_leds

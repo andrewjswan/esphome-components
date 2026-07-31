@@ -14,7 +14,7 @@ class BandAggregator {
   explicit BandAggregator(uint32_t sample_rate) {
     // Fully parameterize scaling using the global SAMPLES_FFT constant to support future 1024 switches
     this->hz_per_bin_ = static_cast<float>(sample_rate) / static_cast<float>(SAMPLES_FFT);
-    size_t num_bins = SAMPLES_FFT / 2; // Maximum positions in the magnitude spectrum
+    size_t num_bins = SAMPLES_FFT / 2;  // Maximum positions in the magnitude spectrum
 
     // Anti-Aliasing Brickwall Guard (Dynamic Scaling)
     // Don't use the last bins from 216 to 255. They are usually contaminated by aliasing (aka noise)
@@ -27,10 +27,7 @@ class BandAggregator {
       size_t end = freq_to_bin(BAND_FREQ_BOUNDARIES[b + 1]);
 
       // Enforce the dynamic safety ceiling across all 16 calculated sub-bands
-      this->bands_[b] = {
-        std::min(start, absolute_safe_ceiling),
-        std::min(end, absolute_safe_ceiling)
-      };
+      this->bands_[b] = {std::min(start, absolute_safe_ceiling), std::min(end, absolute_safe_ceiling)};
     }
   }
 
@@ -44,8 +41,8 @@ class BandAggregator {
     }
 
     // High-performance single-stage macro aggregation directly from raw safe spectrum bins.
-    out_bass = rms_slice(magnitudes, this->bands_[0].bin_start,  this->bands_[3].bin_end);   // Sub-bands 00-03 (Bass)
-    out_mid  = rms_slice(magnitudes, this->bands_[4].bin_start,  this->bands_[9].bin_end);   // Sub-bands 04-09 (Mid)
+    out_bass = rms_slice(magnitudes, this->bands_[0].bin_start, this->bands_[3].bin_end);    // Sub-bands 00-03 (Bass)
+    out_mid = rms_slice(magnitudes, this->bands_[4].bin_start, this->bands_[9].bin_end);     // Sub-bands 04-09 (Mid)
     out_high = rms_slice(magnitudes, this->bands_[10].bin_start, this->bands_[15].bin_end);  // Sub-bands 10-15 (High)
   }
 
@@ -66,7 +63,8 @@ class BandAggregator {
   }
 
   static float rms_slice(const float *data, size_t start, size_t end) {
-    if (start >= end) return 0.0f;
+    if (start >= end)
+      return 0.0f;
     float sum = 0.0f;
     for (size_t i = start; i < end; i++) {
       sum += data[i] * data[i];
@@ -75,4 +73,4 @@ class BandAggregator {
   }
 };
 
-} // namespace esphome::music_leds
+}  // namespace esphome::music_leds

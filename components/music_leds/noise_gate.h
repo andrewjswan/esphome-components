@@ -13,8 +13,7 @@ class NoiseGate {
    * @param sample_scale The amplitude division factor passed from the main component (e.g., 1.0f / 24.0f).
    * @param threshold_floor Minimum weighted matrix magnitude (0.0 to 1.0) to close the gate.
    */
-  explicit NoiseGate(float sample_scale, float threshold_floor = 0.10f)
-      : sample_scale_(sample_scale) {
+  explicit NoiseGate(float sample_scale, float threshold_floor = 0.10f) : sample_scale_(sample_scale) {
     this->set_threshold(threshold_floor);
   }
 
@@ -38,11 +37,11 @@ class NoiseGate {
     // Determine the state of the gate using a dual-threshold hysteresis window
     if (this->gate_closed_) {
       if (physical_volume > this->threshold_open_) {
-        this->gate_closed_ = false; // Unlatch and allow signal propagation
+        this->gate_closed_ = false;  // Unlatch and allow signal propagation
       }
     } else {
       if (physical_volume < this->threshold_floor_) {
-        this->gate_closed_ = true; // Trigger silence latch
+        this->gate_closed_ = true;  // Trigger silence latch
       }
     }
 
@@ -51,7 +50,7 @@ class NoiseGate {
     // into the beat detector, completely eliminating false triggers in silence.
     if (this->gate_closed_) {
       bass = 0.0f;
-      mid  = 0.0f;
+      mid = 0.0f;
       high = 0.0f;
     }
   }
@@ -62,19 +61,18 @@ class NoiseGate {
   void set_threshold(float floor) {
     // Combined scale correction: applies sample_scale_ factor to properly normalize boundaries
     float calibrated_pcm_scale = AMPLITUDE_SCALE_16BIT * this->sample_scale_;
-    if (calibrated_pcm_scale <= 0.0f) calibrated_pcm_scale = 1.0f;
+    if (calibrated_pcm_scale <= 0.0f)
+      calibrated_pcm_scale = 1.0f;
 
     // Standard matrix threshold boundaries
     this->threshold_floor_ = floor * calibrated_pcm_scale;
-    this->threshold_open_  = this->threshold_floor_ * 1.5f;
+    this->threshold_open_ = this->threshold_floor_ * 1.5f;
   }
 
   /**
    * @brief Direct diagnostic inspector returning the inner state of the gate.
    */
-  bool is_closed() const {
-    return this->gate_closed_;
-  }
+  bool is_closed() const { return this->gate_closed_; }
 
  private:
   float sample_scale_{0.0f};
@@ -83,4 +81,4 @@ class NoiseGate {
   bool gate_closed_{false};
 };
 
-} // namespace esphome::music_leds
+}  // namespace esphome::music_leds

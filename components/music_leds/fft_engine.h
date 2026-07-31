@@ -55,8 +55,7 @@ class FFTEngine {
         v_real_(samples_fft, 0.0f),
         v_imag_(samples_fft, 0.0f),
         magnitudes_(samples_fft / 2, 0.0f),
-        fft_(v_real_.data(), v_imag_.data(), samples_fft, static_cast<float>(sample_rate), true) {
-  }
+        fft_(v_real_.data(), v_imag_.data(), samples_fft, static_cast<float>(sample_rate), true) {}
 
   /**
    * @brief Computes forward Radix-4 FFT using dedicated Blackman-Harris windowing.
@@ -94,7 +93,8 @@ class FFTEngine {
     // Convert complex outputs to absolute magnitude coefficients (Overwrites v_real_)
     this->fft_.complexToMagnitude();
 
-    // The remaining DC offset on the signal produces a strong spike on position 0 that should be eliminated to avoid issues.
+    // The remaining DC offset on the signal produces a strong spike on position 0
+    // that should be eliminated to avoid issues.
     this->v_real_[0] = 0.0f;
 
     // Identify the most dominant frequency peak and its absolute magnitude value.
@@ -112,7 +112,7 @@ class FFTEngine {
   }
 
   // --- Read-Only Component Data Accessors ---
-  const float* magnitudes() const { return this->magnitudes_.data(); }
+  const float *magnitudes() const { return this->magnitudes_.data(); }
   float dominant_frequency_hz() const { return this->dominant_frequency_hz_; }
   float magnitude() const { return this->magnitude_; }
   size_t spectrum_size() const { return this->samples_fft_ / 2; }
@@ -131,4 +131,4 @@ class FFTEngine {
   ArduinoFFT<float> fft_;
 };
 
-} // namespace esphome::music_leds
+}  // namespace esphome::music_leds

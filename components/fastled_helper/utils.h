@@ -306,13 +306,13 @@ inline uint8_t perlin8(uint16_t x, uint16_t y, uint16_t z) {
  * @return The inverse gamma corrected 8-bit byte value [0 .. 255].
  */
 inline uint8_t gamma8inv(uint8_t val) {
-  if (val == 0) return 0;
+  if (val == 0)
+    return 0;
   // Standard internal inverse calculation: 1.0f / 2.8f ≈ 0.35714287f
   constexpr float gamma_inv = 0.35714287f;
   float normalized = (static_cast<float>(val) - 0.5f) / 255.0f;
   return static_cast<uint8_t>(powf(normalized, gamma_inv) * 255.0f + 0.5f);
 }
-
 
 // fast (true) random numbers using hardware RNG, all functions return values in the range lowerlimit to upperlimit-1
 // note: for true random numbers with high entropy, do not call faster than every 200ns (5MHz)
@@ -396,9 +396,7 @@ inline const uint8_t *g_fft_result_ptr = nullptr;
  * @brief Registers the active pipeline equalizer array interface for downstream rendering routines.
  * @param array_ptr Pointer to the continuous 16-channel 8-bit array within the features structure.
  */
-inline void register_fft_spectrum(const uint8_t *array_ptr) {
-  g_fft_result_ptr = array_ptr;
-}
+inline void register_fft_spectrum(const uint8_t *array_ptr) { g_fft_result_ptr = array_ptr; }
 
 // *****************************************************************************************************************************************************************
 static CRGBPalette16 getAudioPalette(int pal) {
@@ -435,7 +433,7 @@ static CRGBPalette16 getAudioPalette(int pal) {
 
 // *****************************************************************************************************************************************************************
 static CRGB getCRGBForBand(int x, int pal) {
-  CRGB value = CRGB::Black; // Safe default fallback color
+  CRGB value = CRGB::Black;  // Safe default fallback color
   CHSV hsv;
 
   // Intercept uninitialized or missing data pipelines safely
@@ -446,8 +444,8 @@ static CRGB getCRGBForBand(int x, int pal) {
   if (pal == 0) {
     // Read directly from the registered modern pipeline buffer memory layout
     uint8_t ch10 = g_fft_result_ptr[10] / 2;
-    uint8_t ch4  = g_fft_result_ptr[4] / 2;
-    uint8_t ch0  = g_fft_result_ptr[0] / 2;
+    uint8_t ch4 = g_fft_result_ptr[4] / 2;
+    uint8_t ch0 = g_fft_result_ptr[0] / 2;
 
     if (x == 1) {
       value = CRGB(ch10, ch4, ch0);

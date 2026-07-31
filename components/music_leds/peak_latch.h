@@ -9,9 +9,7 @@ class PeakLatch {
   /**
    * @brief Explicit constructor to define timing windows and the volume jump threshold.
    */
-  explicit PeakLatch(uint32_t frequency_lockout_ms = 100,
-                     uint32_t volume_lockout_ms = 80,
-                     uint32_t hold_ms = 50,
+  explicit PeakLatch(uint32_t frequency_lockout_ms = 100, uint32_t volume_lockout_ms = 80, uint32_t hold_ms = 50,
                      float volume_threshold = 0.5f)
       : freq_lockout_ms_(frequency_lockout_ms),
         vol_lockout_ms_(volume_lockout_ms),
@@ -36,7 +34,8 @@ class PeakLatch {
     uint32_t now_us = micros();
     float delta_ms = static_cast<float>(now_us - this->last_execution_time_) / 1000.0f;
     this->last_execution_time_ = now_us;
-    if (delta_ms > 200.0f) delta_ms = 20.0f;
+    if (delta_ms > 200.0f)
+      delta_ms = 20.0f;
 
     bool trigger_activated = false;
 
@@ -48,13 +47,14 @@ class PeakLatch {
 
     // Amplitude-Domain Volume Surge Peak (True Peak Envelope Follower)
     if (raw_volume > this->sample_max_) {
-      this->sample_max_ = raw_volume; // Instant attack latch for transients
+      this->sample_max_ = raw_volume;  // Instant attack latch for transients
     } else {
       // Time-locked exponential decay toward zero to adapt to song dynamics
       // At ~100Hz processing rate, decay constant yields stable peak holding
-      float decay_factor = delta_ms / 300.0f; // 300ms structural discharge window
+      float decay_factor = delta_ms / 300.0f;  // 300ms structural discharge window
       this->sample_max_ -= decay_factor * this->sample_max_;
-      if (this->sample_max_ < 0.0f) this->sample_max_ = 0.0f;
+      if (this->sample_max_ < 0.0f)
+        this->sample_max_ = 0.0f;
     }
 
     // Secondary fallback logic: fires on intense loudness jumps breaching the threshold barrier

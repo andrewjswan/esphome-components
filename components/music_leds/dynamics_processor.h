@@ -19,8 +19,8 @@ class DynamicsProcessor {
     // Pre-calculate hardware-calibrated structural constraints once on initialization
     float base_pcm_scale = AMPLITUDE_SCALE_16BIT * this->sample_scale_;
 
-    this->agc_min_floor_shift_   = 0.05f * base_pcm_scale;
-    this->safe_vol_peak_floor_   = 0.35f * base_pcm_scale;
+    this->agc_min_floor_shift_ = 0.05f * base_pcm_scale;
+    this->safe_vol_peak_floor_ = 0.35f * base_pcm_scale;
 
     // Initialize the single global tracking field using the optimized base floor
     this->vol_agc_peak_ = this->agc_min_floor_shift_;
@@ -40,7 +40,8 @@ class DynamicsProcessor {
     this->last_execution_time_ = now;
 
     float delta_ms = static_cast<float>(delta_micros) / 1000.0f;
-    if (delta_ms > 200.0f) delta_ms = 20.0f;
+    if (delta_ms > 200.0f)
+      delta_ms = 20.0f;
 
     // Intercept closed gate zero-lines to freeze the AGC loop and prevent gain explosion
     if (bass == 0.0f && mid == 0.0f && high == 0.0f) {
@@ -50,7 +51,7 @@ class DynamicsProcessor {
       this->volume_smoothed_ = 0.0f;
 
       this->bass_smoothed_ = 0.0f;
-      this->mid_smoothed_  = 0.0f;
+      this->mid_smoothed_ = 0.0f;
       this->high_smoothed_ = 0.0f;
 
       this->vol_agc_peak_ = std::max(this->agc_min_floor_shift_, this->vol_agc_peak_ * 0.90f);
@@ -94,8 +95,8 @@ class DynamicsProcessor {
 
     // Normalize and apply independent time-locked linear rate limiting per frequency band group
     bass = apply_time_limiter(bass, this->bass_smoothed_, 40.0f, 1200.0f, delta_ms);
-    mid  = apply_time_limiter(mid,  this->mid_smoothed_,  60.0f, 1400.0f, delta_ms);
-    high = apply_time_limiter(high, this->high_smoothed_, 30.0f, 800.0f,  delta_ms);
+    mid = apply_time_limiter(mid, this->mid_smoothed_, 60.0f, 1400.0f, delta_ms);
+    high = apply_time_limiter(high, this->high_smoothed_, 30.0f, 800.0f, delta_ms);
 
     // Write final clean linear post-AGC envelopes to reference interfaces
     smoothed_vol = this->volume_smoothed_;
@@ -121,7 +122,7 @@ class DynamicsProcessor {
     switch (this->scaling_mode_) {
       case FFTScalingMode::SQUARE_ROOT:
         bass = sqrtf(bass);
-        mid  = sqrtf(mid);
+        mid = sqrtf(mid);
         high = sqrtf(high);
         raw_vol = sqrtf(raw_vol);
         smoothed_vol = sqrtf(smoothed_vol);
@@ -129,7 +130,7 @@ class DynamicsProcessor {
 
       case FFTScalingMode::LOGARITHMIC:
         bass = logf(1.0f + bass * 1.7182818f);
-        mid  = logf(1.0f + mid  * 1.7182818f);
+        mid = logf(1.0f + mid * 1.7182818f);
         high = logf(1.0f + high * 1.7182818f);
         raw_vol = logf(1.0f + raw_vol * 1.7182818f);
         smoothed_vol = logf(1.0f + smoothed_vol * 1.7182818f);
@@ -137,13 +138,11 @@ class DynamicsProcessor {
 
       case FFTScalingMode::LINEAR:
       default:
-        break; // Keep everything fully linear without alterations
+        break;  // Keep everything fully linear without alterations
     }
   }
 
-  void set_scaling_mode(FFTScalingMode mode) {
-    this->scaling_mode_ = mode;
-  }
+  void set_scaling_mode(FFTScalingMode mode) { this->scaling_mode_ = mode; }
 
  private:
   float sample_scale_;
@@ -166,7 +165,8 @@ class DynamicsProcessor {
   /**
    * @brief Combines strict linear slew-rate limiting with global AGC tracking to preserve inter-band ratios.
    */
-  inline float apply_time_limiter(float raw_energy, float &last_value, float attack_ms, float decay_ms, float delta_ms) {
+  inline float apply_time_limiter(float raw_energy, float &last_value, float attack_ms, float decay_ms,
+                                  float delta_ms) {
     // Scale incoming value to a clean range using highly optimized pre-calculated global floor registers
     float unified_peak = std::max(this->vol_agc_peak_, this->safe_vol_peak_floor_);
     float target_value = std::clamp(raw_energy / unified_peak, 0.0f, 1.0f);
@@ -185,4 +185,4 @@ class DynamicsProcessor {
   }
 };
 
-} // namespace esphome::music_leds
+}  // namespace esphome::music_leds

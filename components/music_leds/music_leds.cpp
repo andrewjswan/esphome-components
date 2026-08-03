@@ -3,10 +3,11 @@
 #include "esphome/components/fastled_helper/utils.h"
 #include "esphome/components/light/addressable_light_effect.h"
 
+#include "esphome/core/defines.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
-// #define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 #include "debug.h"
@@ -98,7 +99,7 @@ void MusicLeds::setup() {
   this->beat_detector_ = std::make_unique<BeatDetector>(this->sample_scale_, this->beat_sensitivity_);
   this->noise_gate_ = std::make_unique<NoiseGate>(this->sample_scale_, this->noise_gate_floor_);
   this->pre_amplifier_ = std::make_unique<PreAmplifier>(this->sample_scale_, this->pre_amp_gain_);
-  this->geq_processor_ = std::make_unique<GEQProcessor>(this->sample_gain_);
+  this->geq_processor_ = std::make_unique<GEQProcessor>(this->sample_scale_, this->sample_gain_);
   this->geq_processor_->set_scaling_mode(this->scaling_mode_);
   // 100ms freq lockout, 80ms vol lockout, 50ms hold window, 0.5 threshold
   this->peak_latch_ = std::make_unique<PeakLatch>(100, 80, 50, 0.5f);
@@ -210,6 +211,12 @@ void MusicLeds::dump_config() {
   ESP_LOGCONFIG(TAG, "   Beat Sensitivity: %d (1-100)", this->beat_sensitivity_);
   ESP_LOGCONFIG(TAG, "Sample Scale Factor: %.6f (1.0f / %d)", this->sample_scale_,
                 (this->sample_scale_ > 0.0f) ? static_cast<int16_t>(1.0f / this->sample_scale_) : 0);
+
+#ifdef PITCH_SPECTRUM_HPF
+  ESP_LOGCONFIG(TAG, " Pitch Spectrum HPF: Enabled (Weber-Fechner Tuning)");
+#else
+  ESP_LOGCONFIG(TAG, " Pitch Spectrum HPF: Disabled (Native Fallback)");
+#endif
 
   // Map the strongly-typed scaling enum to descriptive human logs
   const char *scaling_str = "UNKNOWN";
@@ -406,6 +413,7 @@ void MusicLeds::FFTcode(void *parameter) {
       continue;
     }
     this_task->features_.dominant_frequency_hz = pitch;
+    this_task->features_.raw_volume = this_task->fft_engine_->max_sample();
 
     // Aggregate frequency bins from the FFT magnitudes spectrum into macro bands
     this_task->band_aggregator_->process(this_task->fft_engine_->magnitudes(), this_task->features_.bass_energy,
@@ -477,7 +485,7 @@ void MusicLeds::FFTcode(void *parameter) {
                                     this_task->features_.sample_peak);
 
     // Magnitude
-    if ((this_task->features_.smoothed_volume * 255.0f) < 1.0f) {
+    if (this_task->features_.smoothed_volume * 255.0f < 1.0f) {
       this_task->features_.magnitude = 0.001f;
     } else {
       this_task->features_.magnitude = this_task->fft_engine_->magnitude();
@@ -540,8 +548,8 @@ void MusicLeds::FFTcode(void *parameter) {
       ESP_LOGD(TAG, "[STEP PRE-AMP   ] Bass: %.4f | Mid: %.4f | High: %.4f", amp_b, amp_m, amp_h);
       ESP_LOGD(TAG, "[STEP DYNAMICS  ] Bass: %.4f | Mid: %.4f | High: %.4f | VolRaw: %.4f", dyn_b, dyn_m, dyn_h,
                dyn_vol);
-      ESP_LOGD(TAG, "[ENGINE STATUS  ] Raw Peak Magnitude: %.4f | Dominant Frequency %.4f",
-               this_task->features_.magnitude, this_task->features_.dominant_frequency_hz);
+      ESP_LOGD(TAG, "[ENGINE STATUS  ] Raw Peak Magnitude: %.4f | Dominant Frequency %.4f | Max Sample %.4f",
+               this_task->features_.magnitude, this_task->features_.dominant_frequency_hz, this_task->fft_engine_->max_sample());
       ESP_LOGD(
           TAG,
           "[FINAL FEATURES ] VolRaw: %.3f | VolSmth: %.3f | Bass: %.3f | Mid: %.3f | Hi: %.3f | Beat: %s | Peak: %s",

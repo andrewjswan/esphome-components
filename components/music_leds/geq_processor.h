@@ -22,7 +22,9 @@ constexpr float FFT_DOWNSCALE = 0.40f;
 
 class GEQProcessor {
  public:
-  explicit GEQProcessor(uint8_t sample_gain = 60) : sample_gain_(sample_gain) {
+  explicit GEQProcessor(float sample_scale, uint8_t sample_gain = 60) : sample_gain_(sample_gain) {
+    this->base_pcm_scale_ = AMPLITUDE_SCALE_16BIT * sample_scale;
+
     // Native 22050Hz mapping matrix from softhack007
     this->bands_[0] = {1, 2};       // 43Hz   - 86Hz sub-bass
     this->bands_[1] = {2, 3};       // 86Hz   - 129Hz bass
@@ -128,8 +130,9 @@ class GEQProcessor {
       // Compression Phase: Map the instant frame value into the 8-bit viewport
       float current_result = this->fft_calc_[i];
 
-      // Convert the internal power register safely into a clean fraction [0.0 .. 1.0].
-      float normalized_fraction = current_result / 1023.0f;
+      // Convert the internal spectrum register safely into a clean fraction [0.0 .. 1.0]
+      // using the authentic hardware-calibrated PCM limit
+      float normalized_fraction = current_result / this->base_pcm_scale_;      
       normalized_fraction = std::clamp(normalized_fraction, 0.0f, 1.0f);
 
       switch (this->scaling_mode_) {
@@ -204,6 +207,7 @@ class GEQProcessor {
   float fft_avg_[NUM_GEQ_CHANNELS];
 
   uint8_t sample_gain_{60};
+  float base_pcm_scale_{AMPLITUDE_SCALE_16BIT};
   FFTScalingMode scaling_mode_{FFTScalingMode::SQUARE_ROOT};
 };
 

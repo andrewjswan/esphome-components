@@ -13,28 +13,34 @@ class DynamicsProcessor {
    * @brief Dynamic initialization linking the processor with the main scale factor.
    * @param sample_scale The amplitude division factor from the main component (e.g., 1.0f / 24.0f)
    */
-  explicit DynamicsProcessor(float sample_scale) : sample_scale_(sample_scale) {
+  explicit DynamicsProcessor(float sample_scale) {
     this->last_execution_time_ = micros();
 
     // Pre-calculate hardware-calibrated structural constraints once on initialization
-    float base_pcm_scale = AMPLITUDE_SCALE_16BIT * this->sample_scale_;
+    this->base_pcm_scale_ = AMPLITUDE_SCALE_16BIT * sample_scale;
 
-    this->agc_min_floor_shift_ = 0.05f * base_pcm_scale;
-    this->safe_vol_peak_floor_ = 0.35f * base_pcm_scale;
+    this->agc_min_floor_shift_ = 0.05f * this->base_pcm_scale_;
+    this->safe_vol_peak_floor_ = 0.35f * this->base_pcm_scale_;
 
     // Initialize the single global tracking field using the optimized base floor
     this->vol_agc_peak_ = this->agc_min_floor_shift_;
   }
 
   /**
-   * @brief Applies linear AGC normalization and linear Slew-Rate temporal envelope limiting.
-   * @note Implements a physics-compliant slew-rate tracker adjusted for a normalized [0.0f .. 1.0f] float scale.
-   */
-  /**
-   * @brief Applies linear AGC normalization and temporal Slew-Rate envelope limiting.
-   * @note Processes non-normalized input magnitudes and outputs standardized linear scales.
+   * @brief Processes frequency bands using internal smoothers and calculates
+   *        overall raw/smoothed time-domain audio loudness envelopes.
+   * @note Processes non-normalized input magnitudes for volume and outputs standardized linear scales for bands.
    */
   void process(float &smoothed_vol, float &raw_vol, float &bass, float &mid, float &high) {
+    // Static hardware noise floor threshold to filter out microphone preamp electrical hiss
+    constexpr float NOISE_GATE_THRESHOLD = 40.0f;
+    
+    // Single-pole Infinite Impulse Response (IIR) Low-Pass Filter for temporal smoothing.
+    // FILTER_SMOOTHING_FACTOR (Beta) defines the responsiveness to incoming transient acoustic peaks.
+    // FILTER_RETENTION_FACTOR (1 - Beta) acts as the exponential decay memory coefficient.
+    constexpr float FILTER_SMOOTHING_FACTOR = 0.05f;
+    constexpr float FILTER_RETENTION_FACTOR = 0.95f;
+
     uint32_t now = micros();
     uint32_t delta_micros = now - this->last_execution_time_;
     this->last_execution_time_ = now;
@@ -42,6 +48,9 @@ class DynamicsProcessor {
     float delta_ms = static_cast<float>(delta_micros) / 1000.0f;
     if (delta_ms > 200.0f)
       delta_ms = 20.0f;
+
+    // Capture the pure raw time-domain max_sample() passed down from the FFT engine interface
+    float mic_data_real = raw_vol;
 
     // Intercept closed gate zero-lines to freeze the AGC loop and prevent gain explosion
     if (bass == 0.0f && mid == 0.0f && high == 0.0f) {
@@ -58,54 +67,38 @@ class DynamicsProcessor {
       return;
     }
 
+    // Frequency Bands Tracking Block
     // High-performance single-precision computation of the input raw frame volume (Large scales)
-    float incoming_raw_volume = (bass + mid + high) * 0.33333334f;
+    float mean_band_energy = (bass + mid + high) * 0.33333334f;
 
     // Continuous single-stage global AGC peak tracking for the baseline volume
-    if (incoming_raw_volume > this->vol_agc_peak_) {
-      this->vol_agc_peak_ = incoming_raw_volume;
+    if (mean_band_energy > this->vol_agc_peak_) {
+      this->vol_agc_peak_ = mean_band_energy;
     } else {
-      this->vol_agc_peak_ = (this->vol_agc_peak_ * 0.9995f) + (incoming_raw_volume * 0.0005f);
+      this->vol_agc_peak_ = (this->vol_agc_peak_ * 0.9995f) + (mean_band_energy * 0.0005f);
     }
-
-    float safe_vol_peak = std::max(this->vol_agc_peak_, this->safe_vol_peak_floor_);
-
-    // Map current instantaneous frame volume to clean standardized [0.0f .. 1.0f] scale
-    float normalized_vol = std::clamp(incoming_raw_volume / safe_vol_peak, 0.0f, 1.0f);
-
-    // Isolated Linear Slew-Rate Limiter
-    // Target step velocity factor translated to normalized floating-point container bounds
-    const float step_magnitude_scale = 0.76862745f;
-    float delta_sample = normalized_vol - this->volume_smoothed_;
-
-    // Limit attack velocity slope (Reference context: 80.0ms)
-    float max_attack_step = step_magnitude_scale * delta_ms / 80.0f;
-    if (delta_sample > max_attack_step) {
-      delta_sample = max_attack_step;
-    }
-
-    // Limit decay velocity slope (Reference context: 1400.0ms)
-    float max_decay_step = -step_magnitude_scale * delta_ms / 1400.0f;
-    if (delta_sample < max_decay_step) {
-      delta_sample = max_decay_step;
-    }
-
-    // Update internal protected linear envelope tracking register
-    this->volume_smoothed_ = std::clamp(this->volume_smoothed_ + delta_sample, 0.0f, 1.0f);
 
     // Normalize and apply independent time-locked linear rate limiting per frequency band group
     bass = apply_time_limiter(bass, this->bass_smoothed_, 40.0f, 1200.0f, delta_ms);
     mid = apply_time_limiter(mid, this->mid_smoothed_, 60.0f, 1400.0f, delta_ms);
     high = apply_time_limiter(high, this->high_smoothed_, 30.0f, 800.0f, delta_ms);
 
-    // Write final clean linear post-AGC envelopes to reference interfaces
-    smoothed_vol = this->volume_smoothed_;
-    raw_vol = normalized_vol;
+    // Time-Domain Volume Envelope Generation
+    // Apply noise floor deduction and map strictly to clean signed 16-bit safe integer boundaries
+    float calculated_raw = std::clamp(mic_data_real - NOISE_GATE_THRESHOLD, 0.0f, static_cast<float>(INT16_MAX));
+
+    // Execute exponential moving average temporal smoothing pass
+    this->volume_smoothed_ = (calculated_raw * FILTER_SMOOTHING_FACTOR) + 
+                             (this->volume_smoothed_ * FILTER_RETENTION_FACTOR);
+
+    // Dynamic hardware mapping: translate large 16-bit boundaries into standard [0.0f .. 1.0f] float scales
+    raw_vol = std::clamp(calculated_raw / this->base_pcm_scale_, 0.0f, 1.0f);
+    smoothed_vol = std::clamp(this->volume_smoothed_ / this->base_pcm_scale_, 0.0f, 1.0f);
   }
 
   /**
-   * @brief Final pipeline step compressing both envelopes and macro bands into perception-aligned scales.
-   * @note Must be called AFTER the NoiseGate has completed its linear evaluation pass.
+   * @brief Final pipeline step compressing macro bands into perception-aligned scales.
+   * @note Volume envelopes (raw_vol, smoothed_vol) bypass this pass to preserve full 16-bit time-domain dynamics.
    */
   void apply_psychoacoustic_scaling(float &smoothed_vol, float &raw_vol, float &bass, float &mid, float &high) {
     if (bass == 0.0f && mid == 0.0f && high == 0.0f) {
@@ -115,39 +108,39 @@ class DynamicsProcessor {
     }
 
     // Genuine Psychoacoustic Compression (Weber-Fechner Law Implementation)
-    // Instead of destructive re-computation via arithmetic mean, we apply the non-linear
-    // scaling mode to each parameter independently. This preserves the precise dynamic purpose
-    // of raw_vol (instantaneous pulses) and smoothed_vol (smooth tracking) while lifting
-    // them into the expected 120-180 byte bracket for visual rendering.
+    // Applied strictly to frequency bands to emulate human auditory perception curves,
+    // while global volume metrics bypass this to maintain native high-fidelity scaling.
     switch (this->scaling_mode_) {
       case FFTScalingMode::SQUARE_ROOT:
+        raw_vol = sqrtf(raw_vol);
+        smoothed_vol = sqrtf(smoothed_vol);
         bass = sqrtf(bass);
         mid = sqrtf(mid);
         high = sqrtf(high);
-        raw_vol = sqrtf(raw_vol);
-        smoothed_vol = sqrtf(smoothed_vol);
         break;
 
       case FFTScalingMode::LOGARITHMIC:
+        raw_vol = logf(1.0f + raw_vol * 1.7182818f);
+        smoothed_vol = logf(1.0f + smoothed_vol * 1.7182818f);
         bass = logf(1.0f + bass * 1.7182818f);
         mid = logf(1.0f + mid * 1.7182818f);
         high = logf(1.0f + high * 1.7182818f);
-        raw_vol = logf(1.0f + raw_vol * 1.7182818f);
-        smoothed_vol = logf(1.0f + smoothed_vol * 1.7182818f);
         break;
 
       case FFTScalingMode::LINEAR:
       default:
-        break;  // Keep everything fully linear without alterations
+        break;  // Keep frequency bands fully linear without alterations
     }
   }
 
   void set_scaling_mode(FFTScalingMode mode) { this->scaling_mode_ = mode; }
 
  private:
-  float sample_scale_;
   uint32_t last_execution_time_{0};
   FFTScalingMode scaling_mode_{FFTScalingMode::SQUARE_ROOT};
+
+  // Cached hardware amplitude limit to eliminate runtime multipliers during volume normalization
+  float base_pcm_scale_{AMPLITUDE_SCALE_16BIT};
 
   // Pre-calculated audio scale boundaries to eliminate intensive runtime FPU multiplications
   float agc_min_floor_shift_{0.0f};  // 0.05f threshold

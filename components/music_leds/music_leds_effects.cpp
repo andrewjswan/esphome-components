@@ -4,6 +4,12 @@
 #include "esphome/core/defines.h"
 #include "esphome/core/helpers.h"
 
+#define DEBUG
+
+#ifdef DEBUG
+#include "debug.h"
+#endif
+
 namespace esphome::music_leds {
 
 // *****************************************************************************
@@ -66,6 +72,9 @@ void MusicLeds::ShowFrame(PLAYMODE CurrentMode, esphome::Color current_color, li
     this->back_color = CRGB(current_color.r / 100 * 5, current_color.g / 100 * 5, current_color.b / 100 * 5);
   } else {
     this->back_color = CRGB::Black;
+  }
+  if (this->start_effect_) {
+    this->store = 0;
   }
 
   asm volatile("memw" ::: "memory");
@@ -514,36 +523,46 @@ void MusicLeds::visualize_matripix(CRGB *physic_leds)  // Matripix. By Andrew Tu
   }
   CRGB *pixels = reinterpret_cast<CRGB *>(this->data);
 
-  // Calculate shifting step sequence interval with division-by-zero protection
-  int speed_divisor = 256 - (int) this->speed;
-  if (speed_divisor < 1)
-    speed_divisor = 1;  // Strict protection against zero division crackups
+  uint8_t secondHand = (micros() / (256 - this->speed) / 500) % 16;
 
-  uint8_t secondHand = (micros() / speed_divisor / 500) % 16;
+#ifdef DEBUG
+  if (esphome::music_leds::debug::should_log()) {
+    // Calculate preview values exactly as they would be computed in the loop below
+    uint16_t current_volume = this->features_.volume_raw();
+    uint16_t calculated_bri = (current_volume * (uint16_t) this->variant) / 64;
+    
+    ESP_LOGD("Matripix", 
+             "SecondHand: %d, Store: %d, Speed: %d, Variant: %d, VolRaw: %d, pixBri: %d",
+             secondHand, this->store, (int)this->speed, (int)this->variant, current_volume, calculated_bri);
+  }
+#endif
 
   // Perform matrix block execution when execution time-frame steps advance
   if (this->store != secondHand) {
     this->store = secondHand;
 
-    // Use raw immediate byte volume from the modern DSP features container
-    uint16_t pixBri = ((uint16_t) this->features_.volume_raw() * (uint16_t) this->variant) / 64;
-    if (pixBri > 255)
-      pixBri = 255;  // Clamp intensity factor to valid byte boundaries
-
-    unsigned k = this->leds_num - 1;
+    size_t k = this->leds_num - 1;
 
     // Shift the internal historical data array left and copy to physical layout
-    for (unsigned i = 0; i < k; i++) {
+    for (size_t i = 0; i < k; i++) {
       pixels[i] = pixels[i + 1];
       physic_leds[i] = pixels[i];
     }
 
-    // Inject new responsive audio-modulated pixel at the terminal boundary index
-    uint32_t ms = millis();
-    CRGB new_color = fastled_helper::color_from_palette((uint8_t) ms, this->main_color);
+    // Use raw immediate byte volume from the modern DSP features container
+    uint16_t pixBri = ((uint16_t) this->features_.volume_raw() * (uint16_t) this->variant) / 64;
 
-    pixels[k] = fastled_helper::color_blend(this->back_color, new_color, (uint8_t) pixBri);
+    CRGB new_color = fastled_helper::color_from_palette(millis(), this->main_color);
+
+    pixels[k] = fastled_helper::color_blend(this->back_color, new_color, pixBri);
     physic_leds[k] = pixels[k];
+#ifdef DEBUG
+  if (esphome::music_leds::debug::should_log()) {
+    ESP_LOGD("Matripix", 
+             "New Color: %d, %d, %d Pixels Color: %d, %d, %d",
+             new_color.r, new_color.g, new_color.b, physic_leds[k].r, physic_leds[k].g, physic_leds[k].b);
+  }
+#endif
   }
 }  // visualize_matripix()
 #endif
@@ -742,13 +761,25 @@ void MusicLeds::visualize_DJLight(CRGB *physic_leds)  // DJLight. Written by ???
   // No need to prevent from executing on single led strips, only mid will be set (mid = 0)
   const uint16_t mid = this->leds_num / 2;
 
-  // Calculate shifting step sequence interval with division-by-zero protection
-  uint8_t speed_divisor = 256 - (int) this->speed;
-  if (speed_divisor < 1)
-    speed_divisor = 1;
-
   // Enforce rigid bounded wrapping steps matching the original modulo 64 cycle clock
-  uint8_t secondHand = ((micros() / speed_divisor / 500) + 1) % 64;
+  uint8_t secondHand = ((micros() / (256 - this->speed) / 500) + 1) % 64;
+
+#ifdef DEBUG
+  if (esphome::music_leds::debug::should_log()) {
+    // Capture state variables exactly as they are evaluated in the processing loop
+    uint8_t bin_0 = this->features_.fft_result[0];
+    uint8_t bin_5 = this->features_.fft_result[5];
+    uint8_t bin_15 = this->features_.fft_result[15];
+    uint8_t bin_4 = this->features_.fft_result[4];
+    
+    // Explicitly mirror the mapping math to track fade suppression behavior
+    uint8_t current_fade_weight = (uint8_t) remap((float) bin_4, 0.0f, 255.0f, 255.0f, 4.0f);
+    
+    ESP_LOGD("DJLight", 
+             "SecondHand: %d, Store: %d, Speed: %d, Bins[0,5,15]: (%d, %d, %d), Bin4: %d, FadeW: %d",
+             secondHand, this->store, (int)this->speed, bin_0, bin_5, bin_15, bin_4, current_fade_weight);
+  }
+#endif
 
   // Perform frequency wave propagation when execution time-frame steps advance
   if (this->store != secondHand) {
@@ -768,6 +799,15 @@ void MusicLeds::visualize_DJLight(CRGB *physic_leds)  // DJLight. Written by ???
 
     // Inject the final calibrated color into the center layout position BEFORE the outward shift
     physic_leds[mid] = color.fadeToBlackBy(fade_weight);
+
+#ifdef DEBUG
+  if (esphome::music_leds::debug::should_log()) {
+    ESP_LOGD("DJLight", 
+             "Color: %d, %d, %d Pixels Color(mid): %d, %d, %d",
+             color.r, color.g, color.b,
+             physic_leds[mid].r, physic_leds[mid].g, physic_leds[mid].b);
+  }
+#endif
 
     // Shift right half outwards (from center toward the end of the strand)
     for (uint16_t i = this->leds_num - 1; i > mid; i--) {
@@ -793,12 +833,25 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
   }
   CRGB *pixels = reinterpret_cast<CRGB *>(this->data);
 
-  // Calculate shifting step sequence interval with division-by-zero protection
-  int speed_divisor = 256 - (int) this->speed;
-  if (speed_divisor < 1)
-    speed_divisor = 1;
+  uint8_t secondHand = ((micros() / (256 - (int) this->speed) / 500) + 1) % 16;
 
-  uint8_t secondHand = ((micros() / speed_divisor / 500) + 1) % 16;
+#ifdef DEBUG
+  if (esphome::music_leds::debug::should_log()) {
+    float current_hz = this->features_.dominant_frequency_hz;
+    float current_mag = this->features_.magnitude / 8;
+    bool has_peak = this->features_.sample_peak;
+    
+    // Calculate preview palette position exactly as computed in the loop below
+    int32_t calculated_col = (log10f(current_hz) - 2.26f) * 150.0f;
+    if (current_hz < 182.0f) {
+      calculated_col = 0;
+    }
+    
+    ESP_LOGD("Waterfall", 
+             "SecondHand: %d, Store: %d, Speed: %d, Variant: %d, Hz: %.1f, pixCol: %d, mag: %.2f, peak: %s",
+             secondHand, this->store, (int)this->speed, (int)this->variant, current_hz, (int)calculated_col, current_mag, has_peak ? "YES" : "NO");
+  }
+#endif
 
   // Perform waterfall shift when execution time-frame steps advance
   if (this->store != secondHand) {
@@ -815,22 +868,26 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
 
     unsigned k = this->leds_num - 1;
 
-    // Check the 50ms latched peak token to prevent missing rapid triggers on Core 0
     if (this->features_.sample_peak) {
-      // use gamma inversion on brightness to restore pre 16.0 looks
       pixels[k] = CRGB(CHSV(92, 92, fastled_helper::gamma8inv(92)));
     } else {
       // Extract the un-normalized physical magnitude directly from the integrated pipeline
-      float mag = this->features_.magnitude;
-
-      // Enforce strict bounding to fit inside the standard 8-bit byte fluid scale [0 .. 255]
-      uint8_t blend_weight = constrain((uint8_t) mag, 0, 255);
+      float mag = this->features_.magnitude / 8.0f;
 
       // Map color using the original configuration options (variant maps to intensity)
       CRGB target_color = fastled_helper::color_from_palette(pixCol + this->variant, this->main_color);
-      pixels[k] = fastled_helper::color_blend(this->back_color, target_color, blend_weight);
+      pixels[k] = fastled_helper::color_blend(this->back_color, target_color, static_cast<uint16_t>(mag));
     }
+
     physic_leds[k] = pixels[k];
+
+#ifdef DEBUG
+  if (esphome::music_leds::debug::should_log()) {
+    ESP_LOGD("Waterfall", 
+             "Pixels Color: %d, %d, %d",
+             physic_leds[k].r, physic_leds[k].g, physic_leds[k].b);
+  }
+#endif
 
     // Shift the internal historical data array left and copy to physical layout
     for (unsigned i = 0; i < k; i++) {

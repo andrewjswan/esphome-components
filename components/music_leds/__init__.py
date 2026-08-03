@@ -21,6 +21,7 @@ from .const import (
     CONF_MUSIC_LEDS_ID,
     CONF_NOISE_GATE_FLOOR,
     CONF_ON_SOUND_LOOP,
+    CONF_PITCH_HPF,
     CONF_PRE_AMP_GAIN,
     CONF_SAMPLE_GAIN,
     CONF_SAMPLE_SCALE,
@@ -88,6 +89,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_PRE_AMP_GAIN, default=1.0): cv.float_range(1.0, 20.0),
         cv.Optional(CONF_SAMPLE_GAIN, default=60): cv.int_range(0, 255),
         cv.Optional(CONF_SAMPLE_SCALE, default=24): cv.int_range(1, 255),
+        cv.Optional(CONF_PITCH_HPF, default=True): cv.boolean,
         cv.Optional(CONF_ON_SOUND_LOOP): automation.validate_automation(
             {
                 cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(SoundLoopTrigger),
@@ -126,6 +128,9 @@ async def to_code(config) -> None:
     # FFTTASK_PRIORITY 2 above looptask, below asyc_tcp
     # FFTTASK_PRIORITY 4 above asyc_tcp
     cg.add_define("FFTTASK_PRIORITY", config[CONF_TASK_PRIORITY])
+
+    if config[CONF_PITCH_HPF]:
+        cg.add_define("PITCH_SPECTRUM_HPF")
 
     if config.get(CONF_ON_SOUND_LOOP, []):
         cg.add_define("MUSIC_LEDS_TRIGGERS")

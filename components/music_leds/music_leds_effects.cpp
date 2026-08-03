@@ -516,13 +516,6 @@ void MusicLeds::visualize_ripplepeak(CRGB *physic_leds)  // Ripple peak. By Andr
 #ifdef DEF_MATRIPIX
 void MusicLeds::visualize_matripix(CRGB *physic_leds)  // Matripix. By Andrew Tuline.
 {
-  // Allocate dedicated persistent history buffer for the shifting matrix pixels
-  const unsigned dataSize = sizeof(CRGB) * this->leds_num;
-  if (!this->allocateData(dataSize)) {
-    return;  // allocation failed
-  }
-  CRGB *pixels = reinterpret_cast<CRGB *>(this->data);
-
   uint8_t secondHand = (micros() / (256 - this->speed) / 500) % 16;
 
 #ifdef DEBUG
@@ -537,31 +530,25 @@ void MusicLeds::visualize_matripix(CRGB *physic_leds)  // Matripix. By Andrew Tu
   }
 #endif
 
-  // Perform matrix block execution when execution time-frame steps advance
   if (this->store != secondHand) {
     this->store = secondHand;
 
+    uint16_t pixBri = ((uint16_t) this->features_.volume_raw() * (uint16_t) this->variant) / 64;
     size_t k = this->leds_num - 1;
 
-    // Shift the internal historical data array left and copy to physical layout
     for (size_t i = 0; i < k; i++) {
-      pixels[i] = pixels[i + 1];
-      physic_leds[i] = pixels[i];
+      physic_leds[i] = physic_leds[i + 1];
     }
 
-    // Use raw immediate byte volume from the modern DSP features container
-    uint16_t pixBri = ((uint16_t) this->features_.volume_raw() * (uint16_t) this->variant) / 64;
-
     CRGB new_color = fastled_helper::color_from_palette(millis(), this->main_color);
+    physic_leds[k] = fastled_helper::color_blend(this->back_color, new_color, pixBri);
 
-    pixels[k] = fastled_helper::color_blend(this->back_color, new_color, pixBri);
-    physic_leds[k] = pixels[k];
 #ifdef DEBUG
-  if (esphome::music_leds::debug::should_log()) {
-    ESP_LOGD("Matripix",
-             "New Color: %d, %d, %d Pixels Color: %d, %d, %d",
-             new_color.r, new_color.g, new_color.b, physic_leds[k].r, physic_leds[k].g, physic_leds[k].b);
-  }
+    if (esphome::music_leds::debug::should_log()) {
+      ESP_LOGD("Matripix",
+               "New Color: %d, %d, %d Pixels Color: %d, %d, %d",
+               new_color.r, new_color.g, new_color.b, physic_leds[k].r, physic_leds[k].g, physic_leds[k].b);
+    }
 #endif
   }
 }  // visualize_matripix()
@@ -826,14 +813,7 @@ void MusicLeds::visualize_DJLight(CRGB *physic_leds)  // DJLight. Written by ???
 // Combines peak detection with dominant frequency tracking and normalized magnitude.
 void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew Tuline
 {
-  // Allocate dedicated historical buffer for the scrolling frequency waterfall
-  const unsigned dataSize = sizeof(CRGB) * this->leds_num;
-  if (!this->allocateData(dataSize)) {
-    return;  // allocation failed
-  }
-  CRGB *pixels = reinterpret_cast<CRGB *>(this->data);
-
-  uint8_t secondHand = ((micros() / (256 - (int) this->speed) / 500) + 1) % 16;
+  uint8_t secondHand = ((micros() / (256 - this->speed) / 500) + 1) % 16;
 
 #ifdef DEBUG
   if (esphome::music_leds::debug::should_log()) {
@@ -853,13 +833,11 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
   }
 #endif
 
-  // Perform waterfall shift when execution time-frame steps advance
   if (this->store != secondHand) {
     this->store = secondHand;
 
     // 22Khz sampling - log10 frequency range is from 2.26 (182hz) to 3.967 (9260hz).
     float hz = this->features_.dominant_frequency_hz;
-
     // Calculate palette index using exact original constants
     uint8_t pixCol = (log10f(hz) - 2.26f) * 150.0f;
     if (hz < 182.0f) {
@@ -869,30 +847,25 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
     unsigned k = this->leds_num - 1;
 
     if (this->features_.sample_peak) {
-      pixels[k] = CRGB(CHSV(92, 92, fastled_helper::gamma8inv(92)));
+      physic_leds[k] = CHSV(92, 92, fastled_helper::gamma8inv(92));
     } else {
-      // Extract the un-normalized physical magnitude directly from the integrated pipeline
       float mag = this->features_.magnitude / 8.0f;
+      uint16_t blend_weight = (mag > 255.0f) ? 255 : static_cast<uint16_t>(mag);
 
-      // Map color using the original configuration options (variant maps to intensity)
       CRGB target_color = fastled_helper::color_from_palette(pixCol + this->variant, this->main_color);
-      pixels[k] = fastled_helper::color_blend(this->back_color, target_color, static_cast<uint16_t>(mag));
+      physic_leds[k] = fastled_helper::color_blend(this->back_color, target_color, blend_weight);
     }
 
-    physic_leds[k] = pixels[k];
-
 #ifdef DEBUG
-  if (esphome::music_leds::debug::should_log()) {
-    ESP_LOGD("Waterfall",
-             "Pixels Color: %d, %d, %d",
-             physic_leds[k].r, physic_leds[k].g, physic_leds[k].b);
-  }
+    if (esphome::music_leds::debug::should_log()) {
+      ESP_LOGD("Waterfall",
+               "Pixels Color: %d, %d, %d",
+               physic_leds[k].r, physic_leds[k].g, physic_leds[k].b);
+    }
 #endif
 
-    // Shift the internal historical data array left and copy to physical layout
-    for (unsigned i = 0; i < k; i++) {
-      pixels[i] = pixels[i + 1];  // shift left
-      physic_leds[i] = pixels[i];
+    for (size_t i = 0; i < k; i++) {
+      physic_leds[i] = physic_leds[i + 1];  
     }
   }
 }  // visualize_waterfall()

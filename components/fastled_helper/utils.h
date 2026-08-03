@@ -48,31 +48,39 @@ inline void FreeLeds() {
 }
 
 // *****************************************************************************************************************************************************************
-inline CRGB IRAM_ATTR color_blend(CRGB color1, CRGB color2, uint16_t blend, bool b16 = false) {
-  if (blend == 0) {
-    return color1;
-  }
+/**
+ * @brief Ultra-high performance SIMD color blending.
+ * @note Parameter 'blend' accepts uint16_t to explicitly prevent external caller casting bugs,
+ *       but internally clamps to 255 to maintain bitwise integrity of the 0x00FF00FF masks.
+ */
+inline CRGB color_blend(CRGB color1, CRGB color2, uint16_t blend) {
+  // Force safe 8-bit saturation threshold to completely protect poor-man's SIMD masks
+  uint32_t b = (blend > 255) ? 255 : blend;
 
-  uint16_t blendmax = b16 ? 0xFFFF : 0xFF;
+  // Convert explicit CRGB structures directly into packed 32-bit uint32_t
+  uint32_t c1 = (static_cast<uint32_t>(color1.r) << 16) | (static_cast<uint32_t>(color1.g) << 8) | color1.b;
+  uint32_t c2 = (static_cast<uint32_t>(color2.r) << 16) | (static_cast<uint32_t>(color2.g) << 8) | color2.b;
 
-  if (blend == blendmax)
-    return color2;
+  // Replicated poor-man's SIMD parallel processing matrix layout
+  constexpr uint32_t TWO_CHANNEL_MASK = 0x00FF00FF; 
+  
+  uint32_t rb1 =  c1       & TWO_CHANNEL_MASK;  // Extract Red & Blue channels from color1
+  uint32_t wg1 = (c1 >> 8) & TWO_CHANNEL_MASK;  // Extract White & Green channels from color1
+  uint32_t rb2 =  c2       & TWO_CHANNEL_MASK;  // Extract Red & Blue channels from color2
+  uint32_t wg2 = (c2 >> 8) & TWO_CHANNEL_MASK;  // Extract White & Green channels from color2
 
-  uint8_t shift = b16 ? 16 : 8;
+  // Parallel execution of alpha blending channels inside unified 32-bit registers
+  uint32_t rb3 = ((((rb1 << 8) | rb2) + (rb2 * b) - (rb1 * b)) >> 8) &  TWO_CHANNEL_MASK;
+  uint32_t wg3 = ((((wg1 << 8) | wg2) + (wg2 * b) - (wg1 * b)))      & ~TWO_CHANNEL_MASK; // Hardcoded bitwise inversion (~0x00FF00FF)
 
-  uint32_t r1 = color1.r;
-  uint32_t g1 = color1.g;
-  uint32_t b1 = color1.b;
+  uint32_t packed_result = rb3 | wg3;
 
-  uint32_t r2 = color2.r;
-  uint32_t g2 = color2.g;
-  uint32_t b2 = color2.b;
-
-  uint32_t r3 = ((r2 * blend) + (r1 * (blendmax - blend))) >> shift;
-  uint32_t g3 = ((g2 * blend) + (g1 * (blendmax - blend))) >> shift;
-  uint32_t b3 = ((b2 * blend) + (b1 * (blendmax - blend))) >> shift;
-
-  return CRGB(r3, g3, b3);
+  // Unpack back into native FastLED CRGB components seamlessly
+  return CRGB(
+    static_cast<uint8_t>((packed_result >> 16) & 0xFF), // Red channel
+    static_cast<uint8_t>((packed_result >> 8)  & 0xFF), // Green channel
+    static_cast<uint8_t>(packed_result         & 0xFF)  // Blue channel
+  );
 }
 
 // *****************************************************************************************************************************************************************

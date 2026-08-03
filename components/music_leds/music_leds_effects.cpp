@@ -530,8 +530,8 @@ void MusicLeds::visualize_matripix(CRGB *physic_leds)  // Matripix. By Andrew Tu
     // Calculate preview values exactly as they would be computed in the loop below
     uint16_t current_volume = this->features_.volume_raw();
     uint16_t calculated_bri = (current_volume * (uint16_t) this->variant) / 64;
-    
-    ESP_LOGD("Matripix", 
+
+    ESP_LOGD("Matripix",
              "SecondHand: %d, Store: %d, Speed: %d, Variant: %d, VolRaw: %d, pixBri: %d",
              secondHand, this->store, (int)this->speed, (int)this->variant, current_volume, calculated_bri);
   }
@@ -558,7 +558,7 @@ void MusicLeds::visualize_matripix(CRGB *physic_leds)  // Matripix. By Andrew Tu
     physic_leds[k] = pixels[k];
 #ifdef DEBUG
   if (esphome::music_leds::debug::should_log()) {
-    ESP_LOGD("Matripix", 
+    ESP_LOGD("Matripix",
              "New Color: %d, %d, %d Pixels Color: %d, %d, %d",
              new_color.r, new_color.g, new_color.b, physic_leds[k].r, physic_leds[k].g, physic_leds[k].b);
   }
@@ -771,11 +771,11 @@ void MusicLeds::visualize_DJLight(CRGB *physic_leds)  // DJLight. Written by ???
     uint8_t bin_5 = this->features_.fft_result[5];
     uint8_t bin_15 = this->features_.fft_result[15];
     uint8_t bin_4 = this->features_.fft_result[4];
-    
+
     // Explicitly mirror the mapping math to track fade suppression behavior
     uint8_t current_fade_weight = (uint8_t) remap((float) bin_4, 0.0f, 255.0f, 255.0f, 4.0f);
-    
-    ESP_LOGD("DJLight", 
+
+    ESP_LOGD("DJLight",
              "SecondHand: %d, Store: %d, Speed: %d, Bins[0,5,15]: (%d, %d, %d), Bin4: %d, FadeW: %d",
              secondHand, this->store, (int)this->speed, bin_0, bin_5, bin_15, bin_4, current_fade_weight);
   }
@@ -802,7 +802,7 @@ void MusicLeds::visualize_DJLight(CRGB *physic_leds)  // DJLight. Written by ???
 
 #ifdef DEBUG
   if (esphome::music_leds::debug::should_log()) {
-    ESP_LOGD("DJLight", 
+    ESP_LOGD("DJLight",
              "Color: %d, %d, %d Pixels Color(mid): %d, %d, %d",
              color.r, color.g, color.b,
              physic_leds[mid].r, physic_leds[mid].g, physic_leds[mid].b);
@@ -840,14 +840,14 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
     float current_hz = this->features_.dominant_frequency_hz;
     float current_mag = this->features_.magnitude / 8;
     bool has_peak = this->features_.sample_peak;
-    
+
     // Calculate preview palette position exactly as computed in the loop below
     int32_t calculated_col = (log10f(current_hz) - 2.26f) * 150.0f;
     if (current_hz < 182.0f) {
       calculated_col = 0;
     }
-    
-    ESP_LOGD("Waterfall", 
+
+    ESP_LOGD("Waterfall",
              "SecondHand: %d, Store: %d, Speed: %d, Variant: %d, Hz: %.1f, pixCol: %d, mag: %.2f, peak: %s",
              secondHand, this->store, (int)this->speed, (int)this->variant, current_hz, (int)calculated_col, current_mag, has_peak ? "YES" : "NO");
   }
@@ -883,7 +883,7 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
 
 #ifdef DEBUG
   if (esphome::music_leds::debug::should_log()) {
-    ESP_LOGD("Waterfall", 
+    ESP_LOGD("Waterfall",
              "Pixels Color: %d, %d, %d",
              physic_leds[k].r, physic_leds[k].g, physic_leds[k].b);
   }

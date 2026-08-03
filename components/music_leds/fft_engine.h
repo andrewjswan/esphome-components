@@ -36,7 +36,7 @@
 /**
  * @brief Spectrum pre-emphasis switch for musical color tracking.
  * @details If defined, it applies a parabolic attenuation curve below 200Hz to the 'v_real_' scratchpad.
- *          This prevents dominant low-frequency kicks (40Hz-60Hz) from masking the midrange, allowing 
+ *          This prevents dominant low-frequency kicks (40Hz-60Hz) from masking the midrange, allowing
  *          pitch-trackers (Waterfall, Gravfreq) to follow vocals and melodies instead of freezing on bass beats.
  *          The pristine physical spectrum is preserved in 'magnitudes_', resulting in zero distortion for GEQ.
  *          If commented out, preprocessor completely strips this block for true zero runtime overhead.

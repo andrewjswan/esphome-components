@@ -76,13 +76,13 @@ struct AudioPipelineFeatures {
   bool sample_peak{false};  // Time-locked high activity latch (Auto-resets after 50ms)
 
   // Returns overall loudness scaled to standard 8-bit byte integer [0 .. 255]
-  inline uint8_t volume_smth() const { 
+  inline uint8_t volume_smth() const {
     float scaled_vol = this->smoothed_volume * 255.0f;
     return static_cast<uint8_t>(std::clamp(scaled_vol, 0.0f, 255.0f));
   }
 
   // Returns instantaneous loudness scaled to standard 8-bit byte integer [0 .. 255]
-  inline uint8_t volume_raw() const { 
+  inline uint8_t volume_raw() const {
     float scaled_vol = this->raw_volume * 255.0f;
     return static_cast<uint8_t>(std::clamp(scaled_vol, 0.0f, 255.0f));
   }

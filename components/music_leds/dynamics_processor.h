@@ -34,7 +34,7 @@ class DynamicsProcessor {
   void process(float &smoothed_vol, float &raw_vol, float &bass, float &mid, float &high) {
     // Static hardware noise floor threshold to filter out microphone preamp electrical hiss
     constexpr float NOISE_GATE_THRESHOLD = 40.0f;
-    
+
     // Single-pole Infinite Impulse Response (IIR) Low-Pass Filter for temporal smoothing.
     // FILTER_SMOOTHING_FACTOR (Beta) defines the responsiveness to incoming transient acoustic peaks.
     // FILTER_RETENTION_FACTOR (1 - Beta) acts as the exponential decay memory coefficient.
@@ -88,7 +88,7 @@ class DynamicsProcessor {
     float calculated_raw = std::clamp(mic_data_real - NOISE_GATE_THRESHOLD, 0.0f, static_cast<float>(INT16_MAX));
 
     // Execute exponential moving average temporal smoothing pass
-    this->volume_smoothed_ = (calculated_raw * FILTER_SMOOTHING_FACTOR) + 
+    this->volume_smoothed_ = (calculated_raw * FILTER_SMOOTHING_FACTOR) +
                              (this->volume_smoothed_ * FILTER_RETENTION_FACTOR);
 
     // Dynamic hardware mapping: translate large 16-bit boundaries into standard [0.0f .. 1.0f] float scales

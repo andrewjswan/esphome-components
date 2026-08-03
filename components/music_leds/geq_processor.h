@@ -132,7 +132,7 @@ class GEQProcessor {
 
       // Convert the internal spectrum register safely into a clean fraction [0.0 .. 1.0]
       // using the authentic hardware-calibrated PCM limit
-      float normalized_fraction = current_result / this->base_pcm_scale_;      
+      float normalized_fraction = current_result / this->base_pcm_scale_;
       normalized_fraction = std::clamp(normalized_fraction, 0.0f, 1.0f);
 
       switch (this->scaling_mode_) {

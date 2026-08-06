@@ -5,139 +5,101 @@
 #include <cmath>
 #include <algorithm>
 #include <cstdint>
-#include <cstring>
 
 #include "esphome/core/defines.h"
-#include "esphome/core/log.h"
-
-// #define DEBUG
-
-#ifdef DEBUG
-#include "debug.h"
-#endif
 
 namespace esphome::music_leds {
 
 class BeatDetector {
  public:
+  // Acoustic boundaries for kick drum transient analysis fixed at compile-time
+  static constexpr float MIN_KICK_HZ = 40.0f;        // 60.0f;
+  static constexpr float MAX_KICK_HZ = 130.0f;
+  static constexpr float BASS_NOISE_FLOOR = 300.0f;  // 1500.0f;
+
   /**
-   * @brief Initializes the rolling statistical window for bass onset tracking.
-   * @param sample_scale The amplitude division factor passed from the main component (e.g., 1.0f / 24.0f)
-   * @param sensitivity Sensitivity slider 1-100 (higher = triggers more easily).
-   * @param min_interval_ms Minimum time lock-out between hits to eliminate flicker.
+   * @param sample_rate Physical pipeline sampling frequency configured during initialization.
+   * @param sensitivity Standard UI input slider value mapped to the adaptive onset multiplier.
    */
-  explicit BeatDetector(float sample_scale, int sensitivity = 65, uint32_t min_interval_ms = 160)
-      : sample_scale_(sample_scale), min_interval_ms_(min_interval_ms) {
+  explicit BeatDetector(float sample_rate, int sensitivity = 65)
+      : sample_rate_(sample_rate) {
     this->set_sensitivity(sensitivity);
     this->reset();
   }
+
   /**
-   * @brief Analyzes the fresh normalized bass energy using rolling standard deviation.
-   * @param raw_bass Pure, sharp, un-smoothed physical bass energy
-   * @return True for exactly ONE frame when a valid rhythmic hit is isolated.
+   * @brief Evaluates raw FFT magnitudes to isolate sharp sub-bass transient energy bursts.
+   * @param raw_fft_magnitudes Pointer to the unfiltered linear frequency magnitude spectrum array.
+   * @return True for exactly ONE audio processing frame when a valid onset breach occurs.
    */
-  bool process(float raw_bass) {
-    uint32_t timestamp_ms = millis();  // Dynamic runtime scheduling clock tracking
-
-    float ref_max_bass = AMPLITUDE_SCALE_16BIT * this->sample_scale_;
-    if (ref_max_bass <= 0.0f)
-      ref_max_bass = 1.0f;
-    float normalized_bass = raw_bass / ref_max_bass;
-
-#ifdef DEBUG
-    if (esphome::music_leds::debug::should_log()) {
-      ESP_LOGD("BEAT", "Input: Raw Bass: %.2f Normalized Bass: %.2f", raw_bass, normalized_bass);
-    }
-#endif
-
-    // Manage circular buffer accumulation mechanics and incremental statistics
-    if (this->history_count_ >= WINDOW_SIZE) {
-      float evicted_value = this->history_ring_[this->history_head_];
-      this->history_sum_ -= evicted_value;
-      this->history_sq_sum_ -= evicted_value * evicted_value;
+  bool process(const float* raw_fft_magnitudes) {
+    // Calculate frequency resolution per individual FFT spectral line
+    float hz_per_bin = this->sample_rate_ / static_cast<float>(SAMPLES_FFT);
+    
+    // Map physical frequency limits directly to exact discrete FFT bin indices
+    uint16_t start_bin = std::max(1, static_cast<int>(MIN_KICK_HZ / hz_per_bin));
+    uint16_t end_bin = static_cast<int>(MAX_KICK_HZ / hz_per_bin);
+    if (end_bin >= (MAX_VALID_BIN)) {
+      end_bin = (MAX_VALID_BIN) - 1;
     }
 
-    this->history_ring_[this->history_head_] = normalized_bass;
-    this->history_sum_ += normalized_bass;
-    this->history_sq_sum_ += normalized_bass * normalized_bass;
-    this->history_head_ = (this->history_head_ + 1) % WINDOW_SIZE;
-
-    if (this->history_count_ < WINDOW_SIZE) {
-      this->history_count_++;
+    // Integrate total energy contained strictly within the targeted bass spectrum corridor
+    float current_bass_energy = 0.0f;
+    for (uint16_t i = start_bin; i <= end_bin; i++) {
+      current_bass_energy += raw_fft_magnitudes[i];
     }
 
-    // Compute dynamic background noise threshold using mean and standard deviation
-    if (this->history_count_ < WINDOW_SIZE / 2) {
-      return false;  // Skip execution until history data buffer is sufficiently warmed up
+    // Hardware Noise Floor Protection: bypass analysis if the accumulated signal is silent
+    if (current_bass_energy < BASS_NOISE_FLOOR) {
+      this->history_envelope_ = (current_bass_energy * 0.10f) + (this->history_envelope_ * 0.90f);
+      return false;
     }
 
-    // Optimization: replace divisions with a single hardware multiplication inverse
-    float inv_n = 1.0f / static_cast<float>(this->history_count_);
-    float mean = this->history_sum_ * inv_n;
-    float variance = (this->history_sq_sum_ * inv_n) - (mean * mean);
-    float std_dev = sqrtf(std::max(0.0f, variance));
-    std_dev = std::max(std_dev, mean * 0.1f);  // Establish baseline structural variance floor
+    bool instant_beat_triggered = false;
 
-    // Core psychoacoustic trigger threshold with a strict global minimum constraint (0.08f).
-    // This absolute floor prevents false ghost triggers when the buffer clears to 0.0f during silence.
-    float threshold = std::max(mean + (this->multiplier_ * std_dev), 0.08f);
+    // Compute dynamic adaptive activation threshold: Rolling Background History * Sensitivity Factor
+    float dynamic_threshold = this->history_envelope_ * this->multiplier_;
 
-    // Evaluate trigger conditions with hysteresis and temporal lockouts
-    bool interval_ok = (this->last_onset_ms_ == 0) || ((timestamp_ms - this->last_onset_ms_) >= this->min_interval_ms_);
-    bool triggered = false;
-
-    if (normalized_bass > threshold && interval_ok && this->hysteresis_armed_) {
-      triggered = true;
-      this->hysteresis_armed_ = false;  // Disarm immediately upon beat confirmation
-#ifdef DEBUG
-      if (esphome::music_leds::debug::should_log()) {
-        ESP_LOGD("BEAT", "Beat Detected! Bass: %.2f, Threshold: %.2f", normalized_bass, threshold);
+    // Evaluate transient onset attack condition
+    if (current_bass_energy > dynamic_threshold) {
+      instant_beat_triggered = true;
+      
+      // Dynamic Latch: clamp the baseline history index directly to the peak magnitude.
+      // Acts as an immediate acoustic brake to prevent bounce multi-triggering on the wave crest.
+      this->history_envelope_ = current_bass_energy;
+    } else {
+      // Exponential moving average tracking governed by acoustic membrane decay profiles
+      if (current_bass_energy > this->history_envelope_) {
+        // Fast tracking pass: adapt threshold baseline quickly during non-breaching volume rises
+        this->history_envelope_ = (current_bass_energy * 0.20f) + (this->history_envelope_ * 0.80f);
+      } else {
+        // Slow decay memory pass: maintain elevated threshold values while the bass note attenuates
+        this->history_envelope_ = (current_bass_energy * 0.04f) + (this->history_envelope_ * 0.96f);
       }
-#endif
-    } else if (normalized_bass < threshold * 0.7f) {
-      this->hysteresis_armed_ = true;  // Rearm safely only when energy drops below 70% threshold
     }
 
-    if (triggered) {
-      this->last_onset_ms_ = timestamp_ms;
-    }
-
-    return triggered;
+    return instant_beat_triggered;
   }
 
   /**
-   * @brief Maps standard 1-100 UI sensitivity to internal mathematical scaling triggers.
+   * @brief Inversely maps the standard linear UI range into a tight exponential scaling coefficient.
    */
   void set_sensitivity(int value) {
-    int clamped = std::max(1, std::min(100, value));
-    // Maps 1-100 into multipliers 3.0f (low sensitivity) down to 0.5f (high sensitivity)
-    this->multiplier_ = 3.0f - (static_cast<float>(clamped) / 100.0f) * 2.5f;
+    int clamped = std::clamp(value, 1, 100);
+    // Maps UI [1..100] to a proportional background envelope multiplier [2.20x down to 1.08x]
+    this->multiplier_ = 2.20f - ((clamped / 100.0f) * 1.12f);
   }
 
   void reset() {
-    this->history_count_ = 0;
-    this->history_head_ = 0;
-    this->history_sum_ = 0.0f;
-    this->history_sq_sum_ = 0.0f;
-    this->last_onset_ms_ = 0;
-    this->hysteresis_armed_ = true;
-    std::memset(this->history_ring_, 0, sizeof(this->history_ring_));
+    this->history_envelope_ = 500.0f;
   }
 
  private:
-  float sample_scale_{0.0f};
-  uint32_t min_interval_ms_{0};
-  uint32_t last_onset_ms_{0};
-  float multiplier_{1.5f};
-  bool hysteresis_armed_{true};
-
-  // Fixed fixed-size internal array tracking execution timeline history
-  static constexpr size_t WINDOW_SIZE = 60;
-  float history_ring_[WINDOW_SIZE];
-  size_t history_count_{0};
-  size_t history_head_{0};
-  float history_sum_{0.0f};
-  float history_sq_sum_{0.0f};
+  float sample_rate_{0.0f};
+  float multiplier_{1.25f};
+  
+  // Persistent Single-Pole IIR memory tracking register for the baseline sound profile
+  float history_envelope_{500.0f};
 };
 
-}  // namespace esphome::music_leds
+} // namespace esphome::music_leds

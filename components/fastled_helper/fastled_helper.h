@@ -12,7 +12,7 @@ class FastledHelper final : public Component {
  public:
   void dump_config() override;
 
-#ifdef PALETTES
+#ifdef USE_PALETTES
   void set_current_palette(int index);
 #endif
 };  // FastledHelper

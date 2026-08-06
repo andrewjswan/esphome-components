@@ -5,14 +5,18 @@
 
 namespace esphome::music_leds {
 
+// Mathematical constant defined as (e - 1) used for exponential volume scaling and psychoacoustic normalization
+inline constexpr float E_MINUS_ONE = 1.7182818f;
+
 // 16-bit amplitude scale for DSP
-constexpr float AMPLITUDE_SCALE_16BIT = 32768.0f;
+inline constexpr float AMPLITUDE_SCALE_16BIT = 32768.0f;
 
 // Global DSP Constants (Optimized Pipeline Execution Parameters)
-static const size_t SAMPLES_FFT = 512;                   // Number of samples in an FFT batch (Must be a power of 2)
-static const size_t RING_BUFFER_SIZE = SAMPLES_FFT * 4;  // Lock-free safe ring buffer allocation capacity
-static const size_t HOP_SIZE = SAMPLES_FFT / 4;          // 75% sliding block overlap stride for temporal fluidity
-static const size_t NUM_GEQ_CHANNELS = 16;               // Number of frequency channels
+inline constexpr size_t SAMPLES_FFT = 512;                   // Number of samples in an FFT batch (Must be a power of 2)
+inline constexpr size_t MAX_VALID_BIN = SAMPLES_FFT / 2;     // Maximum valid spectral line index derived from the Nyquist sampling limit
+inline constexpr size_t HOP_SIZE = SAMPLES_FFT / 4;          // 75% sliding block overlap stride for temporal fluidity
+inline constexpr size_t RING_BUFFER_SIZE = SAMPLES_FFT * 4;  // Lock-free safe ring buffer allocation capacity
+inline constexpr size_t NUM_GEQ_CHANNELS = 16;               // Number of frequency channels
 
 // GEQ Processor constants
 

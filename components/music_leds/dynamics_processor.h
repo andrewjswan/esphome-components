@@ -1,9 +1,12 @@
 #pragma once
 
 #include "constants.h"
+
 #include <cmath>
 #include <algorithm>
 #include <cstdint>
+
+#include "esphome/core/defines.h"
 
 namespace esphome::music_leds {
 
@@ -120,11 +123,11 @@ class DynamicsProcessor {
         break;
 
       case FFTScalingMode::LOGARITHMIC:
-        raw_vol = logf(1.0f + raw_vol * 1.7182818f);
-        smoothed_vol = logf(1.0f + smoothed_vol * 1.7182818f);
-        bass = logf(1.0f + bass * 1.7182818f);
-        mid = logf(1.0f + mid * 1.7182818f);
-        high = logf(1.0f + high * 1.7182818f);
+        raw_vol = logf(1.0f + raw_vol * E_MINUS_ONE);
+        smoothed_vol = logf(1.0f + smoothed_vol * E_MINUS_ONE);
+        bass = logf(1.0f + bass * E_MINUS_ONE);
+        mid = logf(1.0f + mid * E_MINUS_ONE);
+        high = logf(1.0f + high * E_MINUS_ONE);
         break;
 
       case FFTScalingMode::LINEAR:

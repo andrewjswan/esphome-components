@@ -13,6 +13,7 @@
 #include "ring_buffer.h"
 
 #include "esphome/components/light/addressable_light.h"
+#include "esphome/components/fastled_helper/utils.h"
 #include "esphome/components/microphone/microphone_source.h"
 
 #include "esphome/core/automation.h"
@@ -24,15 +25,14 @@
 #include "esphome/components/ota/ota_backend.h"
 #endif
 
-#define FASTLED_INTERNAL  // Remove annoying pragma messages
-#include <FastLED.h>
-
 namespace esphome::music_leds {
 
 static const char *const TAG = "music_leds";
 static const char *const MUSIC_LEDS_VERSION = "2026.7.5";
 
 enum PLAYMODE {
+  MODE_BLURZ,
+  MODE_FREQWAVE,
   MODE_GRAV,
   MODE_GRAVICENTER,
   MODE_GRAVICENTRIC,
@@ -43,6 +43,7 @@ enum PLAYMODE {
   MODE_RIPPLEPEAK,
   MODE_MATRIPIX,
   MODE_NOISEFIRE,
+  MODE_NOISEMETER,
   MODE_PIXELWAVE,
   MODE_PLASMOID,
   MODE_PUDDLEPEAK,
@@ -123,8 +124,8 @@ class MusicLeds final : public Component
   void set_sample_gain(uint8_t gain) { this->sample_gain_ = gain; }
   void set_sample_scale(uint8_t scale) { this->sample_scale_ = 1.0f / static_cast<float>(scale); }
 
-  void StartFrame() { this->start_effect_ = true; };
-  void ShowFrame(PLAYMODE CurrentMode, Color current_color, light::AddressableLight *p_it);
+  void start_frame() { this->start_effect_ = true; };
+  void show_frame(PLAYMODE CurrentMode, Color current_color, light::AddressableLight *p_it);
 
   bool microphone_is_running() { return this->microphone_->is_running(); }
 
@@ -146,7 +147,7 @@ class MusicLeds final : public Component
   RingBuffer<float, RING_BUFFER_SIZE> ring_buffer_;
   void process_audio_to_ring_(const std::vector<uint8_t> &data);
 
-  static void FFTcode(void *params);
+  static void FFT_Code(void *params);
   TaskHandle_t FFT_Task{nullptr};
 
   FFTScalingMode scaling_mode_{FFTScalingMode::SQUARE_ROOT};
@@ -155,6 +156,7 @@ class MusicLeds final : public Component
   float pre_amp_gain_{4.5f};
   uint8_t sample_gain_{60};
   float sample_scale_{1.0f / 24.0f};
+  uint32_t sample_rate_{22050};
 
   float *fft_buffer_{nullptr};
   std::unique_ptr<FFTEngine> fft_engine_{nullptr};
@@ -184,7 +186,7 @@ class MusicLeds final : public Component
   bool start_effect_{false};  // Effect start?
   byte *data;                 // Effect data pointer
   unsigned _dataLen;          // Data length
-  uint8_t store{0};           // Internal storage
+  uint8_t store{UINT8_MAX};   // Internal storage
 
   bool allocateData(size_t len);
   void deallocateData();
@@ -197,6 +199,12 @@ class MusicLeds final : public Component
   void puddles_base(CRGB *physic_leds, bool peakdetect);
 #endif
 
+#ifdef DEF_BLURZ
+  void visualize_blurz(CRGB *physic_leds);
+#endif
+#ifdef DEF_FREQWAVE
+  void visualize_freqwave(CRGB *physic_leds);
+#endif
 #ifdef DEF_GRAV
   void visualize_gravfreq(CRGB *physic_leds);
 #endif
@@ -226,6 +234,9 @@ class MusicLeds final : public Component
 #endif
 #ifdef DEF_NOISEFIRE
   void visualize_noisefire(CRGB *physic_leds);
+#endif
+#ifdef DEF_NOISEMETER
+  void visualize_noisemeter(CRGB *physic_leds);
 #endif
 #ifdef DEF_PIXELWAVE
   void visualize_pixelwave(CRGB *physic_leds);

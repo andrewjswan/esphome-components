@@ -59,6 +59,8 @@ SoundLoopTrigger = music_leds_ns.class_(
 
 PlayMode = music_leds_ns.enum("PLAYMODE")
 MUSIC_LEDS_EFFECTS = {
+    "BLURZ": PlayMode.MODE_BLURZ,
+    "FREQWAVE": PlayMode.MODE_FREQWAVE,
     "GRAV": PlayMode.MODE_GRAV,
     "GRAVICENTER": PlayMode.MODE_GRAVICENTER,
     "GRAVICENTRIC": PlayMode.MODE_GRAVICENTRIC,
@@ -69,6 +71,7 @@ MUSIC_LEDS_EFFECTS = {
     "RIPPLEPEAK": PlayMode.MODE_RIPPLEPEAK,
     "MATRIPIX": PlayMode.MODE_MATRIPIX,
     "NOISEFIRE": PlayMode.MODE_NOISEFIRE,
+    "NOISEMETER": PlayMode.MODE_NOISEMETER,
     "PIXELWAVE": PlayMode.MODE_PIXELWAVE,
     "PLASMOID": PlayMode.MODE_PLASMOID,
     "PUDDLEPEAK": PlayMode.MODE_PUDDLEPEAK,

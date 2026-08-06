@@ -50,15 +50,13 @@ class FFTEngine {
   /**
    * @brief Constructor allocating required vector tables for complex processing.
    * @param sample_rate Physical I2S microphone sample frequency (e.g. 22050 or 44100).
-   * @param samples_fft Total samples per processing window (Must be a power of two).
    */
-  FFTEngine(uint32_t sample_rate, size_t samples_fft = 512)
+  FFTEngine(uint32_t sample_rate)
       : sample_rate_(sample_rate),
-        samples_fft_(samples_fft),
-        v_real_(samples_fft, 0.0f),
-        v_imag_(samples_fft, 0.0f),
-        magnitudes_(samples_fft / 2, 0.0f),
-        fft_(v_real_.data(), v_imag_.data(), samples_fft, static_cast<float>(sample_rate), true) {}
+        v_real_(SAMPLES_FFT, 0.0f),
+        v_imag_(SAMPLES_FFT, 0.0f),
+        magnitudes_(MAX_VALID_BIN, 0.0f),
+        fft_(v_real_.data(), v_imag_.data(), SAMPLES_FFT, static_cast<float>(sample_rate), true) {}
 
   /**
    * @brief Computes forward Radix-4 FFT using dedicated Blackman-Harris windowing.
@@ -66,11 +64,11 @@ class FFTEngine {
    */
   void process(const float *incoming_window) {
     // Ingest sliding raw time-domain buffer into active processing registers
-    std::memcpy(this->v_real_.data(), incoming_window, this->samples_fft_ * sizeof(float));
-    std::memset(this->v_imag_.data(), 0, this->samples_fft_ * sizeof(float));
+    std::memcpy(this->v_real_.data(), incoming_window, SAMPLES_FFT * sizeof(float));
+    std::memset(this->v_imag_.data(), 0, SAMPLES_FFT * sizeof(float));
 
     this->max_sample_ = 0.0f;  // Max sample from FFT batch
-    for (size_t i = 0; i < samples_fft_; i++) {
+    for (size_t i = 0; i < SAMPLES_FFT; i++) {
       // Pick our current mic sample - we take the max value from all samples that go into FFT
       // Skip extreme values - normally these are artefacts
       if ((this->v_real_[i] <= static_cast<float>(INT16_MAX - 1024)) &&
@@ -83,12 +81,12 @@ class FFTEngine {
     // Calculates the true arithmetic mean of the current frame and subtracts it
     // with 100% precision. This eliminates the -1426.4 offset leakage before windowing.
     float dc_sum = 0.0f;
-    for (size_t i = 0; i < this->samples_fft_; i++) {
+    for (size_t i = 0; i < SAMPLES_FFT; i++) {
       dc_sum += this->v_real_[i];
     }
-    float exact_dc_offset = dc_sum / static_cast<float>(this->samples_fft_);
+    float exact_dc_offset = dc_sum / static_cast<float>(SAMPLES_FFT);
 
-    for (size_t i = 0; i < this->samples_fft_; i++) {
+    for (size_t i = 0; i < SAMPLES_FFT; i++) {
       this->v_real_[i] -= exact_dc_offset;
     }
 
@@ -112,16 +110,16 @@ class FFTEngine {
 
     // Safely isolate and export computed frequencies to the persistent output array
     // We execute this step immediately to secure an un-altered physical spectrum snapshot.
-    std::memcpy(this->magnitudes_.data(), this->v_real_.data(), (this->samples_fft_ / 2) * sizeof(float));
+    std::memcpy(this->magnitudes_.data(), this->v_real_.data(), (MAX_VALID_BIN) * sizeof(float));
 
 #ifdef PITCH_SPECTRUM_HPF
-    float hz_per_bin = static_cast<float>(this->sample_rate_) / static_cast<float>(this->samples_fft_);
+    float hz_per_bin = static_cast<float>(this->sample_rate_) / static_cast<float>(SAMPLES_FFT);
 
     // Apply inline destructive Pre-emphasis to the leftover v_real_ workspace.
     // Attenuates frequency bins below 200Hz using an exponential curve to balance the spectral landscape.
     size_t max_bass_bin = static_cast<size_t>(200.0f / hz_per_bin);
-    if (max_bass_bin >= (this->samples_fft_ / 2)) {
-      max_bass_bin = (this->samples_fft_ / 2) - 1;
+    if (max_bass_bin >= (MAX_VALID_BIN)) {
+      max_bass_bin = (MAX_VALID_BIN) - 1;
     }
 
     for (size_t b = 1; b <= max_bass_bin; b++) {
@@ -146,8 +144,8 @@ class FFTEngine {
 #ifdef PITCH_SPECTRUM_HPF
     // Calculate peak_bin and extract high-fidelity magnitude strictly when the spectrum modifier is enabled.
     size_t peak_bin = static_cast<size_t>((major_peak_hz + (hz_per_bin / 2.0f)) / hz_per_bin);
-    if (peak_bin >= (this->samples_fft_ / 2)) {
-      peak_bin = (this->samples_fft_ / 2) - 1;
+    if (peak_bin >= (MAX_VALID_BIN)) {
+      peak_bin = (MAX_VALID_BIN) - 1;
     }
     // Pull the un-altered physical magnitude coefficient from our magnitudes_ backup map
     this->magnitude_ = this->magnitudes_[peak_bin];
@@ -162,11 +160,10 @@ class FFTEngine {
   float dominant_frequency_hz() const { return this->dominant_frequency_hz_; }
   float magnitude() const { return this->magnitude_; }
   float max_sample() const { return this->max_sample_; }
-  size_t spectrum_size() const { return this->samples_fft_ / 2; }
+  size_t spectrum_size() const { return MAX_VALID_BIN; }
 
  protected:
-  uint32_t sample_rate_;
-  size_t samples_fft_;
+  uint32_t sample_rate_{0.0f};
 
   std::vector<float> v_real_;
   std::vector<float> v_imag_;

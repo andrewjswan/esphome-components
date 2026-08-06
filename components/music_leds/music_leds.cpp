@@ -91,18 +91,17 @@ void MusicLeds::setup() {
   });
 
   // Initialize the standalone processing module prior to spinning up the worker thread
-  const uint32_t sample_rate = this->microphone_->get_audio_stream_info().get_sample_rate();
-  this->fft_engine_ = std::make_unique<FFTEngine>(sample_rate);
-  this->band_aggregator_ = std::make_unique<BandAggregator>(sample_rate);
+  this->sample_rate_ = this->microphone_->get_audio_stream_info().get_sample_rate();
+  this->fft_engine_ = std::make_unique<FFTEngine>(this->sample_rate_);
+  this->band_aggregator_ = std::make_unique<BandAggregator>(this->sample_rate_);
   this->dynamics_processor_ = std::make_unique<DynamicsProcessor>(this->sample_scale_);
   this->dynamics_processor_->set_scaling_mode(this->scaling_mode_);
-  this->beat_detector_ = std::make_unique<BeatDetector>(this->sample_scale_, this->beat_sensitivity_);
+  this->beat_detector_ = std::make_unique<BeatDetector>(this->sample_rate_, this->beat_sensitivity_);
   this->noise_gate_ = std::make_unique<NoiseGate>(this->sample_scale_, this->noise_gate_floor_);
   this->pre_amplifier_ = std::make_unique<PreAmplifier>(this->sample_scale_, this->pre_amp_gain_);
   this->geq_processor_ = std::make_unique<GEQProcessor>(this->sample_scale_, this->sample_gain_);
   this->geq_processor_->set_scaling_mode(this->scaling_mode_);
-  // 100ms freq lockout, 80ms vol lockout, 50ms hold window, 0.5 threshold
-  this->peak_latch_ = std::make_unique<PeakLatch>(100, 80, 50, 0.5f);
+  this->peak_latch_ = std::make_unique<PeakLatch>();
 
   ESP_LOGCONFIG(TAG, "Music Leds initialized");
   this->start();
@@ -202,7 +201,7 @@ void MusicLeds::dump_config() {
   if (this->microphone_ != nullptr) {
     const auto &stream_info = this->microphone_->get_audio_stream_info();
     ESP_LOGCONFIG(TAG, "   Stream Bit Depth: %d bit", stream_info.get_bits_per_sample());
-    ESP_LOGCONFIG(TAG, "        Sample rate: %ld Hz", static_cast<int32_t>(stream_info.get_sample_rate()));
+    ESP_LOGCONFIG(TAG, "        Sample rate: %ld Hz", static_cast<int32_t>(this->sample_rate_));
   }
 
   // Extract independent internal pipeline features and scaling styles
@@ -272,13 +271,13 @@ void MusicLeds::on_start() {
   this->ring_buffer_.clear();
 
   // Define the FFT Task and lock it to core
-  xTaskCreatePinnedToCore(MusicLeds::FFTcode,  // Function to implement the task
-                          "FFT",               // Name of the task
-                          5000,                // Stack size in words
-                          (void *) this,       // Task input parameter
-                          FFTTASK_PRIORITY,    // Priority of the task
-                          &this->FFT_Task,     // Task handle
-                          FFTTASK_CORE);       // Core where the task should run
+  xTaskCreatePinnedToCore(MusicLeds::FFT_Code,  // Function to implement the task
+                          "FFT",                // Name of the task
+                          5000,                 // Stack size in words
+                          (void *) this,        // Task input parameter
+                          FFTTASK_PRIORITY,     // Priority of the task
+                          &this->FFT_Task,      // Task handle
+                          FFTTASK_CORE);        // Core where the task should run
 
   if (this->FFT_Task == nullptr) {
     this->status_momentary_error("MusicLeds task failed to start...", 1000);
@@ -289,7 +288,7 @@ void MusicLeds::on_stop() {
   vTaskDelete(this->FFT_Task);
   this->FFT_Task = nullptr;
 
-  fastled_helper::FreeLeds();
+  fastled_helper::free_leds();
 
   this->status_clear_error();
 }
@@ -373,7 +372,7 @@ void MusicLeds::process_audio_to_ring_(const std::vector<uint8_t> &data) {
 // FFT main task
 // audio processing task: read samples, run FFT, fill GEQ channels from FFT results
 // *****************************************************************************
-void MusicLeds::FFTcode(void *parameter) {
+void MusicLeds::FFT_Code(void *parameter) {
   MusicLeds *this_task = (MusicLeds *) parameter;
   ESP_LOGCONFIG(TAG, "FFT: started on core: %u", FFTTASK_CORE);
 
@@ -457,9 +456,6 @@ void MusicLeds::FFTcode(void *parameter) {
     float amp_h = this_task->features_.high_energy;
 #endif
 
-    // Transient Beat Onset Detection runs on filtered linear energy
-    this_task->features_.is_beat_detected = this_task->beat_detector_->process(this_task->features_.bass_energy);
-
     // Apply Linear AGC normalization and temporal Slew-Rate limiting
     // Controlled by the zero-line decay tail lock to reset persistent history registers instantly.
     this_task->dynamics_processor_->process(this_task->features_.smoothed_volume, this_task->features_.raw_volume,
@@ -474,15 +470,22 @@ void MusicLeds::FFTcode(void *parameter) {
     float dyn_vol = this_task->features_.raw_volume;
 #endif
 
+    // Execute frequency-domain onset tracking directly on raw FFT magnitudes 
+    // to preserve uncompressed source dynamics before AGC ceiling clamping.
+    this_task->features_.is_beat_detected = this_task->beat_detector_->process(this_task->fft_engine_->magnitudes());
+
+    // Evaluate amplitude-domain transient bursts by calculating the differential 
+    // delta between fast and slow volume envelopes prior to non-linear curve distortion.
+    this_task->peak_latch_->process(this_task->features_.is_beat_detected, 
+                                    this_task->features_.raw_volume, 
+                                    this_task->features_.smoothed_volume,
+                                    this_task->features_.sample_peak);
+
     // Psychoacoustic Scaling Stage - Enforced strictly after gate and beat tasks!
     // Compresses clean linear bands using selected curves (e.g. Square Root)
     this_task->dynamics_processor_->apply_psychoacoustic_scaling(
         this_task->features_.smoothed_volume, this_task->features_.raw_volume, this_task->features_.bass_energy,
         this_task->features_.mid_energy, this_task->features_.high_energy);
-
-    // Dual-Channel temporal peak latch window calculation
-    this_task->peak_latch_->process(this_task->features_.is_beat_detected, this_task->features_.raw_volume,
-                                    this_task->features_.sample_peak);
 
     // Magnitude
     if (this_task->features_.smoothed_volume * 255.0f < 1.0f) {

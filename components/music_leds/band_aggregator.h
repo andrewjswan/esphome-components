@@ -14,13 +14,12 @@ class BandAggregator {
   explicit BandAggregator(uint32_t sample_rate) {
     // Fully parameterize scaling using the global SAMPLES_FFT constant to support future 1024 switches
     this->hz_per_bin_ = static_cast<float>(sample_rate) / static_cast<float>(SAMPLES_FFT);
-    size_t num_bins = SAMPLES_FFT / 2;  // Maximum positions in the magnitude spectrum
 
     // Anti-Aliasing Brickwall Guard (Dynamic Scaling)
     // Don't use the last bins from 216 to 255. They are usually contaminated by aliasing (aka noise)
     // Enforces constraint dynamically. For 512 samples, it cuts off strictly at bin 216.
     // If scaled to 1024 samples, it automatically scales to keep the same physical frequency cutoff window.
-    size_t absolute_safe_ceiling = static_cast<size_t>(static_cast<float>(num_bins) * 0.84375f);
+    size_t absolute_safe_ceiling = static_cast<size_t>(static_cast<float>(MAX_VALID_BIN) * 0.84375f);
 
     for (int b = 0; b < NUM_GEQ_CHANNELS; b++) {
       size_t start = freq_to_bin(BAND_FREQ_BOUNDARIES[b]);

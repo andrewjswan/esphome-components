@@ -13,13 +13,11 @@ class PeakLatch {
  public:
   // Standard duration window to hold the peak active for asynchronous rendering loops
   static constexpr uint32_t LATCH_TIME_MS = 50;
-  
+
   // Hard window barrier to block repetitive machine-gun multi-triggering
   static constexpr uint32_t MIN_LOCKOUT_MS = 110;
 
-  explicit PeakLatch() {
-    this->reset();
-  }
+  explicit PeakLatch() { this->reset(); }
 
   /**
    * @brief Evaluates multi-domain transient bursts and stretches them into timed windows.
@@ -36,11 +34,11 @@ class PeakLatch {
       this->is_active_ = true;
       this->last_trigger_ms_ = current_time;
     }
-    
+
     // Evaluate amplitude-domain differential delta burst prior to non-linear distortion
     float amplitude_delta = raw_volume - smoothed_volume;
     bool lockout_expired = (this->last_trigger_ms_ == 0) || ((current_time - this->last_trigger_ms_) >= MIN_LOCKOUT_MS);
-    
+
     // 0.25f marks a severe 25% instantaneous volume surge above the normalized AGC baseline track
     if (amplitude_delta > 0.25f && lockout_expired) {
       this->is_active_ = true;
@@ -50,7 +48,7 @@ class PeakLatch {
     // Manage the temporal Pulse Stretcher window decay
     if (this->is_active_) {
       if (current_time - this->last_trigger_ms_ > LATCH_TIME_MS) {
-        this->is_active_ = false; // Gracefully shut down the latch after 50ms has elapsed
+        this->is_active_ = false;  // Gracefully shut down the latch after 50ms has elapsed
       }
     }
 
@@ -68,4 +66,4 @@ class PeakLatch {
   bool is_active_{false};
 };
 
-} // namespace esphome::music_leds
+}  // namespace esphome::music_leds

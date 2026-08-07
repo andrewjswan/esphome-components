@@ -18,49 +18,43 @@ void nscale8_video(CRGB *leds, uint16_t num_leds, uint8_t scale);
 void nscale8(CRGB *leds, uint16_t num_leds, uint8_t scale);
 
 uint8_t gamma8inv(uint8_t val);
-
-/// The "video" version of scale8()
-inline __attribute__((always_inline)) uint8_t scale8_video(uint8_t i, uint8_t scale) {
-    uint8_t j = (((int)i * (int)scale) >> 8) + ((i && scale) ? 1 : 0);
-    return j;
-}
-
 inline __attribute__((always_inline)) static uint8_t dim8_video(uint8_t x) { return scale8_video(x, x); }
 
 /// Pre-defined hue values for hsv8 objects
 typedef enum {
-    HUE_RED = 0,       ///< Red (0°)
-    HUE_ORANGE = 32,   ///< Orange (45°)
-    HUE_YELLOW = 64,   ///< Yellow (90°)
-    HUE_GREEN = 96,    ///< Green (135°)
-    HUE_AQUA = 128,    ///< Aqua (180°)
-    HUE_BLUE = 160,    ///< Blue (225°)
-    HUE_PURPLE = 192,  ///< Purple (270°)
-    HUE_PINK = 224     ///< Pink (315°)
+  HUE_RED = 0,       ///< Red (0°)
+  HUE_ORANGE = 32,   ///< Orange (45°)
+  HUE_YELLOW = 64,   ///< Yellow (90°)
+  HUE_GREEN = 96,    ///< Green (135°)
+  HUE_AQUA = 128,    ///< Aqua (180°)
+  HUE_BLUE = 160,    ///< Blue (225°)
+  HUE_PURPLE = 192,  ///< Purple (270°)
+  HUE_PINK = 224     ///< Pink (315°)
 } HSVHue;
 
 /// Convert an HSV value to RGB using a mathematically straight spectrum.
 /// This "spectrum" will have more green and blue than a "rainbow",
 /// and less yellow and orange.
 ///
-/// ![FastLED 'Spectrum' Hue Chart](https://raw.githubusercontent.com/FastLED/FastLED/gh-pages/images/HSV-spectrum-with-desc.jpg)
+/// ![FastLED 'Spectrum' Hue
+/// Chart](https://raw.githubusercontent.com/FastLED/FastLED/gh-pages/images/HSV-spectrum-with-desc.jpg)
 ///
 /// @note This function wraps hsv2rgb_raw() and rescales the hue value to fit
 /// the smaller range.
 ///
 /// @param hsv CHSV struct to convert to RGB. Max hue supported is HUE_MAX_SPECTRUM
 /// @param rgb CRGB struct to store the result of the conversion (will be modified)
-void hsv2rgb_spectrum(const CHSV& hsv, CRGB& rgb);
+void hsv2rgb_spectrum(const CHSV &hsv, CRGB &rgb);
 
 /// Inline version of hsv2rgb_spectrum which returns a CRGB object.
-CRGB hsv2rgb_spectrum(const CHSV& hsv);
+CRGB hsv2rgb_spectrum(const CHSV &hsv);
 
 /// @copybrief hsv2rgb_spectrum(const CHSV&, CRGB&)
 /// @see hsv2rgb_spectrum(const CHSV&, CRGB&)
 /// @param phsv CHSV array to convert to RGB. Max hue supported is HUE_MAX_SPECTRUM
 /// @param prgb CRGB array to store the result of the conversion (will be modified)
 /// @param numLeds the number of array values to process
-void hsv2rgb_spectrum(const CHSV* phsv, CRGB * prgb, int numLeds);
+void hsv2rgb_spectrum(const CHSV *phsv, CRGB *prgb, int numLeds);
 
 /// @copybrief hsv2rgb_spectrum(const CHSV&, CRGB&)
 /// @see hsv2rgb_spectrum(const CHSV&, CRGB&)
@@ -69,14 +63,14 @@ void hsv2rgb_spectrum(const CHSV* phsv, CRGB * prgb, int numLeds);
 /// of color balance.
 /// @param hsv CHSV struct to convert to RGB. Max hue supported is HUE_MAX
 /// @param rgb CRGB struct to store the result of the conversion (will be modified)
-void hsv2rgb_raw(const CHSV& hsv, CRGB & rgb);
+void hsv2rgb_raw(const CHSV &hsv, CRGB &rgb);
 
 /// @copybrief hsv2rgb_raw(const CHSV&, CRGB&)
 /// @see hsv2rgb_raw(const CHSV&, CRGB&)
 /// @param phsv CHSV array to convert to RGB. Max hue supported is HUE_MAX
 /// @param prgb CRGB array to store the result of the conversion (will be modified)
 /// @param numLeds the number of array values to process
-void hsv2rgb_raw(const CHSV* phsv, CRGB * prgb, int numLeds);
+void hsv2rgb_raw(const CHSV *phsv, CRGB *prgb, int numLeds);
 
 /// Max hue accepted for the hsv2rgb_spectrum() function
 #define HUE_MAX_SPECTRUM 255
@@ -116,6 +110,6 @@ void hsv2rgb_raw(const CHSV* phsv, CRGB * prgb, int numLeds);
 /// @see https://en.wikipedia.org/wiki/Bijection
 /// @param rgb an RGB value to convert
 /// @returns the approximate HSV equivalent of the RGB value
-CHSV rgb2hsv_approximate(const CRGB& rgb);
+CHSV rgb2hsv_approximate(const CRGB &rgb);
 
 }  // namespace esphome::fastled_helper

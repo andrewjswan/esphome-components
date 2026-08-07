@@ -49,38 +49,32 @@ void IRAM_ATTR fade_out(CRGB *physic_leds, uint16_t _leds_num, uint8_t rate, CRG
 //  eventually all the way to black; this is by design so that
 //  it can be used to (slowly) clear the LEDs to black.
 void IRAM_ATTR blur(CRGB *physic_leds, uint16_t numLeds, uint8_t blur_amount) {
-    uint8_t keep = 255 - blur_amount;
-    uint8_t seep = blur_amount >> 1;
-    CRGB carryover = CRGB::Black;
+  uint8_t keep = 255 - blur_amount;
+  uint8_t seep = blur_amount >> 1;
+  CRGB carryover = CRGB::Black;
 
-    for(uint16_t i = 0; i < numLeds; ++i) {
-        CRGB cur = physic_leds[i];
-        CRGB part = cur;
-        part.nscale8(seep);
-        cur.nscale8(keep);
+  for (uint16_t i = 0; i < numLeds; ++i) {
+    CRGB cur = physic_leds[i];
+    CRGB part = cur;
+    part.nscale8(seep);
+    cur.nscale8(keep);
 
-        cur += carryover;
-        if(i > 0) physic_leds[i-1] += part;
+    cur += carryover;
+    if (i > 0)
+      physic_leds[i - 1] += part;
 
-        physic_leds[i] = cur;
-        carryover = part;
-    }
+    physic_leds[i] = cur;
+    carryover = part;
+  }
 }
 
 void IRAM_ATTR fadeLightBy(CRGB *leds, uint16_t num_leds, uint8_t fadeBy) {
-    nscale8_video(leds, num_leds, 255 - fadeBy);
+  nscale8_video(leds, num_leds, 255 - fadeBy);
 }
- 
-void IRAM_ATTR fadeToBlackBy(CRGB *leds, uint16_t num_leds, uint8_t fadeBy) {
-    nscale8(leds, num_leds, 255 - fadeBy);
-}
+
+void IRAM_ATTR fadeToBlackBy(CRGB *leds, uint16_t num_leds, uint8_t fadeBy) { nscale8(leds, num_leds, 255 - fadeBy); }
 
 // *****************************************************************************************************************************************************************
-
-// FastLED Reference
-// -----------------
-// The following beat functions derived from FastLED @ 3.6.0 (https://github.com/FastLED/FastLED) are licensed under the MIT license
-// See /src/dependencies/fastled_slim/LICENSE.txt for details
 
 // 16-bit, integer based Bhaskara I's sine approximation: 16*x*(pi - x) / (5*pi^2 - 4*x*(pi - x))
 // input is 16bit unsigned (0-65535), output is 16bit signed (-32767 to +32767)
@@ -89,61 +83,59 @@ int16_t sin16_t(uint16_t theta) {
   int scale = 1;
   if (theta > 0x7FFF) {
     theta = 0xFFFF - theta;
-    scale = -1; // second half of the sine function is negative (pi - 2*pi)
+    scale = -1;  // second half of the sine function is negative (pi - 2*pi)
   }
   uint32_t precal = theta * (0x7FFF - theta);
-  uint64_t numerator = (uint64_t)precal * (4 * 0x7FFF); // 64bit required
-  int32_t denominator = 1342095361 - precal; // 1342095361 is 5 * 0x7FFF^2 / 4
+  uint64_t numerator = (uint64_t) precal * (4 * 0x7FFF);  // 64bit required
+  int32_t denominator = 1342095361 - precal;              // 1342095361 is 5 * 0x7FFF^2 / 4
   int16_t result = numerator / denominator;
   return result * scale;
 }
 
 int16_t cos16_t(uint16_t theta) {
-  return sin16_t(theta + 0x4000); // cos(x) = sin(x+pi/2)
+  return sin16_t(theta + 0x4000);  // cos(x) = sin(x+pi/2)
 }
 
 uint8_t sin8_t(uint8_t theta) {
-  int32_t sin16 = sin16_t((uint16_t)theta * 257); // 255 * 257 = 0xFFFF
-  sin16 += 0x7FFF + 128; // shift result to range 0-0xFFFF, +128 for rounding
-  return min(sin16, int32_t(0xFFFF)) >> 8; // min performs saturation, and prevents overflow
+  int32_t sin16 = sin16_t((uint16_t) theta * 257);  // 255 * 257 = 0xFFFF
+  sin16 += 0x7FFF + 128;                            // shift result to range 0-0xFFFF, +128 for rounding
+  return min(sin16, int32_t(0xFFFF)) >> 8;          // min performs saturation, and prevents overflow
 }
 
 uint8_t cos8_t(uint8_t theta) {
-  return sin8_t(theta + 64); // cos(x) = sin(x+pi/2)
+  return sin8_t(theta + 64);  // cos(x) = sin(x+pi/2)
 }
 
 uint8_t sqrt16_t(uint16_t x) {
-    if (x <= 1) {
-        return x;
-    }
+  if (x <= 1) {
+    return x;
+  }
 
-    uint8_t low = 1; // lower bound
-    uint8_t hi, mid;
+  uint8_t low = 1;  // lower bound
+  uint8_t hi, mid;
 
-    if (x > 7904) {
-        hi = 255;
+  if (x > 7904) {
+    hi = 255;
+  } else {
+    hi = (x >> 5) + 8;  // initial estimate for upper bound
+  }
+
+  do {
+    mid = (low + hi) >> 1;
+    if ((uint16_t) (mid * mid) > x) {
+      hi = mid - 1;
     } else {
-        hi = (x >> 5) + 8; // initial estimate for upper bound
+      if (mid == 255) {
+        return 255;
+      }
+      low = mid + 1;
     }
+  } while (hi >= low);
 
-    do {
-        mid = (low + hi) >> 1;
-        if ((uint16_t)(mid * mid) > x) {
-            hi = mid - 1;
-        } else {
-            if (mid == 255) {
-                return 255;
-            }
-            low = mid + 1;
-        }
-    } while (hi >= low);
-
-    return low - 1;
+  return low - 1;
 }
 
-uint8_t sqrt8_t(uint8_t x) {
-    return sqrt16_t(map8_to_16(x));
-}
+uint8_t sqrt8_t(uint8_t x) { return sqrt16_t(map8_to_16(x)); }
 
 // Generates a 16-bit "sawtooth" wave at a given BPM, with BPM specified in Q8.8 fixed-point format:
 // for 120 BPM it would be 120*256 = 30720. If you just want to specify "120", use beat16() or beat8().
@@ -154,19 +146,19 @@ uint16_t beat88(uint16_t beats_per_minute_88, uint32_t timebase) {
 
 // Generates a 16-bit "sawtooth" wave at a given BPM
 uint16_t beat16(uint16_t beats_per_minute, uint32_t timebase) {
-  if (beats_per_minute < 256) beats_per_minute <<= 8;
+  if (beats_per_minute < 256)
+    beats_per_minute <<= 8;
   return beat88(beats_per_minute, timebase);
 }
 
 /// Generates an 8-bit "sawtooth" wave at a given BPM
-uint8_t beat8(uint16_t beats_per_minute, uint32_t timebase) {
-  return beat16(beats_per_minute, timebase) >> 8;
-}
+uint8_t beat8(uint16_t beats_per_minute, uint32_t timebase) { return beat16(beats_per_minute, timebase) >> 8; }
 
 // Generates a 16-bit sine wave at a given BPM that oscillates within a given range. see fastled for details.
-uint16_t beatsin88_t(uint16_t beats_per_minute_88, uint16_t lowest, uint16_t highest, uint32_t timebase, uint16_t phase_offset) {
+uint16_t beatsin88_t(uint16_t beats_per_minute_88, uint16_t lowest, uint16_t highest, uint32_t timebase,
+                     uint16_t phase_offset) {
   uint16_t beat = beat88(beats_per_minute_88, timebase);
-  uint16_t beatsin = (sin16_t( beat + phase_offset) + 32768);
+  uint16_t beatsin = (sin16_t(beat + phase_offset) + 32768);
   uint16_t rangewidth = highest - lowest;
   uint16_t scaledbeat = scale16(beatsin, rangewidth);
   uint16_t result = lowest + scaledbeat;
@@ -174,7 +166,8 @@ uint16_t beatsin88_t(uint16_t beats_per_minute_88, uint16_t lowest, uint16_t hig
 }
 
 // Generates a 16-bit sine wave at a given BPM that oscillates within a given range. see fastled for details.
-uint16_t beatsin16_t(uint16_t beats_per_minute, uint16_t lowest, uint16_t highest, uint32_t timebase, uint16_t phase_offset) {
+uint16_t beatsin16_t(uint16_t beats_per_minute, uint16_t lowest, uint16_t highest, uint32_t timebase,
+                     uint16_t phase_offset) {
   uint16_t beat = beat16(beats_per_minute, timebase);
   uint16_t beatsin = sin16_t(beat + phase_offset) + 32768;
   uint16_t rangewidth = highest - lowest;
@@ -184,7 +177,8 @@ uint16_t beatsin16_t(uint16_t beats_per_minute, uint16_t lowest, uint16_t highes
 }
 
 // Generates an 8-bit sine wave at a given BPM that oscillates within a given range. see fastled for details.
-uint8_t beatsin8_t(uint16_t beats_per_minute, uint8_t lowest, uint8_t highest, uint32_t timebase, uint8_t phase_offset) {
+uint8_t beatsin8_t(uint16_t beats_per_minute, uint8_t lowest, uint8_t highest, uint32_t timebase,
+                   uint8_t phase_offset) {
   uint8_t beat = beat8(beats_per_minute, timebase);
   uint8_t beatsin = sin8_t(beat + phase_offset);
   uint8_t rangewidth = highest - lowest;
@@ -194,7 +188,8 @@ uint8_t beatsin8_t(uint16_t beats_per_minute, uint8_t lowest, uint8_t highest, u
 }
 
 // Generates an 8-bit cosine wave at a given BPM that oscillates within a given range. see fastled for details.
-uint8_t beatcos8_t(uint16_t beats_per_minute, uint8_t lowest, uint8_t highest, uint32_t timebase, uint8_t phase_offset) {
+uint8_t beatcos8_t(uint16_t beats_per_minute, uint8_t lowest, uint8_t highest, uint32_t timebase,
+                   uint8_t phase_offset) {
   uint8_t beat = beat8(beats_per_minute, timebase);
   uint8_t beatcos = cos8_t(beat + phase_offset);
   uint8_t rangewidth = highest - lowest;
@@ -202,8 +197,6 @@ uint8_t beatcos8_t(uint16_t beats_per_minute, uint8_t lowest, uint8_t highest, u
   uint8_t result = lowest + scaledbeat;
   return result;
 }
-
-// end of FastLED functions
 
 // *****************************************************************************************************************************************************************
 /*
@@ -390,37 +383,40 @@ uint8_t perlin8(uint16_t x, uint16_t y, uint16_t z) {
          8;  // scale to 16 bit, offset, then scale to 8bit
 }
 
-#ifdef USE_PALETTES
-
 // *****************************************************************************************************************************************************************
-CRGB color_from_palette(const CRGBPalette16& pal, unsigned index, uint8_t brightness, TBlendType blendType) {
+CRGB color_from_palette(const CRGBPalette16 &pal, unsigned index, uint8_t brightness, TBlendType blendType) {
   if (blendType == LINEARBLEND_NOWRAP) {
-    index = (index * 0xF0) >> 8; // Blend range is affected by lo4 blend of values, remap to avoid wrapping
+    index = (index * 0xF0) >> 8;  // Blend range is affected by lo4 blend of values, remap to avoid wrapping
   }
   unsigned hi4 = byte(index) >> 4;
   unsigned lo4 = (index & 0x0F);
-  const CRGB* entry = (CRGB*)&(pal[0]) + hi4;
-  unsigned red1   = entry->r;
+  const CRGB *entry = (CRGB *) &(pal[0]) + hi4;
+  unsigned red1 = entry->r;
   unsigned green1 = entry->g;
-  unsigned blue1  = entry->b;
+  unsigned blue1 = entry->b;
   if (lo4 && blendType != NOBLEND) {
-    if (hi4 == 15) entry = &(pal[0]);
-    else ++entry;
+    if (hi4 == 15)
+      entry = &(pal[0]);
+    else
+      ++entry;
     unsigned f2 = (lo4 << 4);
     unsigned f1 = 256 - f2;
-    red1   = (red1   * f1 + (unsigned)entry->r * f2) >> 8; // note: using color_blend() is slower
-    green1 = (green1 * f1 + (unsigned)entry->g * f2) >> 8;
-    blue1  = (blue1  * f1 + (unsigned)entry->b * f2) >> 8;
+    red1 = (red1 * f1 + (unsigned) entry->r * f2) >> 8;  // note: using color_blend() is slower
+    green1 = (green1 * f1 + (unsigned) entry->g * f2) >> 8;
+    blue1 = (blue1 * f1 + (unsigned) entry->b * f2) >> 8;
   }
-  if (brightness < 255) { // note: zero checking could be done to return black but that is hardly ever used so it is omitted
+  if (brightness <
+      255) {  // note: zero checking could be done to return black but that is hardly ever used so it is omitted
     // actually same as color_fade(), using color_fade() is slower
-    uint32_t scale = brightness + 1; // adjust for rounding (bitshift)
-    red1   = (red1   * scale) >> 8;
+    uint32_t scale = brightness + 1;  // adjust for rounding (bitshift)
+    red1 = (red1 * scale) >> 8;
     green1 = (green1 * scale) >> 8;
-    blue1  = (blue1  * scale) >> 8;
+    blue1 = (blue1 * scale) >> 8;
   }
   return CRGB(red1, green1, blue1);
 }
+
+#ifdef USE_PALETTES
 
 CRGB color_from_palette(int index, CRGB current_color, uint8_t brightness) {
   if (current_palette == 0) {  // Current led color

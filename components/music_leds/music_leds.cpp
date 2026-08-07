@@ -35,6 +35,7 @@ enum EventGroupBits : uint32_t {
   ALL_BITS = 0xfffff,  // 24 total bits available in an event group
 };
 
+[[maybe_unused]]
 static const LogString *music_leds_state_to_string(State state) {
   switch (state) {
     case State::STARTING:
@@ -470,16 +471,14 @@ void MusicLeds::FFT_Code(void *parameter) {
     float dyn_vol = this_task->features_.raw_volume;
 #endif
 
-    // Execute frequency-domain onset tracking directly on raw FFT magnitudes 
+    // Execute frequency-domain onset tracking directly on raw FFT magnitudes
     // to preserve uncompressed source dynamics before AGC ceiling clamping.
     this_task->features_.is_beat_detected = this_task->beat_detector_->process(this_task->fft_engine_->magnitudes());
 
-    // Evaluate amplitude-domain transient bursts by calculating the differential 
+    // Evaluate amplitude-domain transient bursts by calculating the differential
     // delta between fast and slow volume envelopes prior to non-linear curve distortion.
-    this_task->peak_latch_->process(this_task->features_.is_beat_detected, 
-                                    this_task->features_.raw_volume, 
-                                    this_task->features_.smoothed_volume,
-                                    this_task->features_.sample_peak);
+    this_task->peak_latch_->process(this_task->features_.is_beat_detected, this_task->features_.raw_volume,
+                                    this_task->features_.smoothed_volume, this_task->features_.sample_peak);
 
     // Psychoacoustic Scaling Stage - Enforced strictly after gate and beat tasks!
     // Compresses clean linear bands using selected curves (e.g. Square Root)
@@ -552,7 +551,8 @@ void MusicLeds::FFT_Code(void *parameter) {
       ESP_LOGD(TAG, "[STEP DYNAMICS  ] Bass: %.4f | Mid: %.4f | High: %.4f | VolRaw: %.4f", dyn_b, dyn_m, dyn_h,
                dyn_vol);
       ESP_LOGD(TAG, "[ENGINE STATUS  ] Raw Peak Magnitude: %.4f | Dominant Frequency %.4f | Max Sample %.4f",
-               this_task->features_.magnitude, this_task->features_.dominant_frequency_hz, this_task->fft_engine_->max_sample());
+               this_task->features_.magnitude, this_task->features_.dominant_frequency_hz,
+               this_task->fft_engine_->max_sample());
       ESP_LOGD(
           TAG,
           "[FINAL FEATURES ] VolRaw: %.3f | VolSmth: %.3f | Bass: %.3f | Mid: %.3f | Hi: %.3f | Beat: %s | Peak: %s",

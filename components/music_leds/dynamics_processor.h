@@ -91,8 +91,8 @@ class DynamicsProcessor {
     float calculated_raw = std::clamp(mic_data_real - NOISE_GATE_THRESHOLD, 0.0f, static_cast<float>(INT16_MAX));
 
     // Execute exponential moving average temporal smoothing pass
-    this->volume_smoothed_ = (calculated_raw * FILTER_SMOOTHING_FACTOR) +
-                             (this->volume_smoothed_ * FILTER_RETENTION_FACTOR);
+    this->volume_smoothed_ =
+        (calculated_raw * FILTER_SMOOTHING_FACTOR) + (this->volume_smoothed_ * FILTER_RETENTION_FACTOR);
 
     // Dynamic hardware mapping: translate large 16-bit boundaries into standard [0.0f .. 1.0f] float scales
     raw_vol = std::clamp(calculated_raw / this->base_pcm_scale_, 0.0f, 1.0f);

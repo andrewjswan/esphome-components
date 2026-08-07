@@ -11,12 +11,16 @@ inline constexpr float E_MINUS_ONE = 1.7182818f;
 // 16-bit amplitude scale for DSP
 inline constexpr float AMPLITUDE_SCALE_16BIT = 32768.0f;
 
+// clang-format off
+
 // Global DSP Constants (Optimized Pipeline Execution Parameters)
 inline constexpr size_t SAMPLES_FFT = 512;                   // Number of samples in an FFT batch (Must be a power of 2)
 inline constexpr size_t MAX_VALID_BIN = SAMPLES_FFT / 2;     // Maximum valid spectral line index derived from the Nyquist sampling limit
 inline constexpr size_t HOP_SIZE = SAMPLES_FFT / 4;          // 75% sliding block overlap stride for temporal fluidity
 inline constexpr size_t RING_BUFFER_SIZE = SAMPLES_FFT * 4;  // Lock-free safe ring buffer allocation capacity
 inline constexpr size_t NUM_GEQ_CHANNELS = 16;               // Number of frequency channels
+
+// clang-format on
 
 // GEQ Processor constants
 

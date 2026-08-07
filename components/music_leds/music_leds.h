@@ -87,7 +87,6 @@ struct AudioPipelineFeatures {
     float scaled_vol = this->raw_volume * 255.0f;
     return static_cast<uint8_t>(std::clamp(scaled_vol, 0.0f, 255.0f));
   }
-
 };
 
 class MusicLeds final : public Component

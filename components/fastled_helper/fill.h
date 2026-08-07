@@ -11,10 +11,10 @@ namespace esphome::fastled_helper {
 /// Since "hue" is a value around a color wheel, there are always two directions
 /// to sweep from one hue to another.
 typedef enum {
-    FORWARD_HUES,  ///< Hue always goes clockwise around the color wheel
-    BACKWARD_HUES, ///< Hue always goes counter-clockwise around the color wheel
-    SHORTEST_HUES, ///< Hue goes whichever way is shortest
-    LONGEST_HUES   ///< Hue goes whichever way is longest
+  FORWARD_HUES,   ///< Hue always goes clockwise around the color wheel
+  BACKWARD_HUES,  ///< Hue always goes counter-clockwise around the color wheel
+  SHORTEST_HUES,  ///< Hue goes whichever way is shortest
+  LONGEST_HUES    ///< Hue goes whichever way is longest
 } TGradientDirectionCode;
 
 /// Fill a range of LEDs with a solid color.
@@ -41,107 +41,106 @@ void fill_solid(CHSV *targetArray, int numToFill, const CHSV &color);
 /// @param endpos the ending position in the array
 /// @param endcolor the end color for the gradient
 /// @param directionCode the direction to travel around the color wheel
-template <typename T>
-void fill_gradient(T *targetArray, uint16_t startpos, CHSV startcolor,
-                   uint16_t endpos, CHSV endcolor,
+template<typename T>
+void fill_gradient(T *targetArray, uint16_t startpos, CHSV startcolor, uint16_t endpos, CHSV endcolor,
                    TGradientDirectionCode directionCode = SHORTEST_HUES) {
-    // if the points are in the wrong order, straighten them
-    if (endpos < startpos) {
-        uint16_t t = endpos;
-        CHSV tc = endcolor;
-        endcolor = startcolor;
-        endpos = startpos;
-        startpos = t;
-        startcolor = tc;
+  // if the points are in the wrong order, straighten them
+  if (endpos < startpos) {
+    uint16_t t = endpos;
+    CHSV tc = endcolor;
+    endcolor = startcolor;
+    endpos = startpos;
+    startpos = t;
+    startcolor = tc;
+  }
+
+  // If we're fading toward black (val=0) or white (sat=0),
+  // then set the endhue to the starthue.
+  // This lets us ramp smoothly to black or white, regardless
+  // of what 'hue' was set in the endcolor (since it doesn't matter)
+  if (endcolor.value == 0 || endcolor.saturation == 0) {
+    endcolor.hue = startcolor.hue;
+  }
+
+  // Similarly, if we're fading in from black (val=0) or white (sat=0)
+  // then set the starthue to the endhue.
+  // This lets us ramp smoothly up from black or white, regardless
+  // of what 'hue' was set in the startcolor (since it doesn't matter)
+  if (startcolor.value == 0 || startcolor.saturation == 0) {
+    startcolor.hue = endcolor.hue;
+  }
+
+  int16_t huedistance87;
+  int16_t satdistance87;
+  int16_t valdistance87;
+
+  satdistance87 = (endcolor.sat - startcolor.sat) << 7;
+  valdistance87 = (endcolor.val - startcolor.val) << 7;
+
+  uint8_t huedelta8 = endcolor.hue - startcolor.hue;
+
+  if (directionCode == SHORTEST_HUES) {
+    directionCode = FORWARD_HUES;
+    if (huedelta8 > 127) {
+      directionCode = BACKWARD_HUES;
     }
+  }
 
-    // If we're fading toward black (val=0) or white (sat=0),
-    // then set the endhue to the starthue.
-    // This lets us ramp smoothly to black or white, regardless
-    // of what 'hue' was set in the endcolor (since it doesn't matter)
-    if (endcolor.value == 0 || endcolor.saturation == 0) {
-        endcolor.hue = startcolor.hue;
+  if (directionCode == LONGEST_HUES) {
+    directionCode = FORWARD_HUES;
+    if (huedelta8 < 128) {
+      directionCode = BACKWARD_HUES;
     }
+  }
 
-    // Similarly, if we're fading in from black (val=0) or white (sat=0)
-    // then set the starthue to the endhue.
-    // This lets us ramp smoothly up from black or white, regardless
-    // of what 'hue' was set in the startcolor (since it doesn't matter)
-    if (startcolor.value == 0 || startcolor.saturation == 0) {
-        startcolor.hue = endcolor.hue;
-    }
+  if (directionCode == FORWARD_HUES) {
+    huedistance87 = huedelta8 << 7;
+  } else /* directionCode == BACKWARD_HUES */
+  {
+    huedistance87 = (uint8_t) (256 - huedelta8) << 7;
+    huedistance87 = -huedistance87;
+  }
 
-    int16_t huedistance87;
-    int16_t satdistance87;
-    int16_t valdistance87;
-
-    satdistance87 = (endcolor.sat - startcolor.sat) << 7;
-    valdistance87 = (endcolor.val - startcolor.val) << 7;
-
-    uint8_t huedelta8 = endcolor.hue - startcolor.hue;
-
-    if (directionCode == SHORTEST_HUES) {
-        directionCode = FORWARD_HUES;
-        if (huedelta8 > 127) {
-            directionCode = BACKWARD_HUES;
-        }
-    }
-
-    if (directionCode == LONGEST_HUES) {
-        directionCode = FORWARD_HUES;
-        if (huedelta8 < 128) {
-            directionCode = BACKWARD_HUES;
-        }
-    }
-
-    if (directionCode == FORWARD_HUES) {
-        huedistance87 = huedelta8 << 7;
-    } else /* directionCode == BACKWARD_HUES */
-    {
-        huedistance87 = (uint8_t)(256 - huedelta8) << 7;
-        huedistance87 = -huedistance87;
-    }
-
-    uint16_t pixeldistance = endpos - startpos;
-    int16_t divisor = pixeldistance ? pixeldistance : 1;
+  uint16_t pixeldistance = endpos - startpos;
+  int16_t divisor = pixeldistance ? pixeldistance : 1;
 
 #if defined(USE_ESP32)
-    // Use higher precision 32 bit math for new micros.
-    int32_t huedelta823 = (huedistance87 * 65536) / divisor;
-    int32_t satdelta823 = (satdistance87 * 65536) / divisor;
-    int32_t valdelta823 = (valdistance87 * 65536) / divisor;
+  // Use higher precision 32 bit math for new micros.
+  int32_t huedelta823 = (huedistance87 * 65536) / divisor;
+  int32_t satdelta823 = (satdistance87 * 65536) / divisor;
+  int32_t valdelta823 = (valdistance87 * 65536) / divisor;
 
-    huedelta823 *= 2;
-    satdelta823 *= 2;
-    valdelta823 *= 2;
-    uint32_t hue824 = static_cast<uint32_t>(startcolor.hue) << 24;
-    uint32_t sat824 = static_cast<uint32_t>(startcolor.sat) << 24;
-    uint32_t val824 = static_cast<uint32_t>(startcolor.val) << 24;
-    for (uint16_t i = startpos; i <= endpos; ++i) {
-        targetArray[i] = CHSV(hue824 >> 24, sat824 >> 24, val824 >> 24);
-        hue824 += huedelta823;
-        sat824 += satdelta823;
-        val824 += valdelta823;
-    }
+  huedelta823 *= 2;
+  satdelta823 *= 2;
+  valdelta823 *= 2;
+  uint32_t hue824 = static_cast<uint32_t>(startcolor.hue) << 24;
+  uint32_t sat824 = static_cast<uint32_t>(startcolor.sat) << 24;
+  uint32_t val824 = static_cast<uint32_t>(startcolor.val) << 24;
+  for (uint16_t i = startpos; i <= endpos; ++i) {
+    targetArray[i] = CHSV(hue824 >> 24, sat824 >> 24, val824 >> 24);
+    hue824 += huedelta823;
+    sat824 += satdelta823;
+    val824 += valdelta823;
+  }
 #else
-    // Use 8-bit math for older micros.
-    int16_t huedelta87 = huedistance87 / divisor;
-    int16_t satdelta87 = satdistance87 / divisor;
-    int16_t valdelta87 = valdistance87 / divisor;
+  // Use 8-bit math for older micros.
+  int16_t huedelta87 = huedistance87 / divisor;
+  int16_t satdelta87 = satdistance87 / divisor;
+  int16_t valdelta87 = valdistance87 / divisor;
 
-    huedelta87 *= 2;
-    satdelta87 *= 2;
-    valdelta87 *= 2;
+  huedelta87 *= 2;
+  satdelta87 *= 2;
+  valdelta87 *= 2;
 
-    uint16_t hue88 = startcolor.hue << 8;
-    uint16_t sat88 = startcolor.sat << 8;
-    uint16_t val88 = startcolor.val << 8;
-    for (uint16_t i = startpos; i <= endpos; ++i) {
-        targetArray[i] = CHSV(hue88 >> 8, sat88 >> 8, val88 >> 8);
-        hue88 += huedelta87;
-        sat88 += satdelta87;
-        val88 += valdelta87;
-    }
+  uint16_t hue88 = startcolor.hue << 8;
+  uint16_t sat88 = startcolor.sat << 8;
+  uint16_t val88 = startcolor.val << 8;
+  for (uint16_t i = startpos; i <= endpos; ++i) {
+    targetArray[i] = CHSV(hue88 >> 8, sat88 >> 8, val88 >> 8);
+    hue88 += huedelta87;
+    sat88 += satdelta87;
+    val88 += valdelta87;
+  }
 #endif
 }
 
@@ -152,12 +151,11 @@ void fill_gradient(T *targetArray, uint16_t startpos, CHSV startcolor,
 /// @param c1 the starting color in the gradient
 /// @param c2 the end color for the gradient
 /// @param directionCode the direction to travel around the color wheel
-template <typename T>
-void fill_gradient(T *targetArray, uint16_t numLeds, const CHSV &c1,
-                   const CHSV &c2,
+template<typename T>
+void fill_gradient(T *targetArray, uint16_t numLeds, const CHSV &c1, const CHSV &c2,
                    TGradientDirectionCode directionCode = SHORTEST_HUES) {
-    uint16_t last = numLeds - 1;
-    fill_gradient(targetArray, 0, c1, last, c2, directionCode);
+  uint16_t last = numLeds - 1;
+  fill_gradient(targetArray, 0, c1, last, c2, directionCode);
 }
 
 /// Fill a range of LEDs with a smooth HSV gradient between three HSV colors.
@@ -168,14 +166,13 @@ void fill_gradient(T *targetArray, uint16_t numLeds, const CHSV &c1,
 /// @param c2 the middle color for the gradient
 /// @param c3 the end color for the gradient
 /// @param directionCode the direction to travel around the color wheel
-template <typename T>
-void fill_gradient(T *targetArray, uint16_t numLeds, const CHSV &c1,
-                   const CHSV &c2, const CHSV &c3,
+template<typename T>
+void fill_gradient(T *targetArray, uint16_t numLeds, const CHSV &c1, const CHSV &c2, const CHSV &c3,
                    TGradientDirectionCode directionCode = SHORTEST_HUES) {
-    uint16_t half = (numLeds / 2);
-    uint16_t last = numLeds - 1;
-    fill_gradient(targetArray, 0, c1, half, c2, directionCode);
-    fill_gradient(targetArray, half, c2, last, c3, directionCode);
+  uint16_t half = (numLeds / 2);
+  uint16_t last = numLeds - 1;
+  fill_gradient(targetArray, 0, c1, half, c2, directionCode);
+  fill_gradient(targetArray, half, c2, last, c3, directionCode);
 }
 
 /// Fill a range of LEDs with a smooth HSV gradient between four HSV colors.
@@ -187,16 +184,15 @@ void fill_gradient(T *targetArray, uint16_t numLeds, const CHSV &c1,
 /// @param c3 the second middle color for the gradient
 /// @param c4 the end color for the gradient
 /// @param directionCode the direction to travel around the color wheel
-template <typename T>
-void fill_gradient(T *targetArray, uint16_t numLeds, const CHSV &c1,
-                   const CHSV &c2, const CHSV &c3, const CHSV &c4,
+template<typename T>
+void fill_gradient(T *targetArray, uint16_t numLeds, const CHSV &c1, const CHSV &c2, const CHSV &c3, const CHSV &c4,
                    TGradientDirectionCode directionCode = SHORTEST_HUES) {
-    uint16_t onethird = (numLeds / 3);
-    uint16_t twothirds = ((numLeds * 2) / 3);
-    uint16_t last = numLeds - 1;
-    fill_gradient(targetArray, 0, c1, onethird, c2, directionCode);
-    fill_gradient(targetArray, onethird, c2, twothirds, c3, directionCode);
-    fill_gradient(targetArray, twothirds, c3, last, c4, directionCode);
+  uint16_t onethird = (numLeds / 3);
+  uint16_t twothirds = ((numLeds * 2) / 3);
+  uint16_t last = numLeds - 1;
+  fill_gradient(targetArray, 0, c1, onethird, c2, directionCode);
+  fill_gradient(targetArray, onethird, c2, twothirds, c3, directionCode);
+  fill_gradient(targetArray, twothirds, c3, last, c4, directionCode);
 }
 
 /// Convenience synonym
@@ -204,14 +200,10 @@ void fill_gradient(T *targetArray, uint16_t numLeds, const CHSV &c1,
 
 void fill_raw_noise8(uint8_t *pData, uint8_t num_points, uint8_t octaves, uint16_t x, int scale, uint16_t time);
 void fill_raw_noise16into8(uint8_t *pData, uint8_t num_points, uint8_t octaves, uint32_t x, int scale, uint32_t time);
-void fill_noise8(CRGB *leds, int num_leds,
-                 uint8_t octaves, uint16_t x, int scale,
-                 uint8_t hue_octaves, uint16_t hue_x, int hue_scale,
-                 uint16_t time);
-void fill_noise16(CRGB *leds, int num_leds,
-                  uint8_t octaves, uint16_t x, int scale,
-                  uint8_t hue_octaves, uint16_t hue_x, int hue_scale,
-                  uint16_t time, uint8_t hue_shift = 0);
+void fill_noise8(CRGB *leds, int num_leds, uint8_t octaves, uint16_t x, int scale, uint8_t hue_octaves, uint16_t hue_x,
+                 int hue_scale, uint16_t time);
+void fill_noise16(CRGB *leds, int num_leds, uint8_t octaves, uint16_t x, int scale, uint8_t hue_octaves, uint16_t hue_x,
+                  int hue_scale, uint16_t time, uint8_t hue_shift = 0);
 
 void fill_rainbow(CRGB *targetArray, int numToFill, uint8_t initialhue, uint8_t deltahue = 5);
 void fill_rainbow(CHSV *targetArray, int numToFill, uint8_t initialhue, uint8_t deltahue = 5);

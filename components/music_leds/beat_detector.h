@@ -13,7 +13,7 @@ namespace esphome::music_leds {
 class BeatDetector {
  public:
   // Acoustic boundaries for kick drum transient analysis fixed at compile-time
-  static constexpr float MIN_KICK_HZ = 40.0f;        // 60.0f;
+  static constexpr float MIN_KICK_HZ = 40.0f;  // 60.0f;
   static constexpr float MAX_KICK_HZ = 130.0f;
   static constexpr float BASS_NOISE_FLOOR = 300.0f;  // 1500.0f;
 
@@ -21,8 +21,7 @@ class BeatDetector {
    * @param sample_rate Physical pipeline sampling frequency configured during initialization.
    * @param sensitivity Standard UI input slider value mapped to the adaptive onset multiplier.
    */
-  explicit BeatDetector(float sample_rate, int sensitivity = 65)
-      : sample_rate_(sample_rate) {
+  explicit BeatDetector(float sample_rate, int sensitivity = 65) : sample_rate_(sample_rate) {
     this->set_sensitivity(sensitivity);
     this->reset();
   }
@@ -32,15 +31,15 @@ class BeatDetector {
    * @param raw_fft_magnitudes Pointer to the unfiltered linear frequency magnitude spectrum array.
    * @return True for exactly ONE audio processing frame when a valid onset breach occurs.
    */
-  bool process(const float* raw_fft_magnitudes) {
+  bool process(const float *raw_fft_magnitudes) {
     // Calculate frequency resolution per individual FFT spectral line
     float hz_per_bin = this->sample_rate_ / static_cast<float>(SAMPLES_FFT);
-    
+
     // Map physical frequency limits directly to exact discrete FFT bin indices
     uint16_t start_bin = std::max(1, static_cast<int>(MIN_KICK_HZ / hz_per_bin));
     uint16_t end_bin = static_cast<int>(MAX_KICK_HZ / hz_per_bin);
     if (end_bin >= (MAX_VALID_BIN)) {
-      end_bin = (MAX_VALID_BIN) - 1;
+      end_bin = (MAX_VALID_BIN) -1;
     }
 
     // Integrate total energy contained strictly within the targeted bass spectrum corridor
@@ -63,7 +62,7 @@ class BeatDetector {
     // Evaluate transient onset attack condition
     if (current_bass_energy > dynamic_threshold) {
       instant_beat_triggered = true;
-      
+
       // Dynamic Latch: clamp the baseline history index directly to the peak magnitude.
       // Acts as an immediate acoustic brake to prevent bounce multi-triggering on the wave crest.
       this->history_envelope_ = current_bass_energy;
@@ -90,16 +89,14 @@ class BeatDetector {
     this->multiplier_ = 2.20f - ((clamped / 100.0f) * 1.12f);
   }
 
-  void reset() {
-    this->history_envelope_ = 500.0f;
-  }
+  void reset() { this->history_envelope_ = 500.0f; }
 
  private:
   float sample_rate_{0.0f};
   float multiplier_{1.25f};
-  
+
   // Persistent Single-Pole IIR memory tracking register for the baseline sound profile
   float history_envelope_{500.0f};
 };
 
-} // namespace esphome::music_leds
+}  // namespace esphome::music_leds

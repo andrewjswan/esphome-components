@@ -119,7 +119,7 @@ class FFTEngine {
     // Attenuates frequency bins below 200Hz using an exponential curve to balance the spectral landscape.
     size_t max_bass_bin = static_cast<size_t>(200.0f / hz_per_bin);
     if (max_bass_bin >= (MAX_VALID_BIN)) {
-      max_bass_bin = (MAX_VALID_BIN) - 1;
+      max_bass_bin = (MAX_VALID_BIN) -1;
     }
 
     for (size_t b = 1; b <= max_bass_bin; b++) {
@@ -145,7 +145,7 @@ class FFTEngine {
     // Calculate peak_bin and extract high-fidelity magnitude strictly when the spectrum modifier is enabled.
     size_t peak_bin = static_cast<size_t>((major_peak_hz + (hz_per_bin / 2.0f)) / hz_per_bin);
     if (peak_bin >= (MAX_VALID_BIN)) {
-      peak_bin = (MAX_VALID_BIN) - 1;
+      peak_bin = (MAX_VALID_BIN) -1;
     }
     // Pull the un-altered physical magnitude coefficient from our magnitudes_ backup map
     this->magnitude_ = this->magnitudes_[peak_bin];

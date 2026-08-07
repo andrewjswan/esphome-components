@@ -9,7 +9,6 @@ namespace esphome::fastled_helper {
 
 #ifdef USE_PALETTES
 void FastledHelper::set_current_palette(int index) {
-
 #ifdef USE_MUSIC_LEDS
   if (index >= 0 && index < array_size(paletteArr) + 4)
 #else

@@ -4,15 +4,16 @@
 
 #include "esphome/core/defines.h"
 
-#ifdef USE_PALETTES
-
 #include "fastled_slim.h"
 
 namespace esphome::fastled_helper {
 
+#undef DEFINE_GRADIENT_PALETTE
 #define DEFINE_GRADIENT_PALETTE(X) \
   ALIGN_PROGMEM(4) \
   inline const TProgmemRGBGradientPalette_byte X[] PAL_PROGMEM =
+
+// clang-format off
 
 inline static const TProgmemRGBPalette16 CloudColors_p PAL_PROGMEM = {
     CRGB::Blue,      CRGB::DarkBlue, CRGB::DarkBlue,  CRGB::DarkBlue,
@@ -789,6 +790,10 @@ DEFINE_GRADIENT_PALETTE(bhw1_28_gp) {
     255,   0, 149, 242
 };
 
+// clang-format on
+
+#ifdef USE_PALETTES
+
 static CRGBPalette16 paletteArr[] = {
     PartyColors_p,
     RainbowColors_p,
@@ -845,6 +850,6 @@ static CRGBPalette16 paletteArr[] = {
     bhw1_28_gp,
 };
 
-}  // namespace esphome::fastled_helper
-
 #endif
+
+}  // namespace esphome::fastled_helper

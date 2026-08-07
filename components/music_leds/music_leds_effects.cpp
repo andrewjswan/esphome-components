@@ -194,19 +194,19 @@ typedef struct Blurz {
   uint16_t index;
 } blurz;
 
-void MusicLeds::visualize_blurz(CRGB *physic_leds) // Blurz. By Andrew Tuline.
+void MusicLeds::visualize_blurz(CRGB *physic_leds)  // Blurz. By Andrew Tuline.
 {
   const unsigned dataSize = sizeof(Blurz);
   if (!this->allocateData(dataSize)) {
-    return; // Safe exit if heap allocation fails
+    return;  // Safe exit if heap allocation fails
   }
-  
+
   Blurz *blurz = reinterpret_cast<Blurz *>(this->data);
   uint32_t current_time = millis();
 
   // High-Performance Frame Rate Decay Management
-  uint8_t fadeoutDelay = (256 - this->speed) >> 5; // Replaced division by 32
-  
+  uint8_t fadeoutDelay = (256 - this->speed) >> 5;  // Replaced division by 32
+
   blurz->counter++;
 
   if ((fadeoutDelay <= 1) || ((blurz->counter % fadeoutDelay) == 0)) {
@@ -217,7 +217,7 @@ void MusicLeds::visualize_blurz(CRGB *physic_leds) // Blurz. By Andrew Tuline.
   // Calculate original speed_formula threshold in milliseconds
   uint16_t divisor = std::max<uint16_t>(1U, this->leds_num);
   uint32_t speed_formula = 5U + ((50U * (255U - this->speed)) / divisor);
-  
+
   // Guard initialization for the first frame execution step
   if (blurz->last_execution == 0) {
     blurz->last_execution = current_time;
@@ -226,16 +226,16 @@ void MusicLeds::visualize_blurz(CRGB *physic_leds) // Blurz. By Andrew Tuline.
   // Check if enough absolute physical milliseconds have elapsed
   if (current_time - blurz->last_execution >= speed_formula) {
     // Increment step mark by calculated delay interval to prevent timing drift
-    blurz->last_execution = current_time; 
+    blurz->last_execution = current_time;
 
     // Ultra-Fast Hardware Random Spark Placement
     uint16_t segLoc = fastled_helper::hw_random16(this->leds_num);
 
     // Fetch the 8-bit equalizer array using your context index wrapped via quick bitmask
-    uint8_t aux_idx = blurz->index & 0x0F; // Securely limits value to 0..15 range without modulo math
-    uint8_t raw_fft_val = this->features_.fft_result[aux_idx]; // Direct 8-bit GEQ spectrum reading
-    
-    uint16_t scaled_fft = static_cast<uint16_t>(raw_fft_val) << 1; // Double the amplitude via left-shift
+    uint8_t aux_idx = blurz->index & 0x0F;  // Securely limits value to 0..15 range without modulo math
+    uint8_t raw_fft_val = this->features_.fft_result[aux_idx];  // Direct 8-bit GEQ spectrum reading
+
+    uint16_t scaled_fft = static_cast<uint16_t>(raw_fft_val) << 1;  // Double the amplitude via left-shift
     uint8_t blend_weight = (scaled_fft > 255) ? 255 : static_cast<uint8_t>(scaled_fft);
 
     // Optimized Color Spectrum Interpolation
@@ -253,24 +253,25 @@ void MusicLeds::visualize_blurz(CRGB *physic_leds) // Blurz. By Andrew Tuline.
     // Directional Temporal Blur Filtering
     fastled_helper::blur(physic_leds, this->leds_num, this->variant);
   }
-} // visualize_blurz()
+}  // visualize_blurz()
 #endif
 
 // *****************************************************************************************************************************************************************
 #ifdef DEF_FREQWAVE
 // Assign a color to the central (starting pixels) based on the predominant frequencies and the volume.
 // The color is being determined by mapping the MajorPeak from the FFT and then mapping this to the HSV color circle.
-void MusicLeds::visualize_freqwave(CRGB *physic_leds) // Freqwave. By Andreas Pleschung.
+void MusicLeds::visualize_freqwave(CRGB *physic_leds)  // Freqwave. By Andreas Pleschung.
 {
-  if (this->leds_num == 0 || physic_leds == nullptr) return;
+  if (this->leds_num == 0 || physic_leds == nullptr)
+    return;
 
   // Compile-time static constants
-  static constexpr float FREQ_LOW_LIMIT  = 140.0f;   // Bypasses low-end I2S artifacts and room rumble
+  static constexpr float FREQ_LOW_LIMIT = 140.0f;    // Bypasses low-end I2S artifacts and room rumble
   static constexpr float FREQ_HIGH_LIMIT = 5120.0f;  // Perfect alignment with your active Nyquist ceiling
-  static constexpr float AUDIO_PREAMP    = 1.5f;     // Clean, uniform gain coefficient for smoothed volume
-  
+  static constexpr float AUDIO_PREAMP = 1.5f;        // Clean, uniform gain coefficient for smoothed volume
+
   // Pre-calculated delta denominator to eliminate division steps at runtime
-  static constexpr float FREQ_DELTA_INV  = 1.0f / (FREQ_HIGH_LIMIT - FREQ_LOW_LIMIT);
+  static constexpr float FREQ_DELTA_INV = 1.0f / (FREQ_HIGH_LIMIT - FREQ_LOW_LIMIT);
 
   uint16_t center_idx = this->leds_num / 2;
 
@@ -281,23 +282,24 @@ void MusicLeds::visualize_freqwave(CRGB *physic_leds) // Freqwave. By Andreas Pl
   if (this->store != current_step) {
     this->store = current_step;
 
-    CRGB injection_color = this->back_color; // Default to background color state on off-beats
+    CRGB injection_color = this->back_color;  // Default to background color state on off-beats
 
-    float hz = this->features_.dominant_frequency_hz; 
-    
+    float hz = this->features_.dominant_frequency_hz;
+
     // Ultra-fast Log-less Frequency Linear Interpolation
     if (hz >= FREQ_LOW_LIMIT && hz <= FREQ_HIGH_LIMIT) {
       // High-performance Brightness Mapping using local constexpr preamp
-      float pixVal = static_cast<float>(this->features_.volume_smth()) * (static_cast<float>(this->variant) / 256.0f) * AUDIO_PREAMP;
+      float pixVal = static_cast<float>(this->features_.volume_smth()) * (static_cast<float>(this->variant) / 256.0f) *
+                     AUDIO_PREAMP;
       uint8_t raw_brightness = static_cast<uint8_t>(std::min(255.0f, pixVal));
-      
+
       // Apply inverse gamma correction from fastled_helper to bypass ESPHome's active 2.80 squash
       uint8_t brightness = fastled_helper::gamma8inv(raw_brightness);
 
       // Direct multiplication via pre-calculated inverse delta instead of expensive runtime division
       float mapped_hue = (hz - FREQ_LOW_LIMIT) * FREQ_DELTA_INV * 255.0f;
       uint8_t hue = static_cast<uint8_t>(std::clamp(mapped_hue, 0.0f, 255.0f));
-      
+
       // Construct native FastLED CRGB from HSV parameters securely
       injection_color = CHSV(hue, 240, brightness);
     }
@@ -315,7 +317,7 @@ void MusicLeds::visualize_freqwave(CRGB *physic_leds) // Freqwave. By Andreas Pl
       physic_leds[i] = physic_leds[i + 1];
     }
   }
-} // visualize_freqwave()
+}  // visualize_freqwave()
 #endif
 
 // *****************************************************************************************************************************************************************
@@ -675,9 +677,8 @@ void MusicLeds::visualize_matripix(CRGB *physic_leds)  // Matripix. By Andrew Tu
     uint8_t current_volume = this->features_.volume_raw();
     bool has_peak = this->features_.sample_peak;
 
-    ESP_LOGD("Matripix",
-             "SecondHand: %d, Store: %d, Speed: %d, Variant: %d, VolRaw: %d, Peak: %s",
-             secondHand, this->store, (int)this->speed, (int)this->variant, current_volume, has_peak ? "YES" : "NO");
+    ESP_LOGD("Matripix", "SecondHand: %d, Store: %d, Speed: %d, Variant: %d, VolRaw: %d, Peak: %s", secondHand,
+             this->store, (int) this->speed, (int) this->variant, current_volume, has_peak ? "YES" : "NO");
   }
 #endif
 
@@ -688,7 +689,7 @@ void MusicLeds::visualize_matripix(CRGB *physic_leds)  // Matripix. By Andrew Tu
 
     // Hybrid onset matrix injection
     if (this->features_.sample_peak && fastled_helper::hw_random8() > 192) {
-      // Peak Event: Inject absolute maximum 8-bit brightness to forcefully stamp 
+      // Peak Event: Inject absolute maximum 8-bit brightness to forcefully stamp
       // a solid high-contrast matrix block directly onto the musical transient
       pixBri = 255;
     } else {
@@ -707,9 +708,8 @@ void MusicLeds::visualize_matripix(CRGB *physic_leds)  // Matripix. By Andrew Tu
 
 #ifdef DEBUG
     if (esphome::music_leds::debug::should_log()) {
-      ESP_LOGD("Matripix",
-               "New Color: %d, %d, %d Pixels Color: %d, %d, %d",
-               new_color.r, new_color.g, new_color.b, physic_leds[k].r, physic_leds[k].g, physic_leds[k].b);
+      ESP_LOGD("Matripix", "New Color: %d, %d, %d Pixels Color: %d, %d, %d", new_color.r, new_color.g, new_color.b,
+               physic_leds[k].r, physic_leds[k].g, physic_leds[k].b);
     }
 #endif
   }
@@ -762,7 +762,7 @@ typedef struct Meters {
   uint16_t noise_y;
 } meters;
 
-void MusicLeds::visualize_noisemeter(CRGB *physic_leds) // Noisemeter. By Andrew Tuline.
+void MusicLeds::visualize_noisemeter(CRGB *physic_leds)  // Noisemeter. By Andrew Tuline.
 {
   const unsigned dataSize = sizeof(Meters);
   if (!this->allocateData(dataSize)) {
@@ -776,12 +776,12 @@ void MusicLeds::visualize_noisemeter(CRGB *physic_leds) // Noisemeter. By Andrew
   fastled_helper::fade_out(physic_leds, this->leds_num, fadeRate, this->back_color);
 
   // 2. Soundbar Length Calculation (Pure integer pipeline, no float math)
-  uint8_t volumeRaw  = this->features_.volume_raw();  // Range: 0..255
-  uint8_t volumeSmth = this->features_.volume_smth(); // Range: 0..255
+  uint8_t volumeRaw = this->features_.volume_raw();    // Range: 0..255
+  uint8_t volumeSmth = this->features_.volume_smth();  // Range: 0..255
 
   // Calculate high-gain volume scale: volumeRaw * 2 * intensity
   uint32_t tmpSound2 = (static_cast<uint32_t>(volumeRaw) * 2 * this->variant) >> 8;
-  
+
   // Directly map the sound wave height to physical pixel length limits [0 .. leds_num]
   uint32_t calculated_len = (tmpSound2 * this->leds_num) >> 8;
   uint16_t maxLen = static_cast<uint16_t>(std::min(calculated_len, static_cast<uint32_t>(this->leds_num)));
@@ -790,10 +790,10 @@ void MusicLeds::visualize_noisemeter(CRGB *physic_leds) // Noisemeter. By Andrew
   for (uint16_t i = 0; i < maxLen; i++) {
     // Generate organic 2D vector coordinate mapping using integer scaling instead of floats
     // volumeSmth (0..255) acts as a dynamic spatial scaling factor for noise density
-    uint16_t dynamic_scale = (i * volumeSmth) >> 4; // Shifted right to prevent noise from becoming too chaotic
+    uint16_t dynamic_scale = (i * volumeSmth) >> 4;  // Shifted right to prevent noise from becoming too chaotic
     uint16_t noise_x = dynamic_scale + meters->noise_x;
     uint16_t noise_y = dynamic_scale + meters->noise_y;
-    
+
     // Call FastLED native inlined 8-bit Perlin noise generator
     uint8_t noise_index = fastled_helper::perlin8(noise_x, noise_y);
 
@@ -804,7 +804,7 @@ void MusicLeds::visualize_noisemeter(CRGB *physic_leds) // Noisemeter. By Andrew
   // Increment internal registers to evolve noise coordinates over time
   meters->noise_x += fastled_helper::beatsin8(5, 0, 10);
   meters->noise_y += fastled_helper::beatsin8(4, 0, 10);
-} // visualize_noisemeter()
+}  // visualize_noisemeter()
 #endif
 
 // *****************************************************************************************************************************************************************
@@ -821,7 +821,7 @@ void MusicLeds::visualize_pixelwave(CRGB *physic_leds)  // Pixelwave. By Andrew 
 
     // Dual-mode center injection
     if (this->features_.sample_peak && fastled_helper::hw_random8() > 192) {
-      // Peak Event: Enforce absolute maximum brightness to forcefully inject 
+      // Peak Event: Enforce absolute maximum brightness to forcefully inject
       // a crisp high-contrast shockwave directly on the musical transient
       pixBri = 255;
     } else {
@@ -896,7 +896,8 @@ void MusicLeds::visualize_plasmoid(CRGB *physic_leds)  // Plasmoid. By Andrew Tu
     }
 
     // Render resulting plasmoid stream with blended color states
-    physic_leds[i] = fastled_helper::color_blend(this->back_color, fastled_helper::color_from_palette(colorIndex, this->main_color), thisbright);
+    physic_leds[i] = fastled_helper::color_blend(
+        this->back_color, fastled_helper::color_from_palette(colorIndex, this->main_color), thisbright);
   }
 }  // visualize_plasmoid()
 #endif
@@ -980,9 +981,9 @@ void MusicLeds::visualize_DJLight(CRGB *physic_leds)  // DJLight. Written by ???
     // Explicitly mirror the mapping math to track fade suppression behavior
     uint8_t current_fade_weight = (uint8_t) remap((float) bin_4, 0.0f, 255.0f, 255.0f, 5.0f);
 
-    ESP_LOGD("DJLight",
-             "SecondHand: %d Store: %d Speed: %d Bins[0,5,15]: (%d, %d, %d) Bin4: %d FadeW: %d Peak: %s",
-             secondHand, this->store, (int)this->speed, bin_0, bin_5, bin_15, bin_4, current_fade_weight, has_peak ? "YES" : "NO");
+    ESP_LOGD("DJLight", "SecondHand: %d Store: %d Speed: %d Bins[0,5,15]: (%d, %d, %d) Bin4: %d FadeW: %d Peak: %s",
+             secondHand, this->store, (int) this->speed, bin_0, bin_5, bin_15, bin_4, current_fade_weight,
+             has_peak ? "YES" : "NO");
   }
 #endif
 
@@ -1000,11 +1001,11 @@ void MusicLeds::visualize_DJLight(CRGB *physic_leds)  // DJLight. Written by ???
 
     // Hybrid transient override mode
     if (this->features_.sample_peak && fastled_helper::hw_random8() > 192) {
-      // Peak Event: Enforce absolute maximum brightness to eliminate early track start delays 
+      // Peak Event: Enforce absolute maximum brightness to eliminate early track start delays
       // and forcefully inject a crisp high-contrast wave directly on the music beat
       physic_leds[mid] = color;
     } else {
-      // Off-Beat State: Gracefully fall back to the native analog behavior where 
+      // Off-Beat State: Gracefully fall back to the native analog behavior where
       // the fade intensity is driven dynamically by the low-mid band energy (band 4)
       uint8_t fade_control = this->features_.fft_result[4];
       uint8_t fade_weight = (uint8_t) remap((float) fade_control, 0.0f, 255.0f, 255.0f, 4.0f);
@@ -1012,12 +1013,10 @@ void MusicLeds::visualize_DJLight(CRGB *physic_leds)  // DJLight. Written by ???
     }
 
 #ifdef DEBUG
-  if (esphome::music_leds::debug::should_log()) {
-    ESP_LOGD("DJLight",
-             "Color: %d, %d, %d Pixels Color(mid): %d, %d, %d",
-             color.r, color.g, color.b,
-             physic_leds[mid].r, physic_leds[mid].g, physic_leds[mid].b);
-  }
+    if (esphome::music_leds::debug::should_log()) {
+      ESP_LOGD("DJLight", "Color: %d, %d, %d Pixels Color(mid): %d, %d, %d", color.r, color.g, color.b,
+               physic_leds[mid].r, physic_leds[mid].g, physic_leds[mid].b);
+    }
 #endif
 
     // Shift right half outwards (from center toward the end of the strand)
@@ -1046,9 +1045,9 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
     float current_mag = this->features_.magnitude / 8;
     bool has_peak = this->features_.sample_peak;
 
-    ESP_LOGD("Waterfall",
-             "SecondHand: %d, Store: %d, Speed: %d, Variant: %d, Hz: %.1f, mag: %.2f, peak: %s",
-             secondHand, this->store, (int)this->speed, (int)this->variant, current_hz, current_mag, has_peak ? "YES" : "NO");
+    ESP_LOGD("Waterfall", "SecondHand: %d, Store: %d, Speed: %d, Variant: %d, Hz: %.1f, mag: %.2f, peak: %s",
+             secondHand, this->store, (int) this->speed, (int) this->variant, current_hz, current_mag,
+             has_peak ? "YES" : "NO");
   }
 #endif
 
@@ -1056,9 +1055,10 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
     this->store = secondHand;
 
     float hz = this->features_.dominant_frequency_hz;
-    
+
     // Protect FPU from log10f(0) math exception if pitch detection drops to zero
-    if (hz < 1.0f) hz = 1.0f; 
+    if (hz < 1.0f)
+      hz = 1.0f;
 
     // Calculate Nyquist limit based on active sample rate
     float max_nyquist_hz = this->sample_rate_ / 2.0f;
@@ -1067,14 +1067,15 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
     float max_log_delta = log10f(max_nyquist_hz) - 2.26f;
 
     // Guard to prevent division by zero or negative scales on ultra-low sample rates
-    if (max_log_delta < 0.01f) max_log_delta = 0.01f;
+    if (max_log_delta < 0.01f)
+      max_log_delta = 0.01f;
 
     // Dynamically scale the multiplier so the current hardware ceiling maps perfectly to 255
     float dynamic_multiplier = 255.0f / max_log_delta;
 
     // Calculate palette index using the dynamically calibrated multiplier
     int32_t calculated_col = (log10f(hz) - 2.26f) * dynamic_multiplier;
-    
+
     // Safely clamp the final index within strict 8-bit unsigned boundaries [0..255]
     uint8_t pixCol = std::clamp<int32_t>(calculated_col, 0, 255);
 
@@ -1097,15 +1098,13 @@ void MusicLeds::visualize_waterfall(CRGB *physic_leds)  // Waterfall. By: Andrew
 
 #ifdef DEBUG
     if (esphome::music_leds::debug::should_log()) {
-      ESP_LOGD("Waterfall",
-               "Pix Color: %d Pixels Color: %d, %d, %d",
-               pixCol,
-               physic_leds[k].r, physic_leds[k].g, physic_leds[k].b);
+      ESP_LOGD("Waterfall", "Pix Color: %d Pixels Color: %d, %d, %d", pixCol, physic_leds[k].r, physic_leds[k].g,
+               physic_leds[k].b);
     }
 #endif
 
     for (size_t i = 0; i < k; i++) {
-      physic_leds[i] = physic_leds[i + 1];  
+      physic_leds[i] = physic_leds[i + 1];
     }
   }
 }  // visualize_waterfall()

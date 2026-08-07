@@ -28,7 +28,7 @@ inline static const TProgmemRGBPalette16 LavaColors_p PAL_PROGMEM = {
     CRGB::DarkRed, CRGB::DarkRed, CRGB::Red,    CRGB::Orange,
     CRGB::White,   CRGB::Orange,  CRGB::Red,    CRGB::DarkRed
 };
- 
+
 inline static const TProgmemRGBPalette16 OceanColors_p PAL_PROGMEM =
 {
     CRGB::MidnightBlue, CRGB::DarkBlue,   CRGB::MidnightBlue, CRGB::Navy,

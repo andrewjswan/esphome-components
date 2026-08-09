@@ -4,37 +4,30 @@ import logging
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
-import esphome.final_validate as fv
-from esphome import automation, core
+from esphome import automation
 from esphome.components import microphone, ota
 from esphome.components.light.effects import register_addressable_effect
 from esphome.components.light.types import AddressableLightEffect
 from esphome.const import (
-    CONF_BITS_PER_SAMPLE,
     CONF_ID,
     CONF_MICROPHONE,
     CONF_MODE,
     CONF_NAME,
-    CONF_PLATFORM,
-    CONF_SAMPLE_RATE,
     CONF_TRIGGER_ID,
 )
 
 from .const import (
-    CONF_BAND_PASS_FILTER,
-    CONF_FFT_SCALING,
-    CONF_GAINCONTROL,
+    CONF_BEAT_SENSITIVITY,
     CONF_MUSIC_LEDS_ID,
+    CONF_NOISE_GATE_FLOOR,
     CONF_ON_SOUND_LOOP,
-    CONF_SOUND_DYNAMICS_LIMITER,
-    CONF_SR_GAIN,
-    CONF_SR_SQUELCH,
+    CONF_PITCH_HPF,
+    CONF_PRE_AMP_GAIN,
+    CONF_SAMPLE_GAIN,
+    CONF_SAMPLE_SCALE,
+    CONF_SCALING_MODE,
     CONF_TASK_CORE,
     CONF_TASK_PRIORITY,
-    SAMPLE_RATE_10,
-    SAMPLE_RATE_16,
-    SAMPLE_RATE_20,
-    SAMPLE_RATE_22,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,7 +36,7 @@ CODEOWNERS = ["@andrewjswan"]
 
 DEPENDENCIES = ["light", "microphone"]
 
-AUTO_LOAD = ["music_leds", "fastled_helper"]
+AUTO_LOAD = ["fastled_helper"]
 
 logging.info("Load Music Leds component https://github.com/andrewjswan/esphome-components")
 logging.info("If you like the Music Leds component, you can support it with a star ⭐ on GitHub.")
@@ -52,6 +45,13 @@ music_leds_ns = cg.esphome_ns.namespace("music_leds")
 MUSIC_LEDS = music_leds_ns.class_("MusicLeds", cg.Component)
 MUSIC_LEDS_EFECT = music_leds_ns.class_("MusicLedsLightEffect", AddressableLightEffect)
 
+FFTScalingMode = music_leds_ns.enum("FFTScalingMode", is_class=True)
+SCALING_MODES = {
+    "LINEAR": FFTScalingMode.LINEAR,
+    "LOGARITHMIC": FFTScalingMode.LOGARITHMIC,
+    "SQUARE_ROOT": FFTScalingMode.SQUARE_ROOT,
+}
+
 SoundLoopTrigger = music_leds_ns.class_(
     "MusicLedsSoundLoopTrigger",
     automation.Trigger.template(cg.std_string),
@@ -59,6 +59,8 @@ SoundLoopTrigger = music_leds_ns.class_(
 
 PlayMode = music_leds_ns.enum("PLAYMODE")
 MUSIC_LEDS_EFFECTS = {
+    "BLURZ": PlayMode.MODE_BLURZ,
+    "FREQWAVE": PlayMode.MODE_FREQWAVE,
     "GRAV": PlayMode.MODE_GRAV,
     "GRAVICENTER": PlayMode.MODE_GRAVICENTER,
     "GRAVICENTRIC": PlayMode.MODE_GRAVICENTRIC,
@@ -69,6 +71,7 @@ MUSIC_LEDS_EFFECTS = {
     "RIPPLEPEAK": PlayMode.MODE_RIPPLEPEAK,
     "MATRIPIX": PlayMode.MODE_MATRIPIX,
     "NOISEFIRE": PlayMode.MODE_NOISEFIRE,
+    "NOISEMETER": PlayMode.MODE_NOISEMETER,
     "PIXELWAVE": PlayMode.MODE_PIXELWAVE,
     "PLASMOID": PlayMode.MODE_PLASMOID,
     "PUDDLEPEAK": PlayMode.MODE_PUDDLEPEAK,
@@ -77,59 +80,26 @@ MUSIC_LEDS_EFFECTS = {
     "WATERFALL": PlayMode.MODE_WATERFALL,
 }
 
-MUSIC_LEDS_SCHEMA = cv.Schema(
+CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(CONF_ID): cv.declare_id(MUSIC_LEDS),
-        cv.Optional(CONF_BAND_PASS_FILTER, default=False): cv.boolean,
-        cv.Optional(CONF_SOUND_DYNAMICS_LIMITER, default=True): cv.boolean,
-        cv.Optional(CONF_BITS_PER_SAMPLE): cv.float_,
-        cv.Optional(CONF_SAMPLE_RATE): cv.int_,
+        cv.GenerateID(CONF_MICROPHONE): cv.use_id(microphone.Microphone),
         cv.Optional(CONF_TASK_CORE, default=1): cv.int_range(0, 1),
-        cv.Optional(CONF_TASK_PRIORITY, default=10): cv.int_range(1, 10),
-        cv.Optional(CONF_GAINCONTROL, default=0): cv.int_range(0, 3),
-        cv.Optional(CONF_FFT_SCALING, default=3): cv.int_range(0, 3),
-        cv.Optional(CONF_SR_GAIN, default=60): cv.int_range(0, 255),
-        cv.Optional(CONF_SR_SQUELCH, default=10): cv.int_range(0, 255),
+        cv.Optional(CONF_TASK_PRIORITY, default=10): cv.int_range(1, 24),
+        cv.Optional(CONF_SCALING_MODE, default="SQUARE_ROOT"): cv.enum(SCALING_MODES, upper=True),
+        cv.Optional(CONF_BEAT_SENSITIVITY, default=65): cv.int_range(1, 100),
+        cv.Optional(CONF_NOISE_GATE_FLOOR, default=0.10): cv.float_range(0.001, 0.5),
+        cv.Optional(CONF_PRE_AMP_GAIN, default=1.0): cv.float_range(1.0, 20.0),
+        cv.Optional(CONF_SAMPLE_GAIN, default=60): cv.int_range(0, 255),
+        cv.Optional(CONF_SAMPLE_SCALE, default=24): cv.int_range(1, 255),
+        cv.Optional(CONF_PITCH_HPF, default=True): cv.boolean,
         cv.Optional(CONF_ON_SOUND_LOOP): automation.validate_automation(
             {
                 cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(SoundLoopTrigger),
             },
         ),
     },
-).extend(
-    {
-        cv.GenerateID(CONF_MICROPHONE): cv.use_id(microphone.Microphone),
-    },
 )
-
-CONFIG_SCHEMA = cv.All(MUSIC_LEDS_SCHEMA)
-
-
-def _final_validate(config):  # noqa: ANN202
-    full_config = fv.full_config.get()
-
-    path = full_config.get_path_for_id(config[CONF_ID])[:-1]
-    this_config = full_config.get_config_for_path(path)
-
-    mic_path = full_config.get_path_for_id(config[CONF_MICROPHONE])[:-1]
-    mic_conf = full_config.get_config_for_path(mic_path)
-    logging.info("Microphone: %s", mic_conf.get(CONF_PLATFORM))
-
-    if CONF_SAMPLE_RATE in mic_conf:
-        rate = mic_conf.get(CONF_SAMPLE_RATE)
-        this_config[CONF_SAMPLE_RATE] = rate
-        logging.info("Sample Rate: %s", rate)
-
-    if CONF_BITS_PER_SAMPLE in mic_conf:
-        bits = mic_conf.get(CONF_BITS_PER_SAMPLE)
-        if bits not in [16, 32]:
-            msg = "Music Leds support only 16 or 32 Bits Per Sample"
-            raise cv.Invalid(msg)
-        this_config[CONF_BITS_PER_SAMPLE] = bits
-        logging.info("Bits Per Sample: %s", bits)
-
-
-FINAL_VALIDATE_SCHEMA = _final_validate
 
 
 async def to_code(config) -> None:
@@ -139,19 +109,19 @@ async def to_code(config) -> None:
     ota.request_ota_state_listeners()
 
     cg.add_library("kosme/arduinoFFT", None)
-    # Below options are forcing ArduinoFFT to use sqrtf() instead of sqrt()
-    # #define sqrt_internal sqrtf // see https://github.com/kosme/arduinoFFT/pull/83 - since v2.0.0 this must be done in build_flags
-    cg.add_define("sqrt_internal", "sqrtf")
+    cg.add_build_flag("-Wno-narrowing")
 
     cg.add_define("USE_MUSIC_LEDS")
-    cg.add_define("FASTLED_USE_ADAFRUIT_NEOPIXEL")
-
-    cg.add_build_flag("-Wno-narrowing")
 
     mic = await cg.get_variable(config[CONF_MICROPHONE])
     cg.add(var.set_microphone(mic))
 
-    cg.add_define("BITS_PER_SAMPLE", int(config[CONF_BITS_PER_SAMPLE]))
+    cg.add(var.set_scaling_mode(config[CONF_SCALING_MODE]))
+    cg.add(var.set_beat_sensitivity(int(config[CONF_BEAT_SENSITIVITY])))
+    cg.add(var.set_noise_gate_floor(float(config[CONF_NOISE_GATE_FLOOR])))
+    cg.add(var.set_pre_amp_gain(float(config[CONF_PRE_AMP_GAIN])))
+    cg.add(var.set_sample_gain(int(config[CONF_SAMPLE_GAIN])))
+    cg.add(var.set_sample_scale(int(config[CONF_SAMPLE_SCALE])))
 
     # FFTTASK_CORE 0 standard: Core #0
     # FFTTASK_CORE 1 standard: Core #1
@@ -162,46 +132,8 @@ async def to_code(config) -> None:
     # FFTTASK_PRIORITY 4 above asyc_tcp
     cg.add_define("FFTTASK_PRIORITY", config[CONF_TASK_PRIORITY])
 
-    # Sample gain
-    cg.add_define("SR_GAIN", config[CONF_SR_GAIN])
-
-    # Squelch value for volume reactive routines
-    cg.add_define("SR_SQUELCH", config[CONF_SR_SQUELCH])
-
-    # FFTResult scaling: 0 none; 1 optimized logarithmic; 2 optimized linear; 3 optimized square root
-    cg.add_define("FFT_SCALING", config[CONF_FFT_SCALING])
-
-    # Automagic gain control: 0 - none, 1 - normal, 2 - vivid, 3 - lazy (config value)
-    cg.add_define("GAIN_CONTROL", config[CONF_GAINCONTROL])
-
-    # bool: enable / disable Sound Dynamics Limiter
-    cg.add_define("USE_SOUND_DYNAMICS_LIMITER", config[CONF_SOUND_DYNAMICS_LIMITER])
-
-    # Band Pass Filter - can reduce noise floor by a factor of 50
-    # downside: frequencies below 100Hz will be ignored
-    cg.add_define("USE_BANDPASSFILTER", config[CONF_BAND_PASS_FILTER])
-
-    # SAMPLE_RATE 22050        // Base sample rate in Hz - 22Khz is a standard rate. Physical sample time -> 23ms
-    # SAMPLE_RATE 20480        // Base sample rate in Hz - 20Khz is experimental.    Physical sample time -> 25ms
-    # SAMPLE_RATE 16000        // 16kHz - use if FFTtask takes more than 20ms.       Physical sample time -> 32ms
-    # SAMPLE_RATE 10240        // Base sample rate in Hz - previous default.         Physical sample time -> 50ms
-    cg.add_define("SAMPLE_RATE", config[CONF_SAMPLE_RATE])
-
-    # FFT_MIN_CYCLE 21         // minimum time before FFT task is repeated. Use with 22Khz sampling
-    # FFT_MIN_CYCLE 23         // minimum time before FFT task is repeated. Use with 20Khz sampling
-    # FFT_MIN_CYCLE 30         // Use with 16Khz sampling
-    # FFT_MIN_CYCLE 46         // minimum time before FFT task is repeated. Use with 10Khz sampling
-    if config[CONF_SAMPLE_RATE] >= SAMPLE_RATE_22:
-        cg.add_define("FFT_MIN_CYCLE", 21)
-    elif config[CONF_SAMPLE_RATE] >= SAMPLE_RATE_20:
-        cg.add_define("FFT_MIN_CYCLE", 23)
-    elif config[CONF_SAMPLE_RATE] >= SAMPLE_RATE_16:
-        cg.add_define("FFT_MIN_CYCLE", 30)
-    elif config[CONF_SAMPLE_RATE] >= SAMPLE_RATE_10:
-        cg.add_define("FFT_MIN_CYCLE", 46)
-    else:
-        msg = "Low Sample rate for Music Leds plz increase."
-        raise core.EsphomeError(msg)
+    if config[CONF_PITCH_HPF]:
+        cg.add_define("PITCH_SPECTRUM_HPF")
 
     if config.get(CONF_ON_SOUND_LOOP, []):
         cg.add_define("MUSIC_LEDS_TRIGGERS")

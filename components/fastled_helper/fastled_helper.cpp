@@ -7,12 +7,12 @@
 
 namespace esphome::fastled_helper {
 
-#ifdef PALETTES
+#ifdef USE_PALETTES
 void FastledHelper::set_current_palette(int index) {
-#ifdef MUSIC_LEDS
-  if (index >= 0 && index < ARRAY_SIZE(paletteArr) + 4)
+#ifdef USE_MUSIC_LEDS
+  if (index >= 0 && index < array_size(paletteArr) + 4)
 #else
-  if (index >= 0 && index < ARRAY_SIZE(paletteArr))
+  if (index >= 0 && index < array_size(paletteArr))
 #endif
   {
     current_palette = index;
@@ -22,12 +22,13 @@ void FastledHelper::set_current_palette(int index) {
 
 void FastledHelper::dump_config() {
   ESP_LOGCONFIG(TAG, "Fastled Helper version: %s", FASTLED_HELPER_VERSION);
-#ifdef PALETTES
-  ESP_LOGCONFIG(TAG, "              Palettes: %d", ARRAY_SIZE(paletteArr));
+  ESP_LOGCONFIG(TAG, "         Gamma correct: %.2f", GAMMA_CORRECT);
+#ifdef USE_PALETTES
+  ESP_LOGCONFIG(TAG, "              Palettes: %d", array_size(paletteArr));
 #else
   ESP_LOGCONFIG(TAG, "              Palettes: No");
 #endif
-#ifdef MUSIC_LEDS
+#ifdef USE_MUSIC_LEDS
   ESP_LOGCONFIG(TAG, "    Music Leds support: Yes");
 #else
   ESP_LOGCONFIG(TAG, "    Music Leds support: No");

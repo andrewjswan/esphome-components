@@ -1,18 +1,15 @@
 """Constants for Music Leds component for ESPHome."""
 
-CONF_BAND_PASS_FILTER = "band_pass_filter"  # noqa: S105
-CONF_FFT_SCALING = "fft_scaling_mode"
-CONF_GAINCONTROL = "gain_control"
-CONF_MUSIC_LEDS_ID = "music_leds_id"
-CONF_SOUND_DYNAMICS_LIMITER = "sound_dynamics_limiter"
-CONF_SR_GAIN = "sample_gain"
-CONF_SR_SQUELCH = "squelch value"
+CONF_BEAT_SENSITIVITY = "beat_sensitivity"
+CONF_NOISE_GATE_FLOOR = "noise_gate_floor"
+CONF_PRE_AMP_GAIN = "pre_amp_gain"
+CONF_SAMPLE_GAIN = "sample_gain"
+CONF_SAMPLE_SCALE = "sample_scale"
+CONF_SCALING_MODE = "scaling_mode"
+CONF_PITCH_HPF = "pitch_hpf"
+
 CONF_TASK_CORE = "task_core"
 CONF_TASK_PRIORITY = "task_priority"
 
+CONF_MUSIC_LEDS_ID = "music_leds_id"
 CONF_ON_SOUND_LOOP = "on_sound_loop"
-
-SAMPLE_RATE_10 = 10240
-SAMPLE_RATE_16 = 16000
-SAMPLE_RATE_20 = 20480
-SAMPLE_RATE_22 = 22050

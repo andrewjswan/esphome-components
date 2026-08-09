@@ -11,6 +11,7 @@ select = [
 ignore = [
     "ANN001", # Missing type annotation for function argument
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
+    "CPY001", # Missing copyright notice at top of file
     "D203", # no-blank-line-before-class (incompatible with formatter)
     "D212", # multi-line-summary-first-line (incompatible with formatter)
     "FIX002", # Line contains TODO, consider resolving an issue

@@ -1,5 +1,6 @@
 #include "music_leds.h"
 #include "music_leds_effect.h"
+
 #include "esphome/core/log.h"
 #include "esphome/core/helpers.h"
 
@@ -8,10 +9,10 @@ namespace esphome::music_leds {
 MusicLedsLightEffect::MusicLedsLightEffect(const char *name) : AddressableLightEffect(name) {}
 
 void MusicLedsLightEffect::start() {
-  ESP_LOGD(TAG, "Effect: %s", this->get_name());
+  ESP_LOGD(TAG, "Effect: %s", this->get_name().c_str());
 
   if (this->music_leds_) {
-    this->music_leds_->StartFrame();
+    this->music_leds_->start_frame();
   }
   AddressableLightEffect::start();
 }
@@ -20,7 +21,7 @@ void MusicLedsLightEffect::stop() { AddressableLightEffect::stop(); }
 
 void MusicLedsLightEffect::apply(light::AddressableLight &it, const Color &current_color) {
   if (this->music_leds_) {
-    this->music_leds_->ShowFrame((PLAYMODE) this->mode_, current_color, &it);
+    this->music_leds_->show_frame((PLAYMODE) this->mode_, current_color, &it);
     it.schedule_show();
   }
 }

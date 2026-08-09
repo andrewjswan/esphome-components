@@ -4,7 +4,8 @@ import logging
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.const import CONF_ID
+from esphome.const import CONF_ID, CONF_LIGHT
+from esphome.core import CORE
 
 CONF_PALETTES = "palettes"
 CONF_MUSIC_LEDS = "music_leds"
@@ -36,11 +37,17 @@ async def to_code(config) -> None:
     """Code generation entry point."""
     var = cg.new_Pvariable(config[CONF_ID])
 
-    cg.add_library("fastled/FastLED", "3.10.3")
-
     if config[CONF_PALETTES]:
-        cg.add_define("PALETTES")
+        cg.add_define("USE_PALETTES")
         if config[CONF_MUSIC_LEDS]:
-            cg.add_define("MUSIC_LEDS")
+            cg.add_define("USE_MUSIC_LEDS")
+
+    gamma_value = 2.8
+    if CONF_LIGHT in CORE.config:
+        first_light = CORE.config[CONF_LIGHT][0]
+        gamma_value = first_light.get("gamma_correct", 2.8)
+        logging.info("Gamma value: %s", gamma_value)
+
+    cg.add_define("GAMMA_CORRECT", cg.RawExpression(f"{float(gamma_value):.2f}f"))
 
     await cg.register_component(var, config)

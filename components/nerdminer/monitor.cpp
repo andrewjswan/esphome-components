@@ -102,7 +102,16 @@ static void updateDisplayData(display_data_t *data) {
 
   // Network info
   data->wifiConnected = network::is_connected();
-  data->ipAddress = network::get_use_address();
+
+  static char ip_buffer[network::IP_ADDRESS_BUFFER_SIZE];
+  data->ipAddress = nullptr; 
+  for (auto &ip : network::get_ip_addresses()) {
+    if (ip.is_ip4()) {
+      ip.str_to(ip_buffer);
+      data->ipAddress = ip_buffer; 
+      break; 
+    }
+  }
 }
 
 // ============================================================

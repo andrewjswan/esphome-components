@@ -41,7 +41,7 @@ struct display_data_t {
   // Network info
   bool wifiConnected;
   int8_t wifiRssi;  // WiFi signal strength in dBm
-  const char *ipAddress;
+  const char* ipAddress;
 
   // Live stats (from API) - fixed char arrays
   float btcPrice;

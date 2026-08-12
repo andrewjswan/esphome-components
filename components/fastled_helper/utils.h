@@ -14,10 +14,10 @@ __attribute__((always_inline)) inline constexpr size_t array_size(const T (&)[N]
 }
 
 // Analog Unsigned subtraction macro. if result < 0, then => 0
-template<typename T> __attribute__((always_inline)) inline T qsuba(T i, T j) { return i > j ? i - j : 0; }
+template<typename T> __attribute__((always_inline)) inline constexpr T qsuba(T i, T j) { return i > j ? i - j : 0; }
 
 // Digital unsigned subtraction macro. if result <0, then => 0. Otherwise, take on fixed value.
-template<typename T> __attribute__((always_inline)) inline T qsubd(T i, T j) { return i > j ? j : 0; }
+template<typename T> __attribute__((always_inline)) inline constexpr T qsubd(T i, T j) { return i > j ? j : 0; }
 
 // *****************************************************************************************************************************************************************
 // Global pointer to the LED array

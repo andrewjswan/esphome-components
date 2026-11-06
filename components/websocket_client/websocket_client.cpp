@@ -2,22 +2,28 @@
 #include "esphome/core/log.h"
 #include "esphome/core/hal.h"
 #include "esphome/components/network/util.h"
-#include "esp_wifi.h"
 #ifdef USE_WS_BRIDGE_CERT_BUNDLE
 #include "esp_crt_bundle.h"
 #endif
 
-namespace esphome::namespace websocket_client {
+namespace esphome::websocket_client {
 
 static const char *const TAG = "websocket_client";
 
 void WebSocketClient::setup() {
   this->lock_ = xSemaphoreCreateMutex();
   this->current_reconnect_delay_ms_ = this->min_reconnect_delay_ms_;
-  this->start_client_();
+  this->enabled_ = this->enable_on_boot_;
+  if (this->enabled_) {
+    this->start_client_();
+  } else {
+    this->state_ = ConnectionState::STOPPED;
+  }
 }
 
 void WebSocketClient::start_client_() {
+  if (!this->enabled_) return;
+
   // If Wi-Fi link is completely down, don't even let native driver try
   if (!network::is_connected()) {
     this->schedule_reconnect_(false);
@@ -34,20 +40,15 @@ void WebSocketClient::start_client_() {
   config.transport = this->ssl_ ? WEBSOCKET_TRANSPORT_OVER_SSL : WEBSOCKET_TRANSPORT_OVER_TCP;
   config.task_stack = this->ssl_ ? 8192 : 4096;
 
+  if (!this->user_agent_.empty()) {
+    config.user_agent = this->user_agent_.c_str();
+  }
+
   if (this->ssl_) {
 #ifdef USE_WS_BRIDGE_CERT_BUNDLE
     config.crt_bundle_attach = esp_crt_bundle_attach;
 #endif
   }
-
-  // if (this->ssl_) {
-  //   // Completely bypass certificate bundle validation to save memory and skip Let's Encrypt issues
-  //   config.skip_cert_common_name_check = true;
-  //   config.use_global_ca_store = false;
-  //   config.cert_pem = nullptr;
-  //   config.crt_bundle_attach = nullptr;
-  //   ESP_LOGW(TAG, "Secured WSS mode: SSL/TLS certificate validation is explicitly bypassed");
-  // }
 
   this->client_ = esp_websocket_client_init(&config);
   if (this->client_ == nullptr) {
@@ -86,18 +87,21 @@ void WebSocketClient::loop() {
     this->disconnect_callbacks_.call(this->disconnect_reason_);
   }
 
-  // Handle incoming data in the main thread context to ensure thread-safety
+  // Handle incoming data queue from thread context safely
+  std::vector<std::string> local_queue;
   if (this->state_data_pending_ && this->lock_ != nullptr) {
-    std::string local_buffer;
     if (xSemaphoreTake(this->lock_, portMAX_DELAY) == pdTRUE) {
-      local_buffer = std::move(this->rx_queue_buffer_);
-      this->rx_queue_buffer_.clear();
+      local_queue = std::move(this->rx_msg_queue_);
+      this->rx_msg_queue_.clear();
       this->state_data_pending_ = false;
       xSemaphoreGive(this->lock_);
     }
+  }
 
-    if (!local_buffer.empty()) {
-      this->receive_callbacks_.call(local_buffer);
+  // Dispatch all fully assembled packets sequentially without thread interruption
+  for (const auto &msg : local_queue) {
+    if (!msg.empty()) {
+      this->receive_callbacks_.call(msg);
     }
   }
 
@@ -120,15 +124,19 @@ void WebSocketClient::dump_config() {
   ESP_LOGCONFIG(TAG, "  Endpoint URI: %s", this->url_.c_str());
   ESP_LOGCONFIG(TAG, "  SSL: %s", YESNO(this->ssl_));
   ESP_LOGCONFIG(TAG, "  Port: %u", this->port_);
+  ESP_LOGCONFIG(TAG, "  Buffer Size: %u bytes", static_cast<unsigned int>(this->buffer_size_));
+  ESP_LOGCONFIG(TAG, "  User-Agent: %s", this->user_agent_.c_str());
   ESP_LOGCONFIG(TAG, "  Heartbeat Period: %u s", static_cast<unsigned int>(this->ping_interval_sec_));
-  ESP_LOGCONFIG(TAG, "  Allocation Buffer: %u bytes", static_cast<unsigned int>(this->buffer_size_));
   ESP_LOGCONFIG(TAG, "  Base Delay Boundary: %u ms", static_cast<unsigned int>(this->min_reconnect_delay_ms_));
   ESP_LOGCONFIG(TAG, "  Ceiling Delay Boundary: %u ms", static_cast<unsigned int>(this->max_reconnect_delay_ms_));
   ESP_LOGCONFIG(TAG, "  Stability Threshold: %u ms", static_cast<unsigned int>(this->stable_session_duration_ms_));
   ESP_LOGCONFIG(TAG, "  Jitter Variance Factor: %u%%", static_cast<unsigned int>(this->jitter_percent_));
+  ESP_LOGCONFIG(TAG, "  Enabled on Boot: %s", YESNO(this->enable_on_boot_));
+  ESP_LOGCONFIG(TAG, "  Currently Enabled: %s", YESNO(this->enabled_));
 }
 
 void WebSocketClient::schedule_reconnect_(bool policy_close) {
+  if (!this->enabled_) return;
   this->state_ = ConnectionState::DELAYED;
   this->reconnect_timer_start_ms_ = millis();
 
@@ -193,6 +201,14 @@ void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t 
       this->state_ = ConnectionState::CONNECTED;
       this->session_start_ms_ = now;
       this->state_connected_pending_ = true;
+
+      // Force clear internal transmission state buffers on fresh link setup
+      if (this->lock_ != nullptr && xSemaphoreTake(this->lock_, portMAX_DELAY) == pdTRUE) {
+        this->rx_assembly_buffer_.clear();
+        this->rx_msg_queue_.clear();
+        this->state_data_pending_ = false;
+        xSemaphoreGive(this->lock_);
+      }
       break;
 
     case WEBSOCKET_EVENT_DISCONNECTED:
@@ -202,8 +218,10 @@ void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t 
       this->disconnect_reason_ = data->error_handle.esp_tls_last_esp_err;
       this->state_disconnected_pending_ = true;
 
+      // Force purge state buffers to block leaking ghost frames into next active session
       if (this->lock_ != nullptr && xSemaphoreTake(this->lock_, portMAX_DELAY) == pdTRUE) {
-        this->rx_queue_buffer_.clear();
+        this->rx_assembly_buffer_.clear();
+        this->rx_msg_queue_.clear();
         this->state_data_pending_ = false;
         xSemaphoreGive(this->lock_);
       }
@@ -223,13 +241,23 @@ void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t 
     case WEBSOCKET_EVENT_DATA:
       if (data->data_ptr != nullptr && data->data_len > 0 && this->lock_ != nullptr) {
         if (xSemaphoreTake(this->lock_, portMAX_DELAY) == pdTRUE) {
+          
           if (data->payload_offset == 0) {
-            this->rx_queue_buffer_.assign(static_cast<const char *>(data->data_ptr), data->data_len);
+            this->rx_assembly_buffer_.assign(static_cast<const char *>(data->data_ptr), data->data_len);
           } else {
-            this->rx_queue_buffer_.append(static_cast<const char *>(data->data_ptr), data->data_len);
+            if (this->rx_assembly_buffer_.length() == data->payload_offset) {
+              this->rx_assembly_buffer_.append(static_cast<const char *>(data->data_ptr), data->data_len);
+            } else {
+              ESP_LOGE(TAG, "Buffer offset mismatch! Expected %d, got %d", 
+                       (int)this->rx_assembly_buffer_.length(), (int)data->payload_offset);
+              this->rx_assembly_buffer_.clear();
+            }
           }
 
-          if (data->payload_offset + data->data_len >= data->payload_len) {
+          // Strict boundary assertion: push to queue only when accumulated buffer size matches or exceeds reported footprint
+          if (!this->rx_assembly_buffer_.empty() && (this->rx_assembly_buffer_.length() >= data->payload_len) && data->fin) {
+            this->rx_msg_queue_.push_back(std::move(this->rx_assembly_buffer_));
+            this->rx_assembly_buffer_.clear();
             this->state_data_pending_ = true;
           }
 
@@ -244,4 +272,4 @@ void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t 
   }
 }
 
-}  // namespace esphome::namespacewebsocket_client
+}  // namespace esphome::websocket_client

@@ -22,7 +22,8 @@ void WebSocketClient::setup() {
 }
 
 void WebSocketClient::start_client_() {
-  if (!this->enabled_) return;
+  if (!this->enabled_)
+    return;
 
   // If Wi-Fi link is completely down, don't even let native driver try
   if (!network::is_connected()) {
@@ -136,7 +137,8 @@ void WebSocketClient::dump_config() {
 }
 
 void WebSocketClient::schedule_reconnect_(bool policy_close) {
-  if (!this->enabled_) return;
+  if (!this->enabled_)
+    return;
   this->state_ = ConnectionState::DELAYED;
   this->reconnect_timer_start_ms_ = millis();
 
@@ -248,14 +250,16 @@ void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t 
             if (this->rx_assembly_buffer_.length() == data->payload_offset) {
               this->rx_assembly_buffer_.append(static_cast<const char *>(data->data_ptr), data->data_len);
             } else {
-              ESP_LOGE(TAG, "Buffer offset mismatch! Expected %d, got %d",
-                       (int)this->rx_assembly_buffer_.length(), (int)data->payload_offset);
+              ESP_LOGE(TAG, "Buffer offset mismatch! Expected %d, got %d", (int) this->rx_assembly_buffer_.length(),
+                       (int) data->payload_offset);
               this->rx_assembly_buffer_.clear();
             }
           }
 
-          // Strict boundary assertion: push to queue only when accumulated buffer size matches or exceeds reported footprint
-          if (!this->rx_assembly_buffer_.empty() && (this->rx_assembly_buffer_.length() >= data->payload_len) && data->fin) {
+          // Strict boundary assertion: push to queue only when accumulated buffer size matches or exceeds reported
+          // footprint
+          if (!this->rx_assembly_buffer_.empty() && (this->rx_assembly_buffer_.length() >= data->payload_len) &&
+              data->fin) {
             this->rx_msg_queue_.push_back(std::move(this->rx_assembly_buffer_));
             this->rx_assembly_buffer_.clear();
             this->state_data_pending_ = true;

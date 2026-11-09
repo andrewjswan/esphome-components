@@ -77,6 +77,7 @@ void WebSocketClient::stop_client_() {
 void WebSocketClient::loop() {
   uint32_t now = millis();
 
+  // Stop client
   if (this->state_stop_pending_) {
     this->state_stop_pending_ = false;
     this->stop_client_();

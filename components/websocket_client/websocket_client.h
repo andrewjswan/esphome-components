@@ -18,13 +18,13 @@ class WebSocketClient : public Component {
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::AFTER_WIFI; }
 
-  void enable() {
+  void enable() { 
     if (!this->enabled_) {
       this->enabled_ = true;
       this->start_client_();
     }
   }
-  void disable() {
+  void disable() { 
     if (this->enabled_) {
       this->enabled_ = false;
       this->stop_client_();
@@ -92,6 +92,7 @@ class WebSocketClient : public Component {
   bool state_connected_pending_{false};
   bool state_disconnected_pending_{false};
   bool state_data_pending_{false};
+  bool state_stop_pending_{false};
   int disconnect_reason_{0};
 
   std::string rx_assembly_buffer_;

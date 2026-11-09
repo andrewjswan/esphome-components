@@ -109,6 +109,7 @@ template<typename... Ts> class WebSocketEnableAction : public Action<Ts...> {
  public:
   explicit WebSocketEnableAction(WebSocketClient *parent) : parent_(parent) {}
   void play(Ts... args) override { this->parent_->enable(); }
+
  protected:
   WebSocketClient *parent_;
 };
@@ -117,6 +118,7 @@ template<typename... Ts> class WebSocketDisableAction : public Action<Ts...> {
  public:
   explicit WebSocketDisableAction(WebSocketClient *parent) : parent_(parent) {}
   void play(Ts... args) override { this->parent_->disable(); }
+
  protected:
   WebSocketClient *parent_;
 };

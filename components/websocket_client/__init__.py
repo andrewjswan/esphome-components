@@ -73,7 +73,8 @@ BASE_SCHEMA = cv.Schema(
         cv.Optional(CONF_PORT): cv.port,
         cv.Optional(CONF_SSL): cv.boolean,
         cv.Optional(
-            CONF_USER_AGENT, f"ESPHome/WSC ({__version__})"
+            CONF_USER_AGENT,
+            f"ESPHome/WSC ({__version__})",
         ): cv.string,
         cv.Optional(CONF_PING_INTERVAL, default="20s"): cv.positive_time_period_seconds,
         cv.Optional(CONF_BUFFER_SIZE, default=1024): cv.positive_not_null_int,
@@ -103,7 +104,25 @@ BASE_SCHEMA = cv.Schema(
 CONFIG_SCHEMA = cv.All(BASE_SCHEMA, validate_url_scheme)
 
 
-async def to_code(config) -> None:  # noqa: C901
+async def _build_triggers(config, var) -> None:
+    """Generate trigger automations and reduce branch complexity."""
+    if CONF_ON_CONNECT in config:
+        for conf in config[CONF_ON_CONNECT]:
+            trigger = cg.new_Pvariable(conf[CONF_ID], var)
+            await automation.build_automation(trigger, [], conf)
+
+    if CONF_ON_DISCONNECT in config:
+        for conf in config[CONF_ON_DISCONNECT]:
+            trigger = cg.new_Pvariable(conf[CONF_ID], var)
+            await automation.build_automation(trigger, [(cg.int_, "reason")], conf)
+
+    if CONF_ON_RECEIVE in config:
+        for conf in config[CONF_ON_RECEIVE]:
+            trigger = cg.new_Pvariable(conf[CONF_ID], var)
+            await automation.build_automation(trigger, [(cg.std_string, "x")], conf)
+
+
+async def to_code(config) -> None:
     """Code generation entry point."""
     esp32.add_idf_component(name="espressif/esp_websocket_client", ref="1.8.0")
 
@@ -141,20 +160,7 @@ async def to_code(config) -> None:  # noqa: C901
 
     cg.add(var.set_enable_on_boot(config[CONF_ENABLE_ON_BOOT]))
 
-    if CONF_ON_CONNECT in config:
-        for conf in config[CONF_ON_CONNECT]:
-            trigger = cg.new_Pvariable(conf[CONF_ID], var)
-            await automation.build_automation(trigger, [], conf)
-
-    if CONF_ON_DISCONNECT in config:
-        for conf in config[CONF_ON_DISCONNECT]:
-            trigger = cg.new_Pvariable(conf[CONF_ID], var)
-            await automation.build_automation(trigger, [(cg.int_, "reason")], conf)
-
-    if CONF_ON_RECEIVE in config:
-        for conf in config[CONF_ON_RECEIVE]:
-            trigger = cg.new_Pvariable(conf[CONF_ID], var)
-            await automation.build_automation(trigger, [(cg.std_string, "x")], conf)
+    await _build_triggers(config, var)
 
 
 @automation.register_action(
@@ -180,12 +186,14 @@ async def websocket_client_send_to_code(config, action_id, template_arg, args) -
 @automation.register_action(
     "websocket_client.enable",
     EnableAction,
-    cv.Schema({
-        cv.Required(CONF_ID): cv.use_id(WebSocketClient),
-    }),
+    cv.Schema(
+        {
+            cv.Required(CONF_ID): cv.use_id(WebSocketClient),
+        },
+    ),
     synchronous=True,
 )
-async def websocket_client_enable_to_code(config, action_id, template_arg, args):
+async def websocket_client_enable_to_code(config, action_id, template_arg, _args) -> MockObj:
     """Code generation for enable action."""
     parent = await cg.get_variable(config[CONF_ID])
     return cg.new_Pvariable(action_id, template_arg, parent)
@@ -194,12 +202,14 @@ async def websocket_client_enable_to_code(config, action_id, template_arg, args)
 @automation.register_action(
     "websocket_client.disable",
     DisableAction,
-    cv.Schema({
-        cv.Required(CONF_ID): cv.use_id(WebSocketClient),
-    }),
+    cv.Schema(
+        {
+            cv.Required(CONF_ID): cv.use_id(WebSocketClient),
+        },
+    ),
     synchronous=True,
 )
-async def websocket_client_disable_to_code(config, action_id, template_arg, args):
+async def websocket_client_disable_to_code(config, action_id, template_arg, _args) -> MockObj:
     """Code generation for disable action."""
     parent = await cg.get_variable(config[CONF_ID])
     return cg.new_Pvariable(action_id, template_arg, parent)

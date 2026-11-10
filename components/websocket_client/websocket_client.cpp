@@ -254,14 +254,14 @@ void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t 
     case WEBSOCKET_EVENT_DATA:
       if (data->data_ptr != nullptr && data->data_len > 0 && this->lock_ != nullptr) {
         if (xSemaphoreTake(this->lock_, portMAX_DELAY) == pdTRUE) {
-          
+
           if (data->payload_offset == 0) {
             this->rx_assembly_buffer_.assign(static_cast<const char *>(data->data_ptr), data->data_len);
           } else {
             if (this->rx_assembly_buffer_.length() == data->payload_offset) {
               this->rx_assembly_buffer_.append(static_cast<const char *>(data->data_ptr), data->data_len);
             } else {
-              ESP_LOGE(TAG, "Buffer offset mismatch! Expected %d, got %d", 
+              ESP_LOGE(TAG, "Buffer offset mismatch! Expected %d, got %d",
                        (int)this->rx_assembly_buffer_.length(), (int)data->payload_offset);
               this->rx_assembly_buffer_.clear();
             }

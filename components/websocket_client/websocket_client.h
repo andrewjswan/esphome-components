@@ -18,13 +18,13 @@ class WebSocketClient : public Component {
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::AFTER_WIFI; }
 
-  void enable() {
+  void enable() { 
     if (!this->enabled_) {
       this->enabled_ = true;
       this->start_client_();
     }
   }
-  void disable() {
+  void disable() { 
     if (this->enabled_) {
       this->enabled_ = false;
       this->stop_client_();

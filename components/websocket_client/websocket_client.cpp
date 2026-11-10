@@ -192,7 +192,7 @@ void WebSocketClient::send_message(const std::string &message) {
 
   ESP_LOGD(TAG, "Payload: %.32s, length: %d bytes", message.c_str(), message.length());
 
-  int len = esp_websocket_client_send_text(this->client_, message.c_str(), message.length(), portMAX_DELAY);
+  int len = esp_websocket_client_send_text(this->client_, message.c_str(), message.length(), pdMS_TO_TICKS(500));
   if (len < 0) {
     ESP_LOGE(TAG, "Failed to send message...");
   } else {
@@ -240,7 +240,8 @@ void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t 
       }
 
       {
-        bool is_stable = (now - this->session_start_ms_ >= this->stable_session_duration_ms_);
+        bool is_stable = (this->state_ == ConnectionState::CONNECTED) && 
+                         (now - this->session_start_ms_ >= this->stable_session_duration_ms_);
         bool policy_close = (data->error_handle.esp_tls_last_esp_err == 1008);
 
         if (is_stable && !policy_close) {
@@ -254,14 +255,14 @@ void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t 
     case WEBSOCKET_EVENT_DATA:
       if (data->data_ptr != nullptr && data->data_len > 0 && this->lock_ != nullptr) {
         if (xSemaphoreTake(this->lock_, portMAX_DELAY) == pdTRUE) {
-
+          
           if (data->payload_offset == 0) {
             this->rx_assembly_buffer_.assign(static_cast<const char *>(data->data_ptr), data->data_len);
           } else {
             if (this->rx_assembly_buffer_.length() == data->payload_offset) {
               this->rx_assembly_buffer_.append(static_cast<const char *>(data->data_ptr), data->data_len);
             } else {
-              ESP_LOGE(TAG, "Buffer offset mismatch! Expected %d, got %d",
+              ESP_LOGE(TAG, "Buffer offset mismatch! Expected %d, got %d", 
                        (int)this->rx_assembly_buffer_.length(), (int)data->payload_offset);
               this->rx_assembly_buffer_.clear();
             }

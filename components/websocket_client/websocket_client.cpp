@@ -22,8 +22,7 @@ void WebSocketClient::setup() {
 }
 
 void WebSocketClient::start_client_() {
-  if (!this->enabled_)
-    return;
+  if (!this->enabled_) return;
 
   // If Wi-Fi link is completely down, don't even let native driver try
   if (!network::is_connected()) {
@@ -77,7 +76,6 @@ void WebSocketClient::stop_client_() {
 void WebSocketClient::loop() {
   uint32_t now = millis();
 
-  // Stop client
   if (this->state_stop_pending_) {
     this->state_stop_pending_ = false;
     this->stop_client_();
@@ -143,8 +141,7 @@ void WebSocketClient::dump_config() {
 }
 
 void WebSocketClient::schedule_reconnect_(bool policy_close) {
-  if (!this->enabled_)
-    return;
+  if (!this->enabled_) return;
   this->state_ = ConnectionState::DELAYED;
   this->reconnect_timer_start_ms_ = millis();
 
@@ -168,12 +165,13 @@ void WebSocketClient::schedule_reconnect_(bool policy_close) {
 
 uint32_t WebSocketClient::calculate_jitter_(uint32_t base_delay) {
   if (this->jitter_percent_ == 0) {
-    return base_delay;
+    return std::clamp(base_delay, this->min_reconnect_delay_ms_, this->max_reconnect_delay_ms_);
   }
 
   int32_t range = (base_delay * this->jitter_percent_) / 100;
   int32_t rand_val = random_uint32() % (range * 2 + 1);
   int32_t offset = rand_val - range;
+
   int32_t final_delay = static_cast<int32_t>(base_delay) + offset;
 
   // Enforce quantization to multiples of 2000 ms (2 seconds)
@@ -182,8 +180,8 @@ uint32_t WebSocketClient::calculate_jitter_(uint32_t base_delay) {
   if (final_delay < 0)
     final_delay = 0;
 
-  // Apply maximum upper bound limit restriction
-  return std::min(static_cast<uint32_t>(final_delay), this->max_reconnect_delay_ms_);
+  // Apply [min, max] bound limit restriction
+  return std::clamp(static_cast<uint32_t>(final_delay), this->min_reconnect_delay_ms_, this->max_reconnect_delay_ms_);
 }
 
 void WebSocketClient::send_message(const std::string &message) {
@@ -191,7 +189,15 @@ void WebSocketClient::send_message(const std::string &message) {
     ESP_LOGW(TAG, "Cannot dispatch payload: client is offline");
     return;
   }
-  esp_websocket_client_send_text(this->client_, message.c_str(), message.length(), portMAX_DELAY);
+
+  ESP_LOGD(TAG, "Payload: %.32s, length: %d bytes", message.c_str(), message.length());
+
+  int len = esp_websocket_client_send_text(this->client_, message.c_str(), message.length(), portMAX_DELAY);
+  if (len < 0) {
+    ESP_LOGE(TAG, "Failed to send message...");
+  } else {
+    ESP_LOGD(TAG, "Successfully sent %d bytes", len);
+  }
 }
 
 void WebSocketClient::ws_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
@@ -248,22 +254,21 @@ void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t 
     case WEBSOCKET_EVENT_DATA:
       if (data->data_ptr != nullptr && data->data_len > 0 && this->lock_ != nullptr) {
         if (xSemaphoreTake(this->lock_, portMAX_DELAY) == pdTRUE) {
+          
           if (data->payload_offset == 0) {
             this->rx_assembly_buffer_.assign(static_cast<const char *>(data->data_ptr), data->data_len);
           } else {
             if (this->rx_assembly_buffer_.length() == data->payload_offset) {
               this->rx_assembly_buffer_.append(static_cast<const char *>(data->data_ptr), data->data_len);
             } else {
-              ESP_LOGE(TAG, "Buffer offset mismatch! Expected %d, got %d", (int) this->rx_assembly_buffer_.length(),
-                       (int) data->payload_offset);
+              ESP_LOGE(TAG, "Buffer offset mismatch! Expected %d, got %d", 
+                       (int)this->rx_assembly_buffer_.length(), (int)data->payload_offset);
               this->rx_assembly_buffer_.clear();
             }
           }
 
-          // Strict boundary assertion: push to queue only when accumulated buffer size matches or exceeds reported
-          // footprint
-          if (!this->rx_assembly_buffer_.empty() && (this->rx_assembly_buffer_.length() >= data->payload_len) &&
-              data->fin) {
+          // Strict boundary assertion: push to queue only when accumulated buffer size matches or exceeds reported footprint
+          if (!this->rx_assembly_buffer_.empty() && (this->rx_assembly_buffer_.length() >= data->payload_len) && data->fin) {
             this->rx_msg_queue_.push_back(std::move(this->rx_assembly_buffer_));
             this->rx_assembly_buffer_.clear();
             this->state_data_pending_ = true;

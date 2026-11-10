@@ -84,7 +84,7 @@ websocket_client:
         if (x.empty() || x[0] != '{') return;
 
         // Strict early drop for data parsing loop: execute payload extraction ONLY for alerts
-        if (x.find("\"type\":\"alerts\"") == std::string::npos && 
+        if (x.find("\"type\":\"alerts\"") == std::string::npos &&
             x.find("\"type\": \"alerts\"") == std::string::npos) {
           return;
         }

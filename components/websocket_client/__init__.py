@@ -1,12 +1,13 @@
 """Websocket Client component for ESPHome."""
 
+import logging
 from typing import Any
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome import automation
 from esphome.components import esp32
-from esphome.const import CONF_ID, CONF_PORT, CONF_URL, __version__
+from esphome.const import CONF_BUFFER_SIZE, CONF_ENABLE_ON_BOOT, CONF_ID, CONF_ON_CONNECT, CONF_ON_DISCONNECT, CONF_PORT, CONF_URL, __version__
 from esphome.cpp_generator import MockObj
 
 DOMAIN = "websocket_client"
@@ -14,7 +15,11 @@ DOMAIN = "websocket_client"
 CODEOWNERS = ["@andrewjswan"]
 
 DEPENDENCIES = ["network"]
+
 AUTO_LOAD = ["json"]
+
+logging.info("Load WebSocket Client component https://github.com/andrewjswan/esphome-components")
+logging.info("If you like the NerdMiner component, you can support it with a star ⭐ on GitHub.")
 
 websocket_client_ns = cg.esphome_ns.namespace("websocket_client")
 WebSocketClient = websocket_client_ns.class_("WebSocketClient", cg.Component)
@@ -29,18 +34,13 @@ SendAction = websocket_client_ns.class_("WebSocketSendAction", automation.Action
 EnableAction = websocket_client_ns.class_("WebSocketEnableAction", automation.Action)
 DisableAction = websocket_client_ns.class_("WebSocketDisableAction", automation.Action)
 
-CONF_ON_CONNECT = "on_connect"
-CONF_ON_DISCONNECT = "on_disconnect"
 CONF_ON_RECEIVE = "on_receive"
-
 CONF_PING_INTERVAL = "ping_interval"
-CONF_BUFFER_SIZE = "buffer_size"
 CONF_MIN_RECONNECT_DELAY = "min_reconnect_delay"
 CONF_MAX_RECONNECT_DELAY = "max_reconnect_delay"
 CONF_STABLE_SESSION_DURATION = "stable_session_duration"
 CONF_JITTER_PERCENT = "jitter_percent"
 CONF_SSL = "ssl"
-CONF_ENABLE_ON_BOOT = "enable_on_boot"
 CONF_USER_AGENT = "user_agent"
 
 
@@ -73,7 +73,8 @@ BASE_SCHEMA = cv.Schema(
         cv.Optional(CONF_PORT): cv.port,
         cv.Optional(CONF_SSL): cv.boolean,
         cv.Optional(
-            CONF_USER_AGENT, f"ESPHome/WSC ({__version__})"
+            CONF_USER_AGENT,
+            f"ESPHome/WSC ({__version__})",
         ): cv.string,
         cv.Optional(CONF_PING_INTERVAL, default="20s"): cv.positive_time_period_seconds,
         cv.Optional(CONF_BUFFER_SIZE, default=1024): cv.positive_not_null_int,
@@ -103,7 +104,25 @@ BASE_SCHEMA = cv.Schema(
 CONFIG_SCHEMA = cv.All(BASE_SCHEMA, validate_url_scheme)
 
 
-async def to_code(config) -> None:  # noqa: C901
+async def _build_triggers(config, var) -> None:
+    """Generate trigger automations and reduce branch complexity."""
+    if CONF_ON_CONNECT in config:
+        for conf in config[CONF_ON_CONNECT]:
+            trigger = cg.new_Pvariable(conf[CONF_ID], var)
+            await automation.build_automation(trigger, [], conf)
+
+    if CONF_ON_DISCONNECT in config:
+        for conf in config[CONF_ON_DISCONNECT]:
+            trigger = cg.new_Pvariable(conf[CONF_ID], var)
+            await automation.build_automation(trigger, [(cg.int_, "reason")], conf)
+
+    if CONF_ON_RECEIVE in config:
+        for conf in config[CONF_ON_RECEIVE]:
+            trigger = cg.new_Pvariable(conf[CONF_ID], var)
+            await automation.build_automation(trigger, [(cg.std_string, "x")], conf)
+
+
+async def to_code(config) -> None:
     """Code generation entry point."""
     esp32.add_idf_component(name="espressif/esp_websocket_client", ref="1.8.0")
 
@@ -116,11 +135,13 @@ async def to_code(config) -> None:  # noqa: C901
         esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_TLS_ENABLED", value=True)
 
     if config[CONF_SSL]:
-        cg.add_define("USE_WS_BRIDGE_CERT_BUNDLE")
+        cg.add_define("USE_WEBSOCKET_CLIENT_CERT_BUNDLE")
         if hasattr(esp32, "require_certificate_bundle"):
             esp32.require_certificate_bundle()
         elif hasattr(esp32, "require_full_certificate_bundle"):
             esp32.require_full_certificate_bundle()
+
+    cg.add_define("USE_WEBSOCKET_CLIENT")
 
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
@@ -141,20 +162,7 @@ async def to_code(config) -> None:  # noqa: C901
 
     cg.add(var.set_enable_on_boot(config[CONF_ENABLE_ON_BOOT]))
 
-    if CONF_ON_CONNECT in config:
-        for conf in config[CONF_ON_CONNECT]:
-            trigger = cg.new_Pvariable(conf[CONF_ID], var)
-            await automation.build_automation(trigger, [], conf)
-
-    if CONF_ON_DISCONNECT in config:
-        for conf in config[CONF_ON_DISCONNECT]:
-            trigger = cg.new_Pvariable(conf[CONF_ID], var)
-            await automation.build_automation(trigger, [(cg.int_, "reason")], conf)
-
-    if CONF_ON_RECEIVE in config:
-        for conf in config[CONF_ON_RECEIVE]:
-            trigger = cg.new_Pvariable(conf[CONF_ID], var)
-            await automation.build_automation(trigger, [(cg.std_string, "x")], conf)
+    await _build_triggers(config, var)
 
 
 @automation.register_action(
@@ -180,12 +188,14 @@ async def websocket_client_send_to_code(config, action_id, template_arg, args) -
 @automation.register_action(
     "websocket_client.enable",
     EnableAction,
-    cv.Schema({
-        cv.Required(CONF_ID): cv.use_id(WebSocketClient),
-    }),
+    cv.Schema(
+        {
+            cv.Required(CONF_ID): cv.use_id(WebSocketClient),
+        },
+    ),
     synchronous=True,
 )
-async def websocket_client_enable_to_code(config, action_id, template_arg, args):
+async def websocket_client_enable_to_code(config, action_id, template_arg, _args) -> MockObj:
     """Code generation for enable action."""
     parent = await cg.get_variable(config[CONF_ID])
     return cg.new_Pvariable(action_id, template_arg, parent)
@@ -194,12 +204,14 @@ async def websocket_client_enable_to_code(config, action_id, template_arg, args)
 @automation.register_action(
     "websocket_client.disable",
     DisableAction,
-    cv.Schema({
-        cv.Required(CONF_ID): cv.use_id(WebSocketClient),
-    }),
+    cv.Schema(
+        {
+            cv.Required(CONF_ID): cv.use_id(WebSocketClient),
+        },
+    ),
     synchronous=True,
 )
-async def websocket_client_disable_to_code(config, action_id, template_arg, args):
+async def websocket_client_disable_to_code(config, action_id, template_arg, _args) -> MockObj:
     """Code generation for disable action."""
     parent = await cg.get_variable(config[CONF_ID])
     return cg.new_Pvariable(action_id, template_arg, parent)

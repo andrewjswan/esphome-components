@@ -87,18 +87,18 @@ websocket_client:
   url: "ws://192.168.1.100:9000/stream"
   ping_interval: 10s
   buffer_size: 2048
-  
+
   on_connect:
     - logger.log: "WebSocket connection established!"
     - websocket_client.send:
         id: centralized_socket
         message: '{"event": "node_online"}'
-        
+
   on_disconnect:
     - logger.log:
         format: "Connection terminated. Reason Code: %d"
         args: [ reason ]
-        
+
   on_receive:
     - logger.log:
         format: "Data payload captured: %s"

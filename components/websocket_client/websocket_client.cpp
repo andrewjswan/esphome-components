@@ -156,14 +156,14 @@ void WebSocketClient::dump_config() {
 void WebSocketClient::disconnect() {
   if (this->state_ == ConnectionState::CONNECTED || this->state_ == ConnectionState::CONNECTING) {
     ESP_LOGW(TAG, "Forced manual disconnect requested due to data error");
-    
+
     if (this->client_ != nullptr) {
       esp_websocket_client_close_with_code(this->client_, 1000, nullptr, 0, pdMS_TO_TICKS(100));
     }
-    
+
     this->state_stop_pending_ = true;
   }
-  
+
   this->schedule_reconnect_(false);
 }
 

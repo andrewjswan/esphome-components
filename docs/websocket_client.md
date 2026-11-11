@@ -15,23 +15,23 @@ The `websocket_client` component allows your ESPHome node to connect as a client
       url: "ws://192.168.1.100:9000/stream"
       ping_interval: 10s
       buffer_size: 2048
-    
+
       on_connect:
         - logger.log: "WebSocket connection established!"
         - websocket_client.send:
             id: my_websocket_client
             message: '{"event": "node_online"}'
-    
+
       on_disconnect:
         - logger.log:
             format: "Connection terminated. Reason Code: %d"
             args: [ reason ]
-    
+
       on_receive:
         - logger.log:
             format: "Data payload captured: %s"
             args: [ x.c_str() ]
-    
+
     binary_sensor:
       - platform: gpio
         pin: GPIO0

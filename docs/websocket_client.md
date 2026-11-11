@@ -60,6 +60,16 @@ The `websocket_client` component allows your ESPHome node to connect as a client
 * **stable_session_duration** (*Optional*, Time): Time required to mark a session as stable (defaults to `60s`).
 * **jitter_percent** (*Optional*, integer): Randomization factor (0-100%) applied to backoff delays (defaults to `20`).
 
+!!! tip "Reconnection Logic & Backoff Mechanism"
+
+    The component implements an automated **Exponential Backoff** state machine with **Jitter (randomized noise)** to prevent server smashing (thundering herd problem). Here is how these parameters interact under the hood:
+     
+    1. **Exponential Escalation:** When a connection drops, the client schedules a reconnect starting at `min_reconnect_delay`. Each consecutive failed attempt **doubles** the current delay (`current_delay * 2`) until it hits the `max_reconnect_delay` ceiling.
+    2. **Jitter Calculation:** To avoid synchronized reconnect loops across multiple devices, `jitter_percent` introduces a randomized offset. For example, with a base delay of `10s` and `jitter_percent: 20`, the actual calculation will generate a random variance range between `-2s` and `+2s` around the base.
+    3. **Quantization Penalty:** The final calculated delay is mathematically quantized (rounded down) to **multiples of 2000 ms (2 seconds)** before execution.
+    4. **Session Stabilization (`stable_session_duration`):** If a connection successfully establishes and remains active for longer than `stable_session_duration`, the session is marked as **stable**. Once stable, the backoff penalty memory is fully reset, and the next unexpected disconnect will gracefully start back from the `min_reconnect_delay` baseline.
+    5. **Policy Violation Exception (Code 1008):** If the server terminates the connection with a strict policy violation close code (`1008`), the backoff engine bypasses the multiplier steps entirely and instantly applies the maximum `max_reconnect_delay` penalty.
+
 #### Automation Triggers
 
 * **on_connect** / **on_disconnect** (*Optional*, Action): Triggered upon connection or disconnection (`reason` code available on disconnect).

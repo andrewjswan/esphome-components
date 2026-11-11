@@ -21,7 +21,7 @@ class WebSocketClient : public Component {
   void enable() {
     if (!this->enabled_) {
       this->enabled_ = true;
-      this->start_client_();
+      this->schedule_reconnect_(false);
     }
   }
   void disable() {
@@ -53,6 +53,7 @@ class WebSocketClient : public Component {
   }
 
   void send_message(const std::string &message);
+  void disconnect();
 
   uint16_t get_port() const { return this->port_; }
   bool get_ssl() const { return this->ssl_; }

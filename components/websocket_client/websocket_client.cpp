@@ -15,7 +15,7 @@ void WebSocketClient::setup() {
   this->current_reconnect_delay_ms_ = this->min_reconnect_delay_ms_;
   this->enabled_ = this->enable_on_boot_;
   if (this->enabled_) {
-    this->start_client_();
+    this->schedule_reconnect_(false);
   } else {
     this->state_ = ConnectionState::STOPPED;
   }
@@ -126,19 +126,45 @@ void WebSocketClient::loop() {
 }
 
 void WebSocketClient::dump_config() {
-  ESP_LOGCONFIG(TAG, "WebSocket Client Profile:");
-  ESP_LOGCONFIG(TAG, "  Endpoint URI: %s", this->url_.c_str());
-  ESP_LOGCONFIG(TAG, "  SSL: %s", YESNO(this->ssl_));
-  ESP_LOGCONFIG(TAG, "  Port: %u", this->port_);
-  ESP_LOGCONFIG(TAG, "  Buffer Size: %u bytes", static_cast<unsigned int>(this->buffer_size_));
-  ESP_LOGCONFIG(TAG, "  User-Agent: %s", this->user_agent_.c_str());
-  ESP_LOGCONFIG(TAG, "  Heartbeat Period: %u s", static_cast<unsigned int>(this->ping_interval_sec_));
-  ESP_LOGCONFIG(TAG, "  Base Delay Boundary: %u ms", static_cast<unsigned int>(this->min_reconnect_delay_ms_));
-  ESP_LOGCONFIG(TAG, "  Ceiling Delay Boundary: %u ms", static_cast<unsigned int>(this->max_reconnect_delay_ms_));
-  ESP_LOGCONFIG(TAG, "  Stability Threshold: %u ms", static_cast<unsigned int>(this->stable_session_duration_ms_));
-  ESP_LOGCONFIG(TAG, "  Jitter Variance Factor: %u%%", static_cast<unsigned int>(this->jitter_percent_));
-  ESP_LOGCONFIG(TAG, "  Enabled on Boot: %s", YESNO(this->enable_on_boot_));
-  ESP_LOGCONFIG(TAG, "  Currently Enabled: %s", YESNO(this->enabled_));
+  ESP_LOGCONFIG(TAG, "WebSocket Client Profile:\n"
+                     "  Endpoint URI: %s\n"
+                     "  SSL: %s\n"
+                     "  Port: %u\n"
+                     "  Buffer Size: %u bytes\n"
+                     "  User-Agent: %s\n"
+                     "  Heartbeat Period: %u s\n"
+                     "  Base Delay Boundary: %u ms\n"
+                     "  Ceiling Delay Boundary: %u ms\n"
+                     "  Stability Threshold: %u ms\n"
+                     "  Jitter Variance Factor: %u%%\n"
+                     "  Enabled on Boot: %s\n"
+                     "  Currently Enabled: %s",
+                this->url_.c_str(),
+                YESNO(this->ssl_),
+                this->port_,
+                static_cast<unsigned int>(this->buffer_size_),
+                this->user_agent_.c_str(),
+                static_cast<unsigned int>(this->ping_interval_sec_),
+                static_cast<unsigned int>(this->min_reconnect_delay_ms_),
+                static_cast<unsigned int>(this->max_reconnect_delay_ms_),
+                static_cast<unsigned int>(this->stable_session_duration_ms_),
+                static_cast<unsigned int>(this->jitter_percent_),
+                YESNO(this->enable_on_boot_),
+                YESNO(this->enabled_));
+}
+
+void WebSocketClient::disconnect() {
+  if (this->state_ == ConnectionState::CONNECTED || this->state_ == ConnectionState::CONNECTING) {
+    ESP_LOGW(TAG, "Forced manual disconnect requested due to data error");
+    
+    if (this->client_ != nullptr) {
+      esp_websocket_client_close_with_code(this->client_, 1000, nullptr, 0, pdMS_TO_TICKS(100));
+    }
+    
+    this->state_stop_pending_ = true;
+  }
+  
+  this->schedule_reconnect_(false);
 }
 
 void WebSocketClient::schedule_reconnect_(bool policy_close) {

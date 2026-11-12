@@ -126,31 +126,26 @@ void WebSocketClient::loop() {
 }
 
 void WebSocketClient::dump_config() {
-  ESP_LOGCONFIG(TAG, "WebSocket Client Profile:\n"
-                     "  Endpoint URI: %s\n"
-                     "  SSL: %s\n"
-                     "  Port: %u\n"
-                     "  Buffer Size: %u bytes\n"
-                     "  User-Agent: %s\n"
-                     "  Heartbeat Period: %u s\n"
-                     "  Base Delay Boundary: %u ms\n"
-                     "  Ceiling Delay Boundary: %u ms\n"
-                     "  Stability Threshold: %u ms\n"
-                     "  Jitter Variance Factor: %u%%\n"
-                     "  Enabled on Boot: %s\n"
-                     "  Currently Enabled: %s",
-                this->url_.c_str(),
-                YESNO(this->ssl_),
-                this->port_,
-                static_cast<unsigned int>(this->buffer_size_),
-                this->user_agent_.c_str(),
-                static_cast<unsigned int>(this->ping_interval_sec_),
+  ESP_LOGCONFIG(TAG,
+                "WebSocket Client Profile:\n"
+                "  Endpoint URI: %s\n"
+                "  SSL: %s\n"
+                "  Port: %u\n"
+                "  Buffer Size: %u bytes\n"
+                "  User-Agent: %s\n"
+                "  Heartbeat Period: %u s\n"
+                "  Base Delay Boundary: %u ms\n"
+                "  Ceiling Delay Boundary: %u ms\n"
+                "  Stability Threshold: %u ms\n"
+                "  Jitter Variance Factor: %u%%\n"
+                "  Enabled on Boot: %s\n"
+                "  Currently Enabled: %s",
+                this->url_.c_str(), YESNO(this->ssl_), this->port_, static_cast<unsigned int>(this->buffer_size_),
+                this->user_agent_.c_str(), static_cast<unsigned int>(this->ping_interval_sec_),
                 static_cast<unsigned int>(this->min_reconnect_delay_ms_),
                 static_cast<unsigned int>(this->max_reconnect_delay_ms_),
                 static_cast<unsigned int>(this->stable_session_duration_ms_),
-                static_cast<unsigned int>(this->jitter_percent_),
-                YESNO(this->enable_on_boot_),
-                YESNO(this->enabled_));
+                static_cast<unsigned int>(this->jitter_percent_), YESNO(this->enable_on_boot_), YESNO(this->enabled_));
 }
 
 void WebSocketClient::disconnect() {

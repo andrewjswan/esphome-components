@@ -1,0 +1,196 @@
+substitutions:
+  device: "esp_neptun"
+  name: "neptun"
+  friendly_name: "Neptun"
+  project_name: "ajs.neptun"
+  project_version: "1.5.0"
+  comment: "ESPHome Websocket | Neptun"
+
+esphome:
+  name: "${name}"
+  friendly_name: "${friendly_name}"
+  name_add_mac_suffix: true
+  comment: $comment
+  build_path: ./.build/$device
+  project:
+    name: "${project_name}"
+    version: "${project_version}"
+
+dashboard_import:
+  package_import_url: github://andrewjswan/esphome-components/examples/neptun.yaml@main
+
+esp32:
+  variant: esp32s3
+  framework:
+    type: arduino
+
+api:
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+  - platform: web_server
+
+logger:
+  level: INFO
+
+mdns:
+  disabled: false
+
+web_server:
+  port: 80
+  log: false
+  version: 3
+
+wifi:
+  ap: {}
+
+captive_portal:
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/andrewjswan/esphome-components
+      ref: main
+    components: [websocket_client]
+    refresh: 60s
+
+light:
+  - name: "LED"
+    id: status_led
+    icon: mdi:lighthouse
+    platform: esp32_rmt_led_strip
+    rgb_order: GRB
+    pin: 21
+    num_leds: 1
+    chipset: WS2812
+    restore_mode: ALWAYS_OFF
+
+websocket_client:
+  id: neptun_ws
+  url: "wss://neptun.in.ua/api/v1/stream"
+  ping_interval: 20s
+  buffer_size: 4096
+  min_reconnect_delay: 5s
+  max_reconnect_delay: 130s
+  stable_session_duration: 60s
+  jitter_percent: 20
+
+  on_connect:
+    - logger.log: "Connected to Neptun alerts stream."
+
+  on_receive:
+    - lambda: |-
+        if (x.empty() || x[0] != '{') return;
+
+        // Strict early drop for data parsing loop: execute payload extraction ONLY for alerts
+        if (x.find("\"type\":\"alerts\"") == std::string::npos &&
+            x.find("\"type\": \"alerts\"") == std::string::npos) {
+          return;
+        }
+
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, x);
+
+        if (error) {
+          ESP_LOGE("neptun_parser", "JSON deserialization failed: %s", error.c_str());
+          return;
+        }
+
+        if (doc["data"]["oblasts"].is<JsonArray>()) {
+          JsonArray oblasts = doc["data"]["oblasts"].as<JsonArray>();
+          bool kyiv_found = false;
+          const char* alert_level = "unknown";
+
+          for (JsonObject oblast : oblasts) {
+            const char* key = oblast["key"];
+            if (key != nullptr && strcmp(key, "м. київ") == 0) {
+              kyiv_found = true;
+              if (oblast["level"].is<const char*>()) {
+                alert_level = oblast["level"];
+              }
+              break;
+            }
+          }
+
+          if (kyiv_found) {
+            if (strcmp(alert_level, "red") == 0) {
+              ESP_LOGE("neptun_parser", "STATUS: м. Київ — ВОЗДУШНАЯ ТРЕВОГА! (%s)", alert_level);
+              id(status_led).turn_on()
+                .set_transition_length(1000)
+                .set_brightness(1.0)
+                .set_rgb(1.0, 0.0, 0.0)
+                .perform();
+            } else if (strcmp(alert_level, "yellow") == 0) {
+              ESP_LOGW("neptun_parser", "STATUS: м. Київ — Угроза (Желтый). (%s)", alert_level);
+              id(status_led).turn_on()
+                .set_transition_length(1000)
+                .set_brightness(1.0)
+                .set_rgb(1.0, 1.0, 0.0)
+                .perform();
+            } else {
+              ESP_LOGI("neptun_parser", "STATUS: м. Київ — Безопасно (%s)", alert_level);
+              id(status_led).turn_on()
+                .set_transition_length(1000)
+                .set_brightness(1.0)
+                .set_rgb(0.0, 1.0, 0.0)
+                .perform();
+            }
+          } else {
+            ESP_LOGI("neptun_parser", "STATUS: м. Київ — Безопасно / Отбой тревоги");
+              id(status_led).turn_off().perform();
+          }
+        }
+
+sensor:
+  - platform: internal_temperature
+    name: Device Temperature
+    id: device_temperature
+    icon: mdi:thermometer
+    device_class: temperature
+    entity_category: diagnostic
+
+  - platform: uptime
+    name: "Uptime"
+    entity_category: diagnostic
+
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    entity_category: diagnostic
+    icon: mdi:signal
+
+button:
+  - platform: restart
+    name: "Restart"
+    id: Restart
+    entity_category: diagnostic
+    icon: mdi:restart
+
+  - platform: factory_reset
+    name: "Restart with Factory Default Settings"
+    id: Reset
+    entity_category: diagnostic
+    disabled_by_default: true
+
+text_sensor:
+  - platform: version
+    name: ESPHome Version
+    hide_timestamp: true
+    entity_category: diagnostic
+
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      disabled_by_default: true
+      entity_category: diagnostic
+      icon: mdi:ip
+    ssid:
+      name: "Connected SSID"
+      disabled_by_default: true
+      entity_category: diagnostic
+      icon: mdi:access-point-network
+    mac_address:
+      name: "Mac Address"
+      disabled_by_default: true
+      entity_category: diagnostic
+      icon: mdi:console-network

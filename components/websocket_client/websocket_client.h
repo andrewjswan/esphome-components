@@ -27,18 +27,18 @@ class WebSocketClient : public Component {
   void disable() {
     if (this->enabled_) {
       this->enabled_ = false;
-      this->stop_client_();
       this->state_ = ConnectionState::STOPPED;
+      this->stop_client_();
     }
   }
   bool is_enabled() const { return this->enabled_; }
   bool is_connected() const { return this->state_ == ConnectionState::CONNECTED; }
   void set_enable_on_boot(bool enable_on_boot) { this->enable_on_boot_ = enable_on_boot; }
 
-  void set_url(const std::string &url) { this->url_ = url; }
+  void set_url(const char *url) { this->url_ = url; }
   void set_port(uint16_t port) { this->port_ = port; }
   void set_ssl(bool ssl) { this->ssl_ = ssl; }
-  void set_user_agent(const std::string &user_agent) { this->user_agent_ = user_agent; }
+  void set_user_agent(const char *user_agent) { this->user_agent_ = user_agent; }
   void set_ping_interval(uint32_t seconds) { this->ping_interval_sec_ = seconds; }
   void set_buffer_size(uint32_t bytes) { this->buffer_size_ = bytes; }
   void set_min_reconnect_delay(uint32_t seconds) { this->min_reconnect_delay_ms_ = seconds * 1000; }
@@ -53,7 +53,7 @@ class WebSocketClient : public Component {
   }
 
   void send_message(const std::string &message);
-  void disconnect();
+  void reconnect();
 
   uint16_t get_port() const { return this->port_; }
   bool get_ssl() const { return this->ssl_; }
@@ -67,13 +67,14 @@ class WebSocketClient : public Component {
 
   void start_client_();
   void stop_client_();
+  void clear_rx_buffers_();
   void schedule_reconnect_(bool policy_close);
   uint32_t calculate_jitter_(uint32_t base_delay);
 
-  std::string url_;
+  const char *url_{nullptr};
   uint16_t port_{80};
   bool ssl_{false};
-  std::string user_agent_{""};
+  const char *user_agent_{nullptr};
   uint32_t ping_interval_sec_{20};
   uint32_t buffer_size_{1024};
 
@@ -93,7 +94,6 @@ class WebSocketClient : public Component {
   bool state_connected_pending_{false};
   bool state_disconnected_pending_{false};
   bool state_data_pending_{false};
-  bool state_stop_pending_{false};
   int disconnect_reason_{0};
 
   std::string rx_assembly_buffer_;

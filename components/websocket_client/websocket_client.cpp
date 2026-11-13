@@ -14,6 +14,8 @@ void WebSocketClient::setup() {
   this->lock_ = xSemaphoreCreateMutex();
   this->current_reconnect_delay_ms_ = this->min_reconnect_delay_ms_;
   this->enabled_ = this->enable_on_boot_;
+  // Pre-allocate assembly buffer once to avoid heap fragmentation on incoming frames
+  this->rx_assembly_buffer_.reserve(this->buffer_size_);
   if (this->enabled_) {
     this->schedule_reconnect_(false);
   } else {
@@ -31,18 +33,22 @@ void WebSocketClient::start_client_() {
     return;
   }
 
+  if (this->client_ != nullptr) {
+    this->stop_client_();
+  }
+
   this->state_ = ConnectionState::CONNECTING;
 
   esp_websocket_client_config_t config{};
-  config.uri = this->url_.c_str();
+  config.uri = this->url_;
   config.ping_interval_sec = this->ping_interval_sec_;
   config.buffer_size = this->buffer_size_;
   config.disable_auto_reconnect = true;
   config.transport = this->ssl_ ? WEBSOCKET_TRANSPORT_OVER_SSL : WEBSOCKET_TRANSPORT_OVER_TCP;
   config.task_stack = this->ssl_ ? 8192 : 4096;
 
-  if (!this->user_agent_.empty()) {
-    config.user_agent = this->user_agent_.c_str();
+  if (this->user_agent_ != nullptr && this->user_agent_[0] != '\0') {
+    config.user_agent = this->user_agent_;
   }
 
   if (this->ssl_) {
@@ -67,20 +73,46 @@ void WebSocketClient::start_client_() {
   }
 }
 
+void WebSocketClient::clear_rx_buffers_() {
+  if (this->lock_ != nullptr && xSemaphoreTake(this->lock_, portMAX_DELAY) == pdTRUE) {
+    this->rx_assembly_buffer_.clear();
+    this->rx_msg_queue_.clear();
+    this->state_data_pending_ = false;
+    xSemaphoreGive(this->lock_);
+  }
+}
+
 void WebSocketClient::stop_client_() {
+  this->clear_rx_buffers_();
+
   if (this->client_ != nullptr) {
-    esp_websocket_client_destroy(this->client_);
+    esp_websocket_client_handle_t client_to_destroy = this->client_;
     this->client_ = nullptr;
+
+    // Allocate smaller stack for plain TCP cleanup to reduce contiguous heap pressure
+    uint32_t cleanup_stack = this->ssl_ ? 4096 : 2048;
+
+    // Destroy client in a detached FreeRTOS task to prevent blocking the main ESPHome loop
+    BaseType_t res = xTaskCreate(
+        [](void *param) {
+          auto *handle = static_cast<esp_websocket_client_handle_t>(param);
+          esp_websocket_client_stop(handle);
+          esp_websocket_client_destroy(handle);
+          vTaskDelete(nullptr);
+        },
+        "ws_destroy", cleanup_stack, client_to_destroy, 1, nullptr);
+
+    if (res != pdPASS) {
+      // Fallback to synchronous cleanup if heap fragmentation prevents task allocation
+      ESP_LOGW(TAG, "Failed to spawn cleanup task, falling back to synchronous destroy");
+      esp_websocket_client_stop(client_to_destroy);
+      esp_websocket_client_destroy(client_to_destroy);
+    }
   }
 }
 
 void WebSocketClient::loop() {
   uint32_t now = millis();
-
-  if (this->state_stop_pending_) {
-    this->state_stop_pending_ = false;
-    this->stop_client_();
-  }
 
   // Defer callback execution to the main thread for thread-safety compliance
   if (this->state_connected_pending_) {
@@ -140,25 +172,34 @@ void WebSocketClient::dump_config() {
                 "  Jitter Variance Factor: %u%%\n"
                 "  Enabled on Boot: %s\n"
                 "  Currently Enabled: %s",
-                this->url_.c_str(), YESNO(this->ssl_), this->port_, static_cast<unsigned int>(this->buffer_size_),
-                this->user_agent_.c_str(), static_cast<unsigned int>(this->ping_interval_sec_),
+                this->url_, YESNO(this->ssl_), this->port_, static_cast<unsigned int>(this->buffer_size_),
+                this->user_agent_, static_cast<unsigned int>(this->ping_interval_sec_),
                 static_cast<unsigned int>(this->min_reconnect_delay_ms_),
                 static_cast<unsigned int>(this->max_reconnect_delay_ms_),
                 static_cast<unsigned int>(this->stable_session_duration_ms_),
                 static_cast<unsigned int>(this->jitter_percent_), YESNO(this->enable_on_boot_), YESNO(this->enabled_));
 }
 
-void WebSocketClient::disconnect() {
-  if (this->state_ == ConnectionState::CONNECTED || this->state_ == ConnectionState::CONNECTING) {
-    ESP_LOGW(TAG, "Forced manual disconnect requested due to data error");
+void WebSocketClient::reconnect() {
+  bool was_connected = (this->state_ == ConnectionState::CONNECTED);
 
-    if (this->client_ != nullptr) {
-      esp_websocket_client_close_with_code(this->client_, 1000, nullptr, 0, pdMS_TO_TICKS(100));
+  if (was_connected || this->state_ == ConnectionState::CONNECTING) {
+    ESP_LOGW(TAG, "Forced manual reconnect requested...");
+
+    this->state_connected_pending_ = false;
+    this->current_reconnect_delay_ms_ = this->min_reconnect_delay_ms_;
+    this->schedule_reconnect_(false);
+    this->stop_client_();
+
+    if (was_connected) {
+      // Notify listeners about manual session termination (code 1000: Normal Closure)
+      this->disconnect_reason_ = 1000;
+      this->state_disconnected_pending_ = true;
     }
-
-    this->state_stop_pending_ = true;
+    return;
   }
 
+  this->current_reconnect_delay_ms_ = this->min_reconnect_delay_ms_;
   this->schedule_reconnect_(false);
 }
 
@@ -208,14 +249,17 @@ uint32_t WebSocketClient::calculate_jitter_(uint32_t base_delay) {
 }
 
 void WebSocketClient::send_message(const std::string &message) {
-  if (this->state_ != ConnectionState::CONNECTED || this->client_ == nullptr) {
+  // Capture local handle copy to prevent race condition if background task nulls client_
+  esp_websocket_client_handle_t client = this->client_;
+
+  if (this->state_ != ConnectionState::CONNECTED || client == nullptr || !esp_websocket_client_is_connected(client)) {
     ESP_LOGW(TAG, "Cannot dispatch payload: client is offline");
     return;
   }
 
   ESP_LOGD(TAG, "Payload: %.32s, length: %d bytes", message.c_str(), message.length());
 
-  int len = esp_websocket_client_send_text(this->client_, message.c_str(), message.length(), pdMS_TO_TICKS(500));
+  int len = esp_websocket_client_send_text(client, message.c_str(), message.length(), pdMS_TO_TICKS(500));
   if (len < 0) {
     ESP_LOGE(TAG, "Failed to send message...");
   } else {
@@ -230,6 +274,10 @@ void WebSocketClient::ws_event_handler(void *handler_args, esp_event_base_t base
 }
 
 void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t *data) {
+  if (this->state_ != ConnectionState::CONNECTING && this->state_ != ConnectionState::CONNECTED) {
+    return;
+  }
+
   uint32_t now = millis();
 
   switch (event_id) {
@@ -238,29 +286,13 @@ void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t 
       this->state_ = ConnectionState::CONNECTED;
       this->session_start_ms_ = now;
       this->state_connected_pending_ = true;
-
-      // Force clear internal transmission state buffers on fresh link setup
-      if (this->lock_ != nullptr && xSemaphoreTake(this->lock_, portMAX_DELAY) == pdTRUE) {
-        this->rx_assembly_buffer_.clear();
-        this->rx_msg_queue_.clear();
-        this->state_data_pending_ = false;
-        xSemaphoreGive(this->lock_);
-      }
+      this->clear_rx_buffers_();
       break;
 
     case WEBSOCKET_EVENT_DISCONNECTED:
       ESP_LOGW(TAG, "Link termination event detected");
-      this->state_stop_pending_ = true;
       this->disconnect_reason_ = data->error_handle.esp_tls_last_esp_err;
       this->state_disconnected_pending_ = true;
-
-      // Force purge state buffers to block leaking ghost frames into next active session
-      if (this->lock_ != nullptr && xSemaphoreTake(this->lock_, portMAX_DELAY) == pdTRUE) {
-        this->rx_assembly_buffer_.clear();
-        this->rx_msg_queue_.clear();
-        this->state_data_pending_ = false;
-        xSemaphoreGive(this->lock_);
-      }
 
       {
         bool is_stable = (this->state_ == ConnectionState::CONNECTED) &&
@@ -273,6 +305,9 @@ void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t 
         }
         this->schedule_reconnect_(policy_close);
       }
+
+      // Transition state to DELAYED before spawning cleanup task to block trailing events
+      this->stop_client_();
       break;
 
     case WEBSOCKET_EVENT_DATA:
@@ -294,9 +329,15 @@ void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t 
           // footprint
           if (!this->rx_assembly_buffer_.empty() && (this->rx_assembly_buffer_.length() >= data->payload_len) &&
               data->fin) {
-            this->rx_msg_queue_.push_back(std::move(this->rx_assembly_buffer_));
+            // Cap queue size to prevent heap exhaustion if main loop stalls (e.g., during OTA or flash writes)
+            if (this->rx_msg_queue_.size() < 16) {
+              this->rx_msg_queue_.push_back(std::move(this->rx_assembly_buffer_));
+              this->state_data_pending_ = true;
+            } else {
+              ESP_LOGW(TAG, "RX message queue full, dropping frame");
+            }
             this->rx_assembly_buffer_.clear();
-            this->state_data_pending_ = true;
+            this->rx_assembly_buffer_.reserve(this->buffer_size_);
           }
 
           xSemaphoreGive(this->lock_);

@@ -1,0 +1,12 @@
+# WebSocket client component test with ESP-IDF framework
+substitutions:
+  device: "websocket_client-esp-idf"
+  name: "websocket-client-esp-idf"
+  friendly_name: "WebSocket Client ESP-IDF Test"
+  project_name: "ajs.websocket-client-test"
+  comment: "ESPHome WebSocket Client Component Test (ESP-IDF)"
+
+packages:
+  base: !include common/base.yaml
+  framework: !include common/esp-idf.yaml
+  component: !include components/websocket_client.yaml

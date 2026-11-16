@@ -46,7 +46,7 @@ The `websocket_client` component allows your ESPHome node to connect as a client
 ### Main Configuration
 
 * **id** (Optional, ID): Manual ID for use in lambdas or other components.
-* **url** (Required, `string`): WebSocket server URL (e.g., `ws://192.168.1.50:8123/ws` or `wss://example.com/endpoint`).
+* **url** (**Required**, `string`): WebSocket server URL (e.g., `ws://192.168.1.50:8123/ws` or `wss://example.com/endpoint`).
 * **port** (Optional, `integer`): Target port (defaults to `80` for `ws://` and `443` for `wss://`).
 * **ssl** (Optional, `boolean`): Enable/disable SSL/TLS (auto-detected from URL scheme if omitted).
 * **user_agent** (Optional, `string`): Custom User-Agent header (defaults to `ESPHome/WSC (<version>)`).

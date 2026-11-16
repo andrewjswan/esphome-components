@@ -45,20 +45,20 @@ The `websocket_client` component allows your ESPHome node to connect as a client
 
 ### Main Configuration
 
-* **id** (*Optional*, ID): Manual ID for use in lambdas or other components.
-* **url** (*Required*, `string`): WebSocket server URL (e.g., `ws://192.168.1.50:8123/ws` or `wss://example.com/endpoint`).
-* **port** (*Optional*, `integer`): Target port (defaults to `80` for `ws://` and `443` for `wss://`).
-* **ssl** (*Optional*, `boolean`): Enable/disable SSL/TLS (auto-detected from URL scheme if omitted).
-* **user_agent** (*Optional*, `string`): Custom User-Agent header (defaults to `ESPHome/WSC (<version>)`).
-* **ping_interval** (*Optional*, [Time](https://esphome.io/guides/configuration-types/#time)): Interval for keep-alive ping frames (defaults to `20s`).
-* **buffer_size** (*Optional*, `integer`): Internal TX/RX memory buffer in bytes (defaults to `1024`).
-* **enable_on_boot** (*Optional*, `boolean`): Automatically connect on startup (defaults to `true`).
+* **id** (Optional, ID): Manual ID for use in lambdas or other components.
+* **url** (Required, `string`): WebSocket server URL (e.g., `ws://192.168.1.50:8123/ws` or `wss://example.com/endpoint`).
+* **port** (Optional, `integer`): Target port (defaults to `80` for `ws://` and `443` for `wss://`).
+* **ssl** (Optional, `boolean`): Enable/disable SSL/TLS (auto-detected from URL scheme if omitted).
+* **user_agent** (Optional, `string`): Custom User-Agent header (defaults to `ESPHome/WSC (<version>)`).
+* **ping_interval** (Optional, [Time](https://esphome.io/guides/configuration-types/#time)): Interval for keep-alive ping frames (defaults to `20s`).
+* **buffer_size** (Optional, `integer`): Internal TX/RX memory buffer in bytes (defaults to `1024`).
+* **enable_on_boot** (Optional, `boolean`): Automatically connect on startup (defaults to `true`).
 
 #### Reconnection Settings
 
-* **min_reconnect_delay** / **max_reconnect_delay** (*Optional*, Time): Backoff delay bounds for reconnections (defaults to `5s` and `130s`).
-* **stable_session_duration** (*Optional*, Time): Time required to mark a session as stable (defaults to `60s`).
-* **jitter_percent** (*Optional*, integer): Randomization factor (0-100%) applied to backoff delays (defaults to `20`).
+* **min_reconnect_delay** / **max_reconnect_delay** (Optional, [Time](https://esphome.io/guides/configuration-types/#time)): Backoff delay bounds for reconnections (defaults to `5s` and `130s`).
+* **stable_session_duration** (Optional, [Time](https://esphome.io/guides/configuration-types/#time)): Time required to mark a session as stable (defaults to `60s`).
+* **jitter_percent** (Optional, `integer`): Randomization factor (0-100%) applied to backoff delays (defaults to `20`).
 
 !!! tip "Reconnection Logic & Backoff Mechanism"
 
@@ -72,8 +72,8 @@ The `websocket_client` component allows your ESPHome node to connect as a client
 
 #### Automation Triggers
 
-* **on_connect** / **on_disconnect** (*Optional*, Action): Triggered upon connection or disconnection (`reason` code available on disconnect).
-* **on_receive** (*Optional*, Action): Triggered when a text data packet is received (`x` contains the raw payload string).
+* **on_connect** / **on_disconnect** (Optional, [Action](https://esphome.io/automations/actions/)): Triggered upon connection or disconnection (`reason` code available on disconnect).
+* **on_receive** (Optional, [Action](https://esphome.io/automations/actions/)): Triggered when a text data packet is received (`x` contains the raw payload string).
 
 #### Actions
 

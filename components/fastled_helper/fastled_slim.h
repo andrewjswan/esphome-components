@@ -2,15 +2,7 @@
 
 #include <stdint.h>
 #include <cstring>  // for mem operations
-#ifdef USE_ARDUINO
 #include <pgmspace.h>
-#else
-#include <cstdint>
-#define PROGMEM
-#define pgm_read_byte(addr) (*(const uint8_t *)(addr))
-#define pgm_read_word(addr) (*(const uint16_t *)(addr))
-#define pgm_read_dword(addr) (*(const uint32_t *)(addr))
-#endif
 
 // Code originally from FastLED version 3.6.0. Optimized for WLED use by @dedehai
 // Licensed unter MIT license, see LICENSE.txt for details

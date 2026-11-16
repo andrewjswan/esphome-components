@@ -9,6 +9,8 @@
 
 namespace esphome::websocket_client {
 
+static constexpr uint32_t WS_HEARTBEAT_TIMEOUT_MS = 5 * 60 * 1000;
+
 enum class ConnectionState { STOPPED, CONNECTING, CONNECTED, DELAYED };
 
 class WebSocketClient : public Component {
@@ -57,6 +59,7 @@ class WebSocketClient : public Component {
 
   uint16_t get_port() const { return this->port_; }
   bool get_ssl() const { return this->ssl_; }
+  uint32_t get_last_rx_time() const { return this->last_rx_time_ms_; }
 
  protected:
   static void ws_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
@@ -90,6 +93,7 @@ class WebSocketClient : public Component {
   uint32_t reconnect_timer_start_ms_{0};
   uint32_t actual_delay_ms_{0};
   uint32_t session_start_ms_{0};
+  uint32_t last_rx_time_ms_{0};
 
   bool state_connected_pending_{false};
   bool state_disconnected_pending_{false};

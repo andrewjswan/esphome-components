@@ -112,8 +112,6 @@ void WebSocketClient::stop_client_() {
 }
 
 void WebSocketClient::loop() {
-  uint32_t now = millis();
-
   // Defer callback execution to the main thread for thread-safety compliance
   if (this->state_connected_pending_) {
     this->state_connected_pending_ = false;
@@ -140,6 +138,19 @@ void WebSocketClient::loop() {
   for (const auto &msg : local_queue) {
     if (!msg.empty()) {
       this->receive_callbacks_.call(msg);
+    }
+  }
+
+  uint32_t now = millis();
+
+  // Heartbeat check...
+  if (this->state_ == ConnectionState::CONNECTED) {
+    uint32_t last_rx = this->last_rx_time_ms_;
+    if (now >= last_rx && now - last_rx >= WS_HEARTBEAT_TIMEOUT_MS) {
+      ESP_LOGW(TAG, "Heartbeat timeout (%u ms without data/pong), forcing reconnect...",
+         static_cast<unsigned int>(WS_HEARTBEAT_TIMEOUT_MS));
+      this->reconnect();
+      return;
     }
   }
 
@@ -285,6 +296,7 @@ void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t 
       ESP_LOGI(TAG, "Link established successfully");
       this->state_ = ConnectionState::CONNECTED;
       this->session_start_ms_ = now;
+      this->last_rx_time_ms_ = now;
       this->state_connected_pending_ = true;
       this->clear_rx_buffers_();
       break;
@@ -311,6 +323,8 @@ void WebSocketClient::handle_event(int32_t event_id, esp_websocket_event_data_t 
       break;
 
     case WEBSOCKET_EVENT_DATA:
+      this->last_rx_time_ms_ = now;
+
       if (data->data_ptr != nullptr && data->data_len > 0 && this->lock_ != nullptr) {
         if (xSemaphoreTake(this->lock_, portMAX_DELAY) == pdTRUE) {
           if (data->payload_offset == 0) {

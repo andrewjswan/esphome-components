@@ -148,7 +148,7 @@ void WebSocketClient::loop() {
     uint32_t last_rx = this->last_rx_time_ms_;
     if (now >= last_rx && now - last_rx >= WS_HEARTBEAT_TIMEOUT_MS) {
       ESP_LOGW(TAG, "Heartbeat timeout (%u ms without data/pong), forcing reconnect...",
-         static_cast<unsigned int>(WS_HEARTBEAT_TIMEOUT_MS));
+               static_cast<unsigned int>(WS_HEARTBEAT_TIMEOUT_MS));
       this->reconnect();
       return;
     }

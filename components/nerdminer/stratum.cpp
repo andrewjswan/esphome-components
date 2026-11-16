@@ -1,4 +1,3 @@
-#include "cJSON.h"
 #include "stratum.h"
 #include "utils.h"
 #include "nerdminer.h"

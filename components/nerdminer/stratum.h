@@ -1,7 +1,5 @@
 #pragma once
 
-#include "cJSON.h"
-
 #include "esphome/components/socket/socket.h"
 #include "esphome/components/wifi/wifi_component.h"
 

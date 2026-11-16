@@ -1,3 +1,4 @@
+# Common base configuration for component tests
 substitutions:
   device: "esp_test"
   name: "test"
@@ -10,19 +11,11 @@ esphome:
   name: "${name}"
   friendly_name: "${friendly_name}"
   name_add_mac_suffix: true
-  comment: $comment
-  build_path: ./.build/$device
+  comment: "${comment}"
+  build_path: ./.build/${device}
   project:
     name: "${project_name}"
     version: "${project_version}"
-
-dashboard_import:
-  package_import_url: github://andrewjswan/esphome-components/tests/esp-idf-test.yaml@main
-
-esp32:
-  board: nodemcu-32s
-  framework:
-    type: esp-idf
 
 api:
   reboot_timeout: 0s
@@ -47,29 +40,7 @@ wifi:
 
 captive_portal:
 
-external_components:
-  - source:
-      type: local
-      path: ../components
-    components: [shadow]
-
-script:
-  - id: some_script
-    then:
-      - logger.log: "${friendly_name} Script Running..."
-    mode: queued
-
-shadow:
-  - id: esp_shadow
-    script_id: some_script
-    interval: 60s
-    priority: 1
-
-  - id: esp_shadow_next
-    script_id: some_script
-    interval: 90s
-    priority: 3
-
+# Diagnostic sensors
 sensor:
   - platform: uptime
     name: "Uptime"
@@ -80,6 +51,7 @@ sensor:
     entity_category: diagnostic
     icon: mdi:signal
 
+# Diagnostic buttons
 button:
   - platform: restart
     name: "Restart"
@@ -93,9 +65,10 @@ button:
     entity_category: diagnostic
     disabled_by_default: true
 
+# Diagnostic text sensors
 text_sensor:
   - platform: version
-    name: ESPHome Version
+    name: "ESPHome Version"
     hide_timestamp: true
     entity_category: diagnostic
 

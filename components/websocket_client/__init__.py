@@ -19,7 +19,7 @@ DEPENDENCIES = ["network"]
 AUTO_LOAD = ["json"]
 
 logging.info("Load WebSocket Client component https://github.com/andrewjswan/esphome-components")
-logging.info("If you like the NerdMiner component, you can support it with a star ⭐ on GitHub.")
+logging.info("If you like the WebSocket Client component, you can support it with a star ⭐ on GitHub.")
 
 websocket_client_ns = cg.esphome_ns.namespace("websocket_client")
 WebSocketClient = websocket_client_ns.class_("WebSocketClient", cg.Component)

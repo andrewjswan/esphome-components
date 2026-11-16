@@ -1,0 +1,24 @@
+# WebSocket client component test configuration
+external_components:
+  - source:
+      type: local
+      path: ../../components
+    components: [websocket_client]
+
+websocket_client:
+  id: test_ws
+  url: "wss://some.site.com/api/stream"
+  ping_interval: 20s
+  buffer_size: 4096
+  min_reconnect_delay: 5s
+  max_reconnect_delay: 130s
+  stable_session_duration: 60s
+  jitter_percent: 20
+
+  on_connect:
+    - logger.log: "${friendly_name} Connected to WebSocket stream"
+
+  on_receive:
+    - logger.log:
+        format: "${friendly_name} Packet received (%u bytes)"
+        args: ["x.size()"]

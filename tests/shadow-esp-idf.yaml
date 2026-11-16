@@ -1,0 +1,12 @@
+# Shadow component test with ESP-IDF framework
+substitutions:
+  device: "shadow-esp-idf"
+  name: "shadow-esp-idf"
+  friendly_name: "Shadow ESP-IDF Test"
+  project_name: "ajs.shadow-test"
+  comment: "ESPHome Shadow Component Test (ESP-IDF)"
+
+packages:
+  base: !include common/base.yaml
+  framework: !include common/esp-idf.yaml
+  component: !include components/shadow.yaml

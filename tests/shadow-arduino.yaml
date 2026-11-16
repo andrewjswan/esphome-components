@@ -1,0 +1,12 @@
+# Shadow component test with Arduino framework
+substitutions:
+  device: "shadow-arduino"
+  name: "shadow-arduino"
+  friendly_name: "Shadow Arduino Test"
+  project_name: "ajs.shadow-test"
+  comment: "ESPHome Shadow Component Test (Arduino)"
+
+packages:
+  base: !include common/base.yaml
+  framework: !include common/arduino.yaml
+  component: !include components/shadow.yaml

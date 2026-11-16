@@ -1,0 +1,12 @@
+# FastLED Helper component test with Arduino framework
+substitutions:
+  device: "fastled_helper-arduino"
+  name: "fastled_helper-arduino"
+  friendly_name: "FastLED Helper Arduino Test"
+  project_name: "ajs.fastled-helper-test"
+  comment: "ESPHome FastLED Helper Component Test (Arduino)"
+
+packages:
+  base: !include common/base.yaml
+  framework: !include common/arduino.yaml
+  component: !include components/fastled_helper.yaml

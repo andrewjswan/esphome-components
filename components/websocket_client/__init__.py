@@ -149,11 +149,9 @@ async def to_code(config) -> None:
     cg.add(var.set_url(config[CONF_URL]))
     cg.add(var.set_port(config[CONF_PORT]))
     cg.add(var.set_ssl(config[CONF_SSL]))
+    cg.add(var.set_user_agent(config[CONF_USER_AGENT]))
     cg.add(var.set_ping_interval(config[CONF_PING_INTERVAL]))
     cg.add(var.set_buffer_size(config[CONF_BUFFER_SIZE]))
-
-    if CONF_USER_AGENT in config:
-        cg.add(var.set_user_agent(config[CONF_USER_AGENT]))
 
     cg.add(var.set_min_reconnect_delay(config[CONF_MIN_RECONNECT_DELAY]))
     cg.add(var.set_max_reconnect_delay(config[CONF_MAX_RECONNECT_DELAY]))

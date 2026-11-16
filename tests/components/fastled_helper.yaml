@@ -1,0 +1,11 @@
+# FastLED Helper component test configuration
+external_components:
+  - source:
+      type: local
+      path: ../../components
+    components: [fastled_helper]
+
+fastled_helper:
+  id: palettes
+  palettes: true
+  music_leds: true

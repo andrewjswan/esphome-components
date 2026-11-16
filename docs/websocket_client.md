@@ -79,7 +79,6 @@ The `websocket_client` component allows your ESPHome node to connect as a client
 
 * **`websocket_client.send`**: Sends a text or JSON payload (`id`, `message`).
 * **`websocket_client.enable`** / **`websocket_client.disable`**: Manually start or tear down the socket session.
-* **`websocket_client.reconnect`**: Forced manual reconnect socket session.
 
 !!! example annotate "Sends a text message through the active WebSocket connection to the server"
 
@@ -88,4 +87,25 @@ The `websocket_client` component allows your ESPHome node to connect as a client
       - websocket_client.send:
           id: my_websocket_client
           data: "Hello from ESPHome!"
+    ```
+
+#### Lambda actions
+
+* **`send_message`**: Sends a text or JSON payload (`id`, `message`).
+* **`enable`** / **`disable`**: Manually start or tear down the socket session.
+* **`reconnect`**: Forced manual reconnect socket session.
+
+!!! example annotate "ESPHome Lambda"
+
+    ``` { .cpp .copy .annotate }
+    id(my_websocket_client).send_message("Hello from ESPHome!");
+    id(my_websocket_client).reconnect();
+
+    id(my_websocket_client).enable();
+    id(my_websocket_client).disable();
+
+    id(my_websocket_client).is_enabled();
+    id(my_websocket_client).is_connected();
+
+    id(my_websocket_client).get_last_rx_time();
     ```

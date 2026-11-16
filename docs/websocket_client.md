@@ -5,7 +5,7 @@
 
 The `websocket_client` component allows your ESPHome node to connect as a client to an external WebSocket server. This enables bidirectional real-time communication, allowing your device to send messages and receive commands or data streams from a remote server, Home Assistant add-on, or local service.
 
-### Configuration Variables
+### Configuration
 
 !!! example annotate "Example configuration entry"
 

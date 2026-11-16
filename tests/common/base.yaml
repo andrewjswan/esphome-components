@@ -1,0 +1,90 @@
+# Common base configuration for component tests
+substitutions:
+  device: "esp_test"
+  name: "test"
+  friendly_name: "Component Test"
+  project_name: "ajs.component-test"
+  project_version: "1.5.0"
+  comment: "ESPHome Custom Component Test"
+
+esphome:
+  name: "${name}"
+  friendly_name: "${friendly_name}"
+  name_add_mac_suffix: true
+  comment: "${comment}"
+  build_path: ./.build/${device}
+  project:
+    name: "${project_name}"
+    version: "${project_version}"
+
+api:
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+  - platform: web_server
+
+logger:
+  level: INFO
+
+mdns:
+  disabled: false
+
+web_server:
+  port: 80
+  log: false
+  version: 3
+
+wifi:
+  ap: {}
+
+captive_portal:
+
+# Diagnostic sensors
+sensor:
+  - platform: uptime
+    name: "Uptime"
+    entity_category: diagnostic
+
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    entity_category: diagnostic
+    icon: mdi:signal
+
+# Diagnostic buttons
+button:
+  - platform: restart
+    name: "Restart"
+    id: Restart
+    entity_category: diagnostic
+    icon: mdi:restart
+
+  - platform: factory_reset
+    name: "Restart with Factory Default Settings"
+    id: Reset
+    entity_category: diagnostic
+    disabled_by_default: true
+
+# Diagnostic text sensors
+text_sensor:
+  - platform: version
+    name: "ESPHome Version"
+    hide_timestamp: true
+    entity_category: diagnostic
+
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      disabled_by_default: true
+      entity_category: diagnostic
+      icon: mdi:ip
+    ssid:
+      name: "Connected SSID"
+      disabled_by_default: true
+      entity_category: diagnostic
+      icon: mdi:access-point-network
+    mac_address:
+      name: "Mac Address"
+      disabled_by_default: true
+      entity_category: diagnostic
+      icon: mdi:console-network

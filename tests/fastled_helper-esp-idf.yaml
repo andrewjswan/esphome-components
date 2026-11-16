@@ -1,0 +1,13 @@
+# FastLED Helper component test with Arduino framework
+substitutions:
+  device: "fastled_helper-esp-idf"
+  name: "fastled_helper-esp-idf"
+  friendly_name: "FastLED Helper ESP-IDF Test"
+  project_name: "ajs.fastled-helper-test"
+  comment: "ESPHome FastLED Helper Component Test (ESP-IDF)"
+
+packages:
+  base: !include common/base.yaml
+  framework: !include common/esp-idf.yaml
+  component: !include components/fastled_helper.yaml
+  

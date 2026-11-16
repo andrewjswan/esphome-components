@@ -1,0 +1,12 @@
+# Music LEDs component test with Arduino framework
+substitutions:
+  device: "music_leds-arduino"
+  name: "music_leds-arduino"
+  friendly_name: "Music LEDs Arduino Test"
+  project_name: "ajs.music-leds-test"
+  comment: "ESPHome Music LEDs Component Test (Arduino)"
+
+packages:
+  base: !include common/base.yaml
+  framework: !include common/arduino.yaml
+  component: !include components/music_leds.yaml

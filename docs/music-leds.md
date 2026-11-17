@@ -20,20 +20,20 @@ The `music_leds` component is a high-performance, real-time audio visualization 
       noise_gate_floor: 0.10
     ```
 
-* **id** (*Optional*, string): The unique identifier for this instance of the audio engine.
-* **microphone** (*Optional*, [ID](https://esphome.io/guides/configuration-types/#id)): The ID of the configured hardware microphone component source.
-* **sample_scale** (*Optional*, integer): Establishes an inverse division factor (`1.0f / sample_scale`) to attenuate raw hardware amplitudes, aligning framework-specific gain differences to ensure clean dynamic range processing and complete noise cutoff in quiet environments (use `24` for standard 16-bit I2S microphones like INMP441, or `4` for PDM microphones like SPM1423). Defaults to `24`.
-* **scaling_mode** (*Optional*, string): Specifies the mathematical spectrum compression profile used to map linear FFT energy levels to nonlinear human psychoacoustic perception. Defaults to `SQUARE_ROOT`.
+* **id** (Optional, `string`): The unique identifier for this instance of the audio engine.
+* **microphone** (Optional, [ID](https://esphome.io/guides/configuration-types/#id)): The ID of the configured hardware microphone component source.
+* **sample_scale** (Optional, `integer`): Establishes an inverse division factor (`1.0f / sample_scale`) to attenuate raw hardware amplitudes, aligning framework-specific gain differences to ensure clean dynamic range processing and complete noise cutoff in quiet environments (use `24` for standard 16-bit I2S microphones like INMP441, or `4` for PDM microphones like SPM1423). Defaults to `24`.
+* **scaling_mode** (Optional, `string`): Specifies the mathematical spectrum compression profile used to map linear FFT energy levels to nonlinear human psychoacoustic perception. Defaults to `SQUARE_ROOT`.
     * `LINEAR`: Direct mapping. Best used for raw instrumentation over generic visual tracking.
     * `LOGARITHMIC`: Wide dynamic range compression. Excellent for emphasizing ultra-quiet details.
     * `SQUARE_ROOT`: Balanced standard optimization. Ideal for energetic, rhythmic tracks.
-* **beat_sensitivity** (*Optional*, integer): Sets the internal statistical onset trigger threshold multiplier for rhythmic tracking. High values make beat detection highly volatile, while lower values restrict triggers to massive transient baselines. Valid range is `1` to `100`. Defaults to `65`.
-* **noise_gate_floor** (*Optional*, float): The base silence energy threshold before the dynamic gate engages. When macro band signals fall below this, the engine smoothly bleeds register states down to absolute zero to prevent ghost flickering. Valid range is `0.001` to `0.5`. Defaults to `0.10`.
-* **pre_amp_gain** (*Optional*, float): Manual global pre-amplification multiplier applied directly to the macro energy pools. Valid range is `1.0` to `20.0`. Defaults to `1.0`.
-* **sample_gain** (*Optional*, integer): Sets the primary linear pre-equalizer preamp level factor used to shift the raw spectrum curves inside the DSP viewport. Valid range is `0` to `255`. Defaults to `60`.
-* **pitch_hpf** (*Optional*, boolean): Enables high-performance spectral pre-emphasis to eliminate sub-bass masking on pitch-tracking visual layers. When active, it applies an adaptive attenuation curve below 200Hz to prevent heavy kick drums from freezing the color palette, allowing animations to organically trace vocal melodies and synths. Compiles via zero-overhead preprocessor directives. Defaults to `true`.
-* **task_core** (*Optional*, integer): Explicitly pin the real-time audio computation task loop to an isolated hardware processor core (`0` or `1`) on dual-core microcontrollers to protect against Wi-Fi loop stuttering. Defaults to `1`.
-* **task_priority** (*Optional*, integer): Defines the execution task thread scheduling priority. Higher numbers guarantee execution lock-step precision during dense network routing routines. Valid range is `1` to `24`. Defaults to `10`.
+* **beat_sensitivity** (Optional, `integer`): Sets the internal statistical onset trigger threshold multiplier for rhythmic tracking. High values make beat detection highly volatile, while lower values restrict triggers to massive transient baselines. Valid range is `1` to `100`. Defaults to `65`.
+* **noise_gate_floor** (Optional, `float`): The base silence energy threshold before the dynamic gate engages. When macro band signals fall below this, the engine smoothly bleeds register states down to absolute zero to prevent ghost flickering. Valid range is `0.001` to `0.5`. Defaults to `0.10`.
+* **pre_amp_gain** (Optional, `float`): Manual global pre-amplification multiplier applied directly to the macro energy pools. Valid range is `1.0` to `20.0`. Defaults to `1.0`.
+* **sample_gain** (Optional, `integer`): Sets the primary linear pre-equalizer preamp level factor used to shift the raw spectrum curves inside the DSP viewport. Valid range is `0` to `255`. Defaults to `60`.
+* **pitch_hpf** (Optional, `boolean`): Enables high-performance spectral pre-emphasis to eliminate sub-bass masking on pitch-tracking visual layers. When active, it applies an adaptive attenuation curve below 200Hz to prevent heavy kick drums from freezing the color palette, allowing animations to organically trace vocal melodies and synths. Compiles via zero-overhead preprocessor directives. Defaults to `true`.
+* **task_core** (Optional, `integer`): Explicitly pin the real-time audio computation task loop to an isolated hardware processor core (`0` or `1`) on dual-core microcontrollers to protect against Wi-Fi loop stuttering. Defaults to `1`.
+* **task_priority** (Optional, `integer`): Defines the execution task thread scheduling priority. Higher numbers guarantee execution lock-step precision during dense network routing routines. Valid range is `1` to `24`. Defaults to `10`.
 
 #### Light Effects
 
@@ -53,8 +53,8 @@ To map the engine datasets straight onto your addressable LED panels, attach the
               mode: GRAV
     ```
 
-* **name** (**Required**, string): The display name of the effect exposed inside the Home Assistant frontend interface.
-* **mode** (*Optional*, string): Selects the specific real-time rendering logic applied to the array. Defaults to `PIXELS`.
+* **name** (**Required**, `string`): The display name of the effect exposed inside the Home Assistant frontend interface.
+* **mode** (Optional, `string`): Selects the specific real-time rendering logic applied to the array. Defaults to `PIXELS`.
 
 #### Available Visual Modes
 

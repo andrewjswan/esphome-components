@@ -1,0 +1,12 @@
+# WebSocket client component test with Arduino framework
+substitutions:
+  device: "websocket_client-arduino"
+  name: "websocket-client-arduino"
+  friendly_name: "WebSocket Client Arduino Test"
+  project_name: "ajs.websocket-client-test"
+  comment: "ESPHome WebSocket Client Component Test (Arduino)"
+
+packages:
+  base: !include common/base.yaml
+  framework: !include common/arduino.yaml
+  component: !include components/websocket_client.yaml

@@ -15,6 +15,7 @@ External components for ESPHome
 - [Fastled Helper](https://andrewjswan.github.io/esphome-components/fastled-helper/)
 - [NerdMiner](https://andrewjswan.github.io/esphome-components/nerdminer/)
 - [Music Leds / Sound Reactive](https://andrewjswan.github.io/esphome-components/music-leds/)
+- [WebSocket Client](https://andrewjswan.github.io/esphome-components/websocket_client/)
 - [CUBIC CM1106 Single Beam NDIR CO2 Sensor Module](https://esphome.io/components/sensor/cm1106.html)
 - [CUBIC PM2005/PM2105 Laser Particle Sensor Module](https://esphome.io/components/sensor/pm2005.html)
 - [Duco / Duino Miner](https://andrewjswan.github.io/duco-miner/)

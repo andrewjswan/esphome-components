@@ -17,6 +17,7 @@ External components for ESPHome
 - :material-account-hard-hat: __[NerdMiner]__ – This component let you try to reach a bitcoin block with a small piece of hardware.
 - :material-account-hard-hat: __[Duco]__ – This component let you try to reach a Duco Coin with a small piece of hardware.
 - :material-surround-sound: __[Music Leds / Sound Reactive]__ – Ported `Sound Reactive` from WLED to ESPHome.
+- :material-webhook: __[WebSocket Client]__ – Component allows your ESPHome node to connect as a client to an external WebSocket server.
 - :material-molecule-co2: __[CUBIC CM1106]__ – CUBIC CM1106 Single Beam NDIR CO2 Sensor Module.
 - :material-blur: __[CUBIC PM2005/PM2105]__ – CUBIC PM2005/PM2105 Laser Particle Sensor Module.
 
@@ -27,6 +28,7 @@ External components for ESPHome
   [Fastled Helper]: fastled-helper.md
   [NerdMiner]: nerdminer.md
   [Music Leds / Sound Reactive]: music-leds.md
+  [WebSocket Client]: websocket_client.md
   [CUBIC CM1106]: https://esphome.io/components/sensor/cm1106/
   [CUBIC PM2005/PM2105]: https://esphome.io/components/sensor/pm2005/
   [Duco]: https://andrewjswan.github.io/duco-miner/

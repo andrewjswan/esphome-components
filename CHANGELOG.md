@@ -1,23 +1,87 @@
 # Changelog
 
+## [2026.11.1](https://github.com/andrewjswan/esphome-components/compare/2026.5.1...2026.11.1) - 2026-11-17
+
+### What's Changed
+
+### ❗️ Breaking Changes
+
+- Rework components, fully modularize music leds pipeline. Completely removed dependency on fastled library. @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/112)
+
+### 🚀 Features
+
+- Tests Rework @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/116)
+- Rework components, fully modularize music leds pipeline. Completely removed dependency on fastled library. @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/112)
+- Mark configurable classes as `final` @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/110)
+- Add `Duco` Component @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/109)
+- Add `Release drafter` action @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/103)
+
+### 🔮 Music Leds
+
+- Rework components, fully modularize music leds pipeline. Completely removed dependency on fastled library. @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/112)
+
+### 📐 FastLed Helper
+
+- Rework components, fully modularize music leds pipeline. Completely removed dependency on fastled library. @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/112)
+- Fastled Helper: Bump `FastLED` to `3.10.3` @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/100)
+- Fastled Helper: remove `esphome.h` @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/105)
+
+### ⛏️ Nerdminer
+
+- Nerdminer: Remove cJSON library @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/115)
+- Nerdminer: Change default port for public-pool.io @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/107)
+- Nerdminer: Fix OTA fail @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/106)
+
+### ↔️ WebSocket
+
+- Add `Websocket Client` component @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/114)
+
+### 🐛 Bug Fixes
+
+- Nerdminer: Fix OTA fail @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/106)
+
+### 🧰 Maintenance
+
+- DEP: Bump github/issue-labeler from 3.4 to 3.5 @[dependabot[bot]](https://github.com/apps/dependabot) (https://github.com/andrewjswan/esphome-components/pull/113)
+- DEP: Bump actions/setup-python from 6 to 7 @[dependabot[bot]](https://github.com/apps/dependabot) (https://github.com/andrewjswan/esphome-components/pull/111)
+- DEP: Bump actions/checkout from 6 to 7 @[dependabot[bot]](https://github.com/apps/dependabot) (https://github.com/andrewjswan/esphome-components/pull/108)
+- Fastled Helper: Bump `FastLED` to `3.10.3` @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/100)
+- Add `CHANGELOG` @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/104)
+- Add `labeler` action @andrewjswan (https://github.com/andrewjswan/esphome-components/pull/102)
+- DEP: Bump strumwolf/delete-deployment-environment from 3 to 4 @[dependabot[bot]](https://github.com/apps/dependabot) (https://github.com/andrewjswan/esphome-components/pull/101)
+
+### 🤝 Support
+
+If you like the project, you can support it with a star ⭐ on GitHub.
+
+### ✨ Changelog
+
+**Full Changelog**: https://github.com/andrewjswan/esphome-components/compare/2026.5.1...v2026.11.1
+
 ## [2026.5.1](https://github.com/andrewjswan/esphome-components/compare/2026.3.3...2026.5.1) - 2026-05-08
 
 ### What's Changed
+
 * Add Social background by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/95)
 
 ### 🔮 Music Leds
+
 * Music Leds: Concatenate nested namespaces by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/98)
 
 ### 📐 FastLed Helper
+
 * Fastled Helper: Concatenate nested namespaces by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/97)
 
 ### 🌑 Shadow
+
 * Shadow 2026.3.1 by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/92)
 
 ### ⛏️ Nerdminer
+
 * Nerdminer: Concatenate nested namespaces by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/99)
 
 ### 🧰 Maintenance
+
 * DEP: Bump geekyeggo/delete-artifact from 5 to 6 by @dependabot[bot] in (https://github.com/andrewjswan/esphome-components/pull/91)
 * DEP: Bump actions/deploy-pages from 4 to 5 by @dependabot[bot] in (https://github.com/andrewjswan/esphome-components/pull/94)
 * DEP: Bump actions/configure-pages from 5 to 6 by @dependabot[bot] in (https://github.com/andrewjswan/esphome-components/pull/93)
@@ -28,16 +92,19 @@
 ### What's Changed
 
 ### 🌑 Shadow
+
 * Add Shadow priority settings by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/90)
 
 ## [2026.3.1](https://github.com/andrewjswan/esphome-components/compare/2026.2.3...2026.3.1) - 2026-03-02
 
 ### What's Changed
+
 * Update Documentations by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/82)
 * Add social cards to documentation by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/83)
 * Add stars info by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/86)
 
 ### ⛏️ Nerdminer
+
 * Nerdminer: Move to esphome::socket::Socket by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/85)
 
 ## [2026.3.1](https://github.com/andrewjswan/esphome-components/compare/2026.2.1...2026.2.3) - 2026-02-19
@@ -45,11 +112,13 @@
 ### What's Changed
 
 ### ⛏️ Nerdminer
+
 * Nerdminer: ESPHome 2026.2.0 by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/81)
 
 ## [2026.2.1](https://github.com/andrewjswan/esphome-components/compare/2025.10.1...2026.2.1) - 2026-02-16
 
 ### What's Changed
+
 * Fix for ESPHome 2025.11.0 by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/70)
 * Prettier fix by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/73)
 * Mkdocs fix by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/75)
@@ -59,31 +128,38 @@
 * Update .pre-commit-config.yaml by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/74)
 
 ### 🌑 Shadow
+
 * Shadow: Add startup_delay - delay of the first launch by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/80)
 
 ### ⛏️ Nerdminer
+
 * Nerdminer: Improved counting. Improved network connection analysis. by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/68)
 
 ### 🧰 Maintenance
+
 * DEP: Bump actions/checkout from 5 to 6 by @dependabot[bot] in (https://github.com/andrewjswan/esphome-components/pull/69)
 
 ## [2025.10.1](https://github.com/andrewjswan/esphome-components/compare/2025.9.1...2025.10.1) - 2025-10-17
 
 ### What's Changed
+
 * Add dev Build by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/65)
 
 ### 🔮 Music Leds
+
 * Add Sound on Loop trigger by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/64)
 * volumeRaw to this->volumeRaw by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/63)
 * Simple samplePeak check by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/62)
 * volumeSmth to this->volumeSmth by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/61)
 
 ### 📐 FastLed Helper
+
 * FastLED Helper: Rollback to FastLED 3.10.1 by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/66)
 
 ## [2025.9.1](https://github.com/andrewjswan/esphome-components/commits/2025.9.1) - 2025-09-22
 
 ### What's Changed
+
 * C++ Lint by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/4)
 * Add clang format and tidy by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/5)
 * Remove clang tidy-checks by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/6)
@@ -98,6 +174,7 @@
 * Linter by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/53)
 
 ### 🔮 Music Leds
+
 * Music Leds: Tune by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/56)
 * Music Leds: Update for new Fastled helper by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/55)
 * Music Leds: Add new Effects by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/44)
@@ -108,22 +185,26 @@
 * Add Music Leds / Sound Reactive component by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/29)
 
 ### 📐 FastLed Helper
+
 * FastLED Helper: Bump FastLED to 3.10.3 by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/59)
 * FastLED Helper: Version Bump by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/58)
 * Fastled helper: beatcos8 by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/54)
 * Add Fastled Helper component by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/28)
 
 ### 🌑 Shadow
+
 * Shadow rework by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/47)
 * Tune RTOS Task in Shadow by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/1)
 
 ### ⛏️ Nerdminer
+
 * NerdMiner Python Ruff Lint fix by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/48)
 * NerdMiner: 2025.7.1-1.7.0 by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/46)
 * Nerdminer: HW SHA265 Tune by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/38)
 * NerdMiner try to reach a bitcoin block with a small piece of hardware by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/16)
 
 ### 🧰 Maintenance
+
 * DEP: Bump esphome/build-action from 3 to 4 by @dependabot[bot] in (https://github.com/andrewjswan/esphome-components/pull/2)
 * DEP: Bump esphome/build-action from 3 to 4 by @andrewjswan in (https://github.com/andrewjswan/esphome-components/pull/3)
 * PIP: Bump ruff from 0.6.3 to 0.6.8 in /.github by @dependabot[bot] in (https://github.com/andrewjswan/esphome-components/pull/7)

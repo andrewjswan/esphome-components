@@ -26,6 +26,9 @@ categories:
   - title: ⛏️ Nerdminer
     labels:
       - nerdminer
+  - title: ↔️ WebSocket
+    labels:
+      - Websocket
   - title: 🐛 Bug Fixes
     labels:
       - fix

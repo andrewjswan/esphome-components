@@ -19,6 +19,7 @@ External components for ESPHome
 - [CUBIC CM1106 Single Beam NDIR CO2 Sensor Module](https://esphome.io/components/sensor/cm1106.html)
 - [CUBIC PM2005/PM2105 Laser Particle Sensor Module](https://esphome.io/components/sensor/pm2005.html)
 - [Duco / Duino Miner](https://andrewjswan.github.io/duco-miner/)
+- [Pixel-Clock](https://andrewjswan.github.io/pixel-clock/)
 
 ## 🤝 Support
 If you like the project, you can support it with a star ⭐ on GitHub.

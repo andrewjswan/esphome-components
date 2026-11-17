@@ -96,6 +96,7 @@ nav:
       - Matrix Lamp: matrix-lamp.md
       - Shadow: shadow.md
       - Fastled Helper: fastled-helper.md
+      - WebSocket Client: websocket_client.md
       - NerdMiner: nerdminer.md
       - Music Leds | Sound Reactive: music-leds.md
   - Additionals: additionals.md
@@ -113,6 +114,9 @@ extra_css:
   - stylesheets/github.css
 
 plugins:
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: datetime
   - social:
       cards_layout: default/variant
       cards_layout_options:

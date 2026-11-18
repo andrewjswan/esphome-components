@@ -50,9 +50,9 @@ jobs:
 
       - name: 📦 Install mkDocs Plug-ins
         run: |
+          pip install mkdocs-document-dates
           pip install mkdocs-video
           pip install "mkdocs-material[imaging]"
-          pip install mkdocs-git-revision-date-localized-plugin
 
       - name: 💅 Build the docs site
         run: mkdocs build --config-file .mkdocs.yml

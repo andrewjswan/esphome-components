@@ -34,4 +34,4 @@ External components for ESPHome
   [CUBIC PM2005/PM2105]: https://esphome.io/components/sensor/pm2005/
   [Duco]: https://andrewjswan.github.io/duco-miner/
   [Pixel-Clock]: https://andrewjswan.github.io/pixel-clock/
-
+  

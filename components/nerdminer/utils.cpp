@@ -236,7 +236,7 @@ bool checkValid(unsigned char *hash, unsigned char *target) {
   // convert target to little endian for comparison
   reverse_bytes(diff_target, 32);
 
-  for (uint8_t i = 31; i >= 0; i--) {
+  for (int8_t i = 31; i >= 0; i--) {
     if (hash[i] > diff_target[i]) {
       valid = false;
       break;
@@ -399,8 +399,9 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   }
 
   // merkle root from merkle_result
-  std::string merkle_root = esphome::format_hex(mMiner.merkle_result, 32);
-  ESP_LOGD(TAG, "  merkle sha: %s", merkle_root.c_str());
+  char merkle_root[esphome::format_hex_size(32)];  // буфер на 65 байт (32 * 2 + 1)
+  esphome::format_hex_to(merkle_root, sizeof(merkle_root), mMiner.merkle_result, 32);
+  ESP_LOGD(TAG, "  merkle sha: %s", merkle_root);
 
   // calculate blockheader
   std::string blockheader = mJob.version + mJob.prev_block_hash + merkle_root + mJob.ntime + mJob.nbits + "00000000";

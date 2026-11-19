@@ -6,7 +6,7 @@ from typing import Any
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome import automation
-from esphome.components import esp32
+from esphome.components import esp32, socket
 from esphome.const import CONF_BUFFER_SIZE, CONF_ENABLE_ON_BOOT, CONF_ID, CONF_ON_CONNECT, CONF_ON_DISCONNECT, CONF_PORT, CONF_URL, __version__
 from esphome.cpp_generator import MockObj
 
@@ -16,7 +16,7 @@ CODEOWNERS = ["@andrewjswan"]
 
 DEPENDENCIES = ["network"]
 
-AUTO_LOAD = ["json"]
+AUTO_LOAD = ["json", "socket"]
 
 logging.info("Load WebSocket Client component https://github.com/andrewjswan/esphome-components")
 logging.info("If you like the WebSocket Client component, you can support it with a star ⭐ on GitHub.")
@@ -42,6 +42,13 @@ CONF_STABLE_SESSION_DURATION = "stable_session_duration"
 CONF_JITTER_PERCENT = "jitter_percent"
 CONF_SSL = "ssl"
 CONF_USER_AGENT = "user_agent"
+
+
+def _consume_sockets(config):
+    """Register socket needs for WebSocket Client component."""
+    # WebSocket Client needs 1 socket for the Server connection
+    socket.consume_sockets(1, "websocket_client", socket.SocketType.TCP)(config)
+    return config
 
 
 def validate_url_scheme(config) -> dict[str, Any]:
@@ -101,7 +108,11 @@ BASE_SCHEMA = cv.Schema(
     },
 ).extend(cv.COMPONENT_SCHEMA)
 
-CONFIG_SCHEMA = cv.All(BASE_SCHEMA, validate_url_scheme)
+CONFIG_SCHEMA = cv.All(
+    BASE_SCHEMA,
+    validate_url_scheme,
+    _consume_sockets,
+)
 
 
 async def _build_triggers(config, var) -> None:

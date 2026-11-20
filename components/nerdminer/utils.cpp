@@ -8,7 +8,11 @@
 
 #include <lwip/sockets.h>
 #include <lwip/netdb.h>
-#include "mbedtls/sha256.h"
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+  #include <psa/crypto.h>
+#else
+  #include "mbedtls/sha256.h"
+#endif
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
@@ -344,8 +348,15 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   ESP_LOGD(TAG, "  coinbase bytes - size: %d - %s", res, esphome::format_hex_pretty(bytearray, res).c_str());
 #endif
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+  psa_crypto_init();
+  size_t hash_len = 0;
+  psa_hash_compute(PSA_ALG_SHA_256, source, src_len, interResult, sizeof(interResult), &hash_len);
+  psa_hash_compute(PSA_ALG_SHA_256, interResult, sizeof(interResult), destResult, sizeof(destResult), &hash_len);
+#else
   mbedtls_sha256_context ctx;
   mbedtls_sha256_init(&ctx);
+#endif
 
   uint8_t interResult[32];  // 256 bit
   uint8_t shaResult[32];    // 256 bit

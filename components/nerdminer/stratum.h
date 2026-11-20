@@ -47,26 +47,26 @@ typedef enum {
 } stratum_method;
 
 unsigned long getNextId(unsigned long id);
-bool verifyPayload(std::string &line);
+bool verifyPayload(const std::string &line);
 bool checkError(const JsonDocument &doc);
 
 // Method Mining.Subscribe
 mining_subscribe init_mining_subscribe(void);
 bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSubscribe);
-bool parse_mining_subscribe(const std::string &line, mining_subscribe &mSubscribe) {
+bool parse_mining_subscribe(const std::string &line, mining_subscribe &mSubscribe);
 
 // Method Mining.Authorise
 bool tx_mining_auth(esphome::socket::Socket *client, const char *user, const char *pass);
-stratum_method parse_mining_method(const std::string &line) {
-bool parse_mining_notify(std::string line, mining_job &mJob);
+stratum_method parse_mining_method(const std::string &line);
+bool parse_mining_notify(const std::string &line, mining_job &mJob);
 
 // Method Mining.Submit
-bool tx_mining_submit(esphome::socket::Socket *client, mining_subscribe mWorker, mining_job mJob, unsigned long nonce,
-                      unsigned long &submit_id);
+bool tx_mining_submit(esphome::socket::Socket *client, const mining_subscribe &mWorker, const mining_job &mJob,
+                      unsigned long nonce, unsigned long &submit_id);
 
 // Difficulty Methods
 bool tx_suggest_difficulty(esphome::socket::Socket *client, double difficulty);
-bool parse_mining_set_difficulty(const std::string &line, double &difficulty) {
+bool parse_mining_set_difficulty(const std::string &line, double &difficulty);
 
 // ID Methods
 unsigned long parse_extract_id(const std::string &line);

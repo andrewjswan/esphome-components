@@ -9,9 +9,9 @@
 #include <lwip/sockets.h>
 #include <lwip/netdb.h>
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
-  #include <psa/crypto.h>
+#include <psa/crypto.h>
 #else
-  #include "mbedtls/sha256.h"
+#include "mbedtls/sha256.h"
 #endif
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"

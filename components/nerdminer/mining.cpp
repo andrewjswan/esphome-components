@@ -33,9 +33,14 @@
 
 namespace esphome::nerdminer {
 
-// Jobs per second
+// 10 Jobs per second
 #define NONCE_PER_JOB_SW 4096
-#define NONCE_PER_JOB_HW 16 * 1024
+// Classic ESP32 finishes 16K nonces faster than the Stratum refill cycle; use 64K to avoid HW starvation
+#if defined(CONFIG_IDF_TARGET_ESP32)
+#define NONCE_PER_JOB_HW (64 * 1024)
+#else
+#define NONCE_PER_JOB_HW (16 * 1024)
+#endif
 #define JOB_QUEUE_SIZE 4      // Normal queue size
 #define RESULT_QUEUE_SIZE 16  // Normal result queue
 
@@ -151,7 +156,7 @@ bool checkPoolConnection(void) {
 // Even connection could be alive, pool could stop sending new job NOTIFY
 unsigned long mStart0Hashrate = 0;
 
-bool checkPoolInactivity(unsigned int keepAliveTime, unsigned long inactivityTime) {
+bool checkPoolInactivity(unsigned int keepAliveTime, unsigned long inactivityTime, double suggestDifficulty) {
   unsigned long currentKHashes = (Mhashes * 1000) + hashes / 1000;
   unsigned long elapsedKHs = currentKHashes - totalKHashes;
 
@@ -165,7 +170,7 @@ bool checkPoolInactivity(unsigned int keepAliveTime, unsigned long inactivityTim
   if (time_now > mLastTXtoPool + keepAliveTime) {
     mLastTXtoPool = time_now;
     ESP_LOGD(TAG, "Sending: KeepAlive - suggest_difficulty");
-    tx_suggest_difficulty(pool_socket.get(), DEFAULT_DIFFICULTY);
+    tx_suggest_difficulty(pool_socket.get(), suggestDifficulty);
   }
 
   if (elapsedKHs == 0) {
@@ -191,7 +196,7 @@ struct JobRequest {
   double difficulty;
   uint8_t sha_buffer[128];
   uint32_t midstate[8];
-  uint32_t bake[16];
+  uint32_t bake[17];
 };
 
 struct JobResult {
@@ -317,7 +322,7 @@ void runStratumWorker(void *name) {
     }
 
     // Check if pool is down for almost 5minutes and then restart connection with pool (1min=600000ms)
-    if (checkPoolInactivity(KEEPALIVE_TIME_ms, POOLINACTIVITY_TIME_ms)) {
+    if (checkPoolInactivity(KEEPALIVE_TIME_ms, POOLINACTIVITY_TIME_ms, currentPoolDifficulty)) {
       // Restart connection
       ESP_LOGI(TAG, "Detected more than 2 min without data form stratum server. Closing socket and reopening...");
       pool_close(pool_socket);
@@ -341,7 +346,7 @@ void runStratumWorker(void *name) {
 
     uint32_t hw_midstate[8];
     uint32_t diget_mid[8];
-    uint32_t bake[16];
+    uint32_t bake[17];
 #if defined(CONFIG_IDF_TARGET_ESP32)
     uint8_t sha_buffer_swap[128];
 #endif
@@ -376,6 +381,10 @@ void runStratumWorker(void *name) {
 
             // Prepare data for new jobs
             mMiner = calculateMiningData(mWorker, mJob);
+
+            mJob.coinb1.clear();
+            mJob.coinb2.clear();
+            mJob.merkle_branch.clear();
 
             memset(mMiner.bytearray_blockheader + 80, 0, 128 - 80);
             mMiner.bytearray_blockheader[80] = 0x80;
@@ -586,8 +595,8 @@ void minerWorkerSw(void *task_id) {
       result->nonce_count = job->nonce_count;
       uint8_t job_in_work = job->id & 0xFF;
       for (uint32_t n = 0; n < job->nonce_count; ++n) {
-        ((uint32_t *) (job->sha_buffer + 64 + 12))[0] = job->nonce_start + n;
-        if (nerd_sha256d_baked(job->midstate, job->sha_buffer + 64, job->bake, hash)) {
+        uint32_t nonce = job->nonce_start + n;
+        if (nerd_sha256d_baked_nonce(job->midstate, nonce, job->bake, hash)) {
           double diff_hash = diff_from_target(hash);
           if (diff_hash > result->difficulty) {
             result->difficulty = diff_hash;
@@ -624,19 +633,13 @@ static inline IRAM_ATTR void nerd_sha_ll_fill_text_block_sha256(const void *inpu
   REG_WRITE(&reg_addr_buf[0], data_words[0]);
   REG_WRITE(&reg_addr_buf[1], data_words[1]);
   REG_WRITE(&reg_addr_buf[2], data_words[2]);
-
   REG_WRITE(&reg_addr_buf[3], nonce);
   REG_WRITE(&reg_addr_buf[4], 0x00000080);
   REG_WRITE(&reg_addr_buf[5], 0x00000000);
   REG_WRITE(&reg_addr_buf[6], 0x00000000);
   REG_WRITE(&reg_addr_buf[7], 0x00000000);
   REG_WRITE(&reg_addr_buf[8], 0x00000000);
-  REG_WRITE(&reg_addr_buf[9], 0x00000000);
-  REG_WRITE(&reg_addr_buf[10], 0x00000000);
-  REG_WRITE(&reg_addr_buf[11], 0x00000000);
-  REG_WRITE(&reg_addr_buf[12], 0x00000000);
-  REG_WRITE(&reg_addr_buf[13], 0x00000000);
-  REG_WRITE(&reg_addr_buf[14], 0x00000000);
+  // SHA_TEXT[9..14] are zeroed once per job in minerWorkerHw and untouched by the engine
   REG_WRITE(&reg_addr_buf[15], 0x80020000);
 }
 
@@ -654,13 +657,8 @@ static inline IRAM_ATTR void nerd_sha_ll_fill_text_block_sha256_inter() {
   REG_WRITE(&reg_addr_buf[7], DPORT_SEQUENCE_REG_READ(SHA_H_BASE + 7 * 4));
   DPORT_INTERRUPT_RESTORE();
 
+  // Only alternating padding words [8] and [15] need rewriting; [9..14] stay zero
   REG_WRITE(&reg_addr_buf[8], 0x00000080);
-  REG_WRITE(&reg_addr_buf[9], 0x00000000);
-  REG_WRITE(&reg_addr_buf[10], 0x00000000);
-  REG_WRITE(&reg_addr_buf[11], 0x00000000);
-  REG_WRITE(&reg_addr_buf[12], 0x00000000);
-  REG_WRITE(&reg_addr_buf[13], 0x00000000);
-  REG_WRITE(&reg_addr_buf[14], 0x00000000);
   REG_WRITE(&reg_addr_buf[15], 0x00010000);
 }
 
@@ -761,6 +759,11 @@ void minerWorkerHw(void *task_id) {
 
       esp_sha_acquire_hardware();
       REG_WRITE(SHA_MODE_REG, SHA2_256);
+      // Zero SHA_TEXT[9..14] once per job so per-nonce fills can skip them
+      uint32_t *reg_addr_buf = (uint32_t *) (SHA_TEXT_BASE);
+      for (int i = 9; i <= 14; ++i) {
+        REG_WRITE(&reg_addr_buf[i], 0x00000000);
+      }
       uint32_t nend = job->nonce_start + job->nonce_count;
       for (uint32_t n = job->nonce_start; n < nend; ++n) {
         nerd_sha_ll_write_digest(digest_mid);
@@ -879,7 +882,9 @@ static inline IRAM_ATTR void nerd_sha_ll_fill_text_block_sha256_upper(const void
   reg_addr_buf[0] = data_words[0];
   reg_addr_buf[1] = data_words[1];
   reg_addr_buf[2] = data_words[2];
-  reg_addr_buf[3] = __builtin_bswap32(nonce);
+  // Inline byte swap avoids libgcc __bswapsi2 call per nonce on Xtensa LX6
+  reg_addr_buf[3] = ((nonce & 0xFF000000) >> 24) | ((nonce & 0x00FF0000) >> 8) | ((nonce & 0x0000FF00) << 8) |
+                    ((nonce & 0x000000FF) << 24);
 
   reg_addr_buf[4] = 0x80000000;
   reg_addr_buf[5] = 0x00000000;
@@ -965,9 +970,9 @@ void minerWorkerHw(void *task_id) {
 
         nerd_sha_hal_wait_idle();
         sha_ll_load(SHA2_256);
-        if (nerd_sha_ll_read_digest_swap_if(hash)) {
-          processed_nonces++;  // Only count successful hash operations
 
+        processed_nonces++;
+        if (nerd_sha_ll_read_digest_swap_if(hash)) {
           // ~5 per second
           double diff_hash = diff_from_target(hash);
           if (diff_hash > result->difficulty) {

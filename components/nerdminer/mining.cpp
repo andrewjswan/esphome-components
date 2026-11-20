@@ -346,7 +346,7 @@ void runStratumWorker(void *name) {
 
     uint32_t hw_midstate[8];
     uint32_t diget_mid[8];
-    uint32_t bake[16];
+    uint32_t bake[17];
 #if defined(CONFIG_IDF_TARGET_ESP32)
     uint8_t sha_buffer_swap[128];
 #endif

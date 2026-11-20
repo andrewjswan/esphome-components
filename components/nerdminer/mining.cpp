@@ -18,7 +18,11 @@
 #include <lwip/netdb.h>
 
 #ifdef HARDWARE_SHA265
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+#include <sha/sha_core.h>
+#else
 #include <sha/sha_dma.h>
+#endif
 #include <hal/sha_hal.h>
 #include <hal/sha_ll.h>
 

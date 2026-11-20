@@ -438,11 +438,12 @@ IRAM_ATTR bool nerd_sha256d_baked_nonce(const uint32_t *digest, uint32_t nonce, 
   //*********** Init 1rst SHA ***********
 
   // W0 W1 W2 is same !!
-  uint32_t W[64] = {bake[0], bake[1], bake[2], nonce, 0x80000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 640};
+  uint32_t W[64] = {bake[0], bake[1], bake[2], __builtin_bswap32(nonce),
+                    0x80000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 640};
   W[16] = bake[3];
   W[17] = bake[4];
-  W[18] = bake[15] + S0(nonce);
-  W[19] = S1(W[17]) + bake[16] + nonce;
+  W[18] = bake[15] + S0(W[3]);
+  W[19] = bake[16] + W[3];
 
   const uint32_t *a = bake + 5;
   uint32_t A[8] = {a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]};
@@ -669,11 +670,6 @@ IRAM_ATTR bool nerd_sha256d_baked_nonce(const uint32_t *digest, uint32_t nonce, 
   ((uint32_t *) doubleHash)[7] =
       (temp1 << 24) | ((temp1 << 8) & 0x00FF0000) | ((temp1 >> 8) & 0x0000FF00) | (temp1 >> 24);
   return true;
-}
-
-IRAM_ATTR bool nerd_sha256d_baked(const uint32_t *digest, const uint8_t *dataIn, const uint32_t *bake,
-                                  uint8_t *doubleHash) {
-  return nerd_sha256d_baked_nonce(digest, GET_UINT32_BE(dataIn, 12), bake, doubleHash);
 }
 
 }  // namespace esphome::nerdminer

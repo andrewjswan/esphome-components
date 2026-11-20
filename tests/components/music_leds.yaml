@@ -35,11 +35,12 @@ music_leds:
           - sample_peak
 
 light:
-  - platform: neopixelbus
+  - platform: esp32_rmt_led_strip
     pin: GPIO3
     num_leds: 300
     name: "NeoPixel"
-    variant: 800KBPS
+    chipset: WS2812
+    channel_colors: GRB
     effects:
       - music_leds_effect:
           name: "Pixels with Music"

@@ -298,7 +298,7 @@ miner_data init_miner_data(void) {
   return newMinerData;
 }
 
-miner_data calculateMiningData(mining_subscribe &mWorker, const mining_job &mJob);
+miner_data calculateMiningData(mining_subscribe &mWorker, const mining_job &mJob) {
   miner_data mMiner = init_miner_data();
 
   // calculate target - target = (nbits[2:]+'00'*(int(nbits[:2],16) - 3)).zfill(64)

@@ -382,6 +382,10 @@ void runStratumWorker(void *name) {
             // Prepare data for new jobs
             mMiner = calculateMiningData(mWorker, mJob);
 
+            mJob.coinb1.clear();
+            mJob.coinb2.clear();
+            mJob.merkle_branch.clear();
+
             memset(mMiner.bytearray_blockheader + 80, 0, 128 - 80);
             mMiner.bytearray_blockheader[80] = 0x80;
             mMiner.bytearray_blockheader[126] = 0x02;

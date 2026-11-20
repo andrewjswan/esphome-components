@@ -3,6 +3,7 @@
 #include "esphome/components/socket/socket.h"
 #include "esphome/components/wifi/wifi_component.h"
 
+#include <vector>
 #include <stdint.h>
 #include <ArduinoJson.h>
 
@@ -30,7 +31,7 @@ typedef struct {
   std::string coinb1;
   std::string coinb2;
   std::string nbits;
-  JsonArray merkle_branch;
+  std::vector<std::string> merkle_branch;
   std::string version;
   uint32_t target;
   std::string ntime;

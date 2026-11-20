@@ -196,7 +196,7 @@ struct JobRequest {
   double difficulty;
   uint8_t sha_buffer[128];
   uint32_t midstate[8];
-  uint32_t bake[16];
+  uint32_t bake[17];
 };
 
 struct JobResult {
@@ -595,8 +595,8 @@ void minerWorkerSw(void *task_id) {
       result->nonce_count = job->nonce_count;
       uint8_t job_in_work = job->id & 0xFF;
       for (uint32_t n = 0; n < job->nonce_count; ++n) {
-        ((uint32_t *) (job->sha_buffer + 64 + 12))[0] = job->nonce_start + n;
-        if (nerd_sha256d_baked(job->midstate, job->sha_buffer + 64, job->bake, hash)) {
+        uint32_t nonce = job->nonce_start + n;
+        if (nerd_sha256d_baked_nonce(job->midstate, nonce, job->bake, hash)) {      
           double diff_hash = diff_from_target(hash);
           if (diff_hash > result->difficulty) {
             result->difficulty = diff_hash;
@@ -968,9 +968,9 @@ void minerWorkerHw(void *task_id) {
 
         nerd_sha_hal_wait_idle();
         sha_ll_load(SHA2_256);
-        if (nerd_sha_ll_read_digest_swap_if(hash)) {
-          processed_nonces++;  // Only count successful hash operations
 
+        processed_nonces++;
+        if (nerd_sha_ll_read_digest_swap_if(hash)) {
           // ~5 per second
           double diff_hash = diff_from_target(hash);
           if (diff_hash > result->difficulty) {

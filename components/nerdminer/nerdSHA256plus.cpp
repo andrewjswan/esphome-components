@@ -514,7 +514,7 @@ IRAM_ATTR bool nerd_sha256d_baked_nonce(const uint32_t *digest, uint32_t nonce, 
   P(A[1], A[2], A[3], A[4], A[5], A[6], A[7], A[0], R(63), K[63]);
 
   //*********** end SHA_finish ***********
- 
+
   /* Calculate the second hash (double SHA-256) */
 
   W[0] = A[0] + digest[0];

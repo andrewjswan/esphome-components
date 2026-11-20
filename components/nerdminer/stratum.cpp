@@ -38,7 +38,7 @@ bool verifyPayload(std::string &line) {
   return !line.empty();
 }
 
-bool checkError(const JsonDocument doc) {
+bool checkError(const JsonDocument &doc) {
   if (!doc["error"].is<JsonVariant>())
     return false;
   if (doc["error"].size() == 0)

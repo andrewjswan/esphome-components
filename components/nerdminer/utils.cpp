@@ -15,6 +15,10 @@
 
 #include "utils.h"
 
+#ifdef DEBUG_MINING
+#include "esphome/core/alloc_helpers.h"
+#endif
+
 namespace esphome::nerdminer {
 
 // clang-format off

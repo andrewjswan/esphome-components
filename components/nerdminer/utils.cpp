@@ -312,14 +312,9 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   target[TARGET_BUFFER_SIZE] = 0;
   ESP_LOGD(TAG, "  Target: %s", target);
 
-  // bytearray target
-  size_t size_target = to_byte_array(target, 32, mMiner.bytearray_target);
-
-  for (size_t j = 0; j < 8; j++) {
-    mMiner.bytearray_target[j] ^= mMiner.bytearray_target[size_target - 1 - j];
-    mMiner.bytearray_target[size_target - 1 - j] ^= mMiner.bytearray_target[j];
-    mMiner.bytearray_target[j] ^= mMiner.bytearray_target[size_target - 1 - j];
-  }
+  // Convert full 64-char hex target (32 bytes) to big-endian byte array
+  memset(mMiner.bytearray_target, 0, sizeof(mMiner.bytearray_target));
+  to_byte_array(target, TARGET_BUFFER_SIZE, mMiner.bytearray_target);
 
   // get extranonce2 - extranonce2 = hex(random.randint(0,2**32-1))[2:].zfill(2*extranonce2_size)
   // To review

@@ -238,13 +238,17 @@ bool isSha256Valid(const void *sha256) {
 bool checkValid(unsigned char *hash, unsigned char *target) {
   bool valid = true;
   unsigned char diff_target[32];
+  // Copy 32 bytes from target pointer instead of pointer address
   memcpy(diff_target, target, 32);
   // convert target to little endian for comparison
   reverse_bytes(diff_target, 32);
 
+  // Compare from most significant byte down; stop at first differing byte
   for (int8_t i = 31; i >= 0; i--) {
     if (hash[i] > diff_target[i]) {
       valid = false;
+      break;
+    } else if (hash[i] < diff_target[i]) {
       break;
     }
   }

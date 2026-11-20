@@ -3,6 +3,7 @@
 #include "stratum.h"
 #include "nerdminer.h"
 
+#include <vector>
 #include <string.h>
 #include <stdio.h>
 

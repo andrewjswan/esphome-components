@@ -438,8 +438,7 @@ IRAM_ATTR bool nerd_sha256d_baked_nonce(const uint32_t *digest, uint32_t nonce, 
   //*********** Init 1rst SHA ***********
 
   // W0 W1 W2 is same !!
-  uint32_t W[64] = {bake[0], bake[1], bake[2], __builtin_bswap32(nonce),
-                    0x80000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 640};
+  uint32_t W[64] = {bake[0], bake[1], bake[2], __builtin_bswap32(nonce), 0x80000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 640};
   W[16] = bake[3];
   W[17] = bake[4];
   W[18] = bake[15] + S0(W[3]);

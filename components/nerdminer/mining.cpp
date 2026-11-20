@@ -882,8 +882,10 @@ static inline IRAM_ATTR void nerd_sha_ll_fill_text_block_sha256_upper(const void
   reg_addr_buf[0] = data_words[0];
   reg_addr_buf[1] = data_words[1];
   reg_addr_buf[2] = data_words[2];
-  reg_addr_buf[3] = __builtin_bswap32(nonce);
-
+  // Inline byte swap avoids libgcc __bswapsi2 call per nonce on Xtensa LX6
+  reg_addr_buf[3] =
+      ((nonce & 0xFF000000) >> 24) | ((nonce & 0x00FF0000) >> 8) | ((nonce & 0x0000FF00) << 8) | ((nonce & 0x000000FF) << 24);
+  
   reg_addr_buf[4] = 0x80000000;
   reg_addr_buf[5] = 0x00000000;
   reg_addr_buf[6] = 0x00000000;

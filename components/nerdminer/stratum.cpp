@@ -173,7 +173,14 @@ bool parse_mining_notify(const std::string &line, mining_job &mJob) {
   mJob.prev_block_hash = doc["params"][1].as<std::string>();
   mJob.coinb1 = doc["params"][2].as<std::string>();
   mJob.coinb2 = doc["params"][3].as<std::string>();
-  mJob.merkle_branch = doc["params"][4];
+  mJob.merkle_branch.clear();
+  if (doc["params"][4].is<JsonArrayConst>()) {
+    for (JsonVariantConst v : doc["params"][4].as<JsonArrayConst>()) {
+      if (v.is<const char *>()) {
+        mJob.merkle_branch.emplace_back(v.as<const char *>());
+      }
+    }
+  }
   mJob.version = doc["params"][5].as<std::string>();
   mJob.nbits = doc["params"][6].as<std::string>();
   mJob.ntime = doc["params"][7].as<std::string>();
@@ -201,7 +208,7 @@ bool parse_mining_notify(const std::string &line, mining_job &mJob) {
 }
 
 bool tx_mining_submit(esphome::socket::Socket *client, const mining_subscribe &mWorker, const mining_job &mJob,
-                      unsigned long nonce, unsigned long &submit_id);
+                      unsigned long nonce, unsigned long &submit_id) {
   char payload[BUFFER] = {0};
 
   if (client == nullptr)

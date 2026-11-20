@@ -17,8 +17,6 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
-#include "utils.h"
-
 #ifdef DEBUG_MINING
 #include "esphome/core/alloc_helpers.h"
 #endif
@@ -240,7 +238,7 @@ bool isSha256Valid(const void *sha256) {
 bool checkValid(unsigned char *hash, unsigned char *target) {
   bool valid = true;
   unsigned char diff_target[32];
-  memcpy(diff_target, &target, 32);
+  memcpy(diff_target, target, 32);
   // convert target to little endian for comparison
   reverse_bytes(diff_target, 32);
 
@@ -302,8 +300,15 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
 
   char target[TARGET_BUFFER_SIZE + 1];
   memset(target, '0', TARGET_BUFFER_SIZE);
-  int zeros = (int) strtol(mJob.nbits.substr(0, 2).c_str(), 0, 16) - 3;
-  memcpy(target + zeros - 2, mJob.nbits.substr(2).c_str(), mJob.nbits.size() - 2);
+  // Prevent out-of-bounds write when nbits exponent is small or mantissa exceeds buffer
+  if (mJob.nbits.size() > 2) {
+    int zeros = (int) strtol(mJob.nbits.substr(0, 2).c_str(), 0, 16) - 3;
+    int offset = zeros - 2;
+    size_t mantissa_len = mJob.nbits.size() - 2;
+    if (offset >= 0 && (size_t) offset + mantissa_len <= TARGET_BUFFER_SIZE) {
+      memcpy(target + offset, mJob.nbits.substr(2).c_str(), mantissa_len);
+    }
+  }
   target[TARGET_BUFFER_SIZE] = 0;
   ESP_LOGD(TAG, "  Target: %s", target);
 
@@ -338,14 +343,15 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   std::string coinbase = mJob.coinb1 + mWorker.extranonce1 + mWorker.extranonce2 + mJob.coinb2;
   ESP_LOGD(TAG, "    coinbase: %s", coinbase.c_str());
   size_t str_len = coinbase.size() / 2;
-  uint8_t bytearray[str_len];
+  // Allocate coinbase buffer on heap instead of stack VLA to avoid stack overflow on large coinbase pools
+  std::vector<uint8_t> bytearray(str_len);
 
-  size_t res = to_byte_array(coinbase.c_str(), str_len * 2, bytearray);
+  size_t res = to_byte_array(coinbase.c_str(), str_len * 2, bytearray.data());
 
 #ifdef DEBUG_MINING
   ESP_LOGD(TAG, "  extranonce2: %s", mWorker.extranonce2.c_str());
   ESP_LOGD(TAG, "  coinbase: %s", coinbase.c_str());
-  ESP_LOGD(TAG, "  coinbase bytes - size: %d - %s", res, esphome::format_hex_pretty(bytearray, res).c_str());
+  ESP_LOGD(TAG, "  coinbase bytes - size: %d - %s", res, esphome::format_hex_pretty(bytearray.data(), res).c_str());
 #endif
 
   uint8_t interResult[32];  // 256 bit
@@ -354,14 +360,14 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
   psa_crypto_init();
   size_t hash_len = 0;
-  psa_hash_compute(PSA_ALG_SHA_256, bytearray, str_len, interResult, sizeof(interResult), &hash_len);
+  psa_hash_compute(PSA_ALG_SHA_256, bytearray.data(), str_len, interResult, sizeof(interResult), &hash_len);
   psa_hash_compute(PSA_ALG_SHA_256, interResult, sizeof(interResult), shaResult, sizeof(shaResult), &hash_len);
 #else
   mbedtls_sha256_context ctx;
   mbedtls_sha256_init(&ctx);
 
   mbedtls_sha256_starts(&ctx, 0);
-  mbedtls_sha256_update(&ctx, bytearray, str_len);
+  mbedtls_sha256_update(&ctx, bytearray.data(), str_len);
   mbedtls_sha256_finish(&ctx, interResult);
 
   mbedtls_sha256_starts(&ctx, 0);

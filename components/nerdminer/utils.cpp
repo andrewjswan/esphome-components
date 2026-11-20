@@ -348,18 +348,17 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   ESP_LOGD(TAG, "  coinbase bytes - size: %d - %s", res, esphome::format_hex_pretty(bytearray, res).c_str());
 #endif
 
+  uint8_t interResult[32];  // 256 bit
+  uint8_t shaResult[32];    // 256 bit
+
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
   psa_crypto_init();
   size_t hash_len = 0;
-  psa_hash_compute(PSA_ALG_SHA_256, source, src_len, interResult, sizeof(interResult), &hash_len);
-  psa_hash_compute(PSA_ALG_SHA_256, interResult, sizeof(interResult), destResult, sizeof(destResult), &hash_len);
+  psa_hash_compute(PSA_ALG_SHA_256, bytearray, str_len, interResult, sizeof(interResult), &hash_len);
+  psa_hash_compute(PSA_ALG_SHA_256, interResult, sizeof(interResult), shaResult, sizeof(shaResult), &hash_len);
 #else
   mbedtls_sha256_context ctx;
   mbedtls_sha256_init(&ctx);
-#endif
-
-  uint8_t interResult[32];  // 256 bit
-  uint8_t shaResult[32];    // 256 bit
 
   mbedtls_sha256_starts(&ctx, 0);
   mbedtls_sha256_update(&ctx, bytearray, str_len);
@@ -369,6 +368,7 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
   mbedtls_sha256_update(&ctx, interResult, 32);
   mbedtls_sha256_finish(&ctx, shaResult);
   mbedtls_sha256_free(&ctx);
+#endif
 
 #ifdef DEBUG_MINING
   ESP_LOGD(TAG, "  coinbase double sha: %s", esphome::format_hex_pretty(shaResult, 32).c_str());
@@ -397,6 +397,11 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
     ESP_LOGD(TAG, "  merkle concatenated: %s", esphome::format_hex_pretty(merkle_concatenated, 64).c_str());
 #endif
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+    size_t merkle_hash_len = 0;
+    psa_hash_compute(PSA_ALG_SHA_256, merkle_concatenated, 64, interResult, 32, &merkle_hash_len);
+    psa_hash_compute(PSA_ALG_SHA_256, interResult, 32, mMiner.merkle_result, 32, &merkle_hash_len);
+#else
     mbedtls_sha256_context ctx;
     mbedtls_sha256_init(&ctx);
     mbedtls_sha256_starts(&ctx, 0);
@@ -407,6 +412,7 @@ miner_data calculateMiningData(mining_subscribe &mWorker, mining_job mJob) {
     mbedtls_sha256_update(&ctx, interResult, 32);
     mbedtls_sha256_finish(&ctx, mMiner.merkle_result);
     mbedtls_sha256_free(&ctx);
+#endif
 
 #ifdef DEBUG_MINING
     ESP_LOGD(TAG, "  merkle sha: %s", esphome::format_hex_pretty(mMiner.merkle_result, 32).c_str());

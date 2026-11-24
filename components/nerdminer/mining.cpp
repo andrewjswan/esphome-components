@@ -537,7 +537,7 @@ void runStratumWorker(void *name) {
         tx_mining_submit(pool_socket.get(), mWorker, mJob, res->nonce, sumbit_id);
         ESP_LOGD(TAG, " - Current diff share: %.5f", res->difficulty);
         ESP_LOGD(TAG, " - Current pool diff : %.5f", currentPoolDifficulty);
-        ESP_LOGD(TAG, " - TX SHARE: %s", format_hex_pretty(res->hash, 32).c_str());
+        ESP_LOGD_HEX(TAG, res->hash, 32, 32, " - TX SHARE: %s");
         mLastTXtoPool = millis();
 
         std::shared_ptr<Submition> submition = std::make_shared<Submition>();

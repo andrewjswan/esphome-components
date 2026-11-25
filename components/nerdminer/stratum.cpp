@@ -52,7 +52,7 @@ bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSub
 
   // Subscribe
   id = 1;  // Initialize id messages
-  sprintf(payload, "{\"id\": %lu, \"method\": \"mining.subscribe\", \"params\": [\"NerdMinerV2/%s\"]}\n", id,
+  sprintf(payload, "{\"id\": %lu, \"method\": \"mining.subscribe\", \"params\": [\"%s/%s\"]}\n", id, NERDMINER_CLIENT,
           NERDMINER_VERSION);
 
   ESP_LOGD(TAG, "[STRATUM] ==> Mining subscribe");

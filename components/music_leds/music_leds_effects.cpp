@@ -33,7 +33,8 @@ bool MusicLeds::allocateData(size_t len) {
   // Do not use SPI RAM on ESP32 since it is slow
   this->data = (byte *) calloc(len, sizeof(byte));
   if (!this->data) {
-    this->status_momentary_warning("Effect data, allocation failed!");
+    ESP_LOGW(TAG, "Effect data, allocation failed!");
+    this->status_momentary_warning();
     return false;
   }  // allocation failed
 

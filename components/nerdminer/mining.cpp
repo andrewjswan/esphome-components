@@ -771,12 +771,12 @@ void minerWorkerHw(void *task_id) {
         REG_WRITE(SHA_CONTINUE_REG, 1);
 
         sha_ll_load(SHA2_256);
-
         nerd_sha_hal_wait_idle();
+
         nerd_sha_ll_fill_text_block_sha256_inter();
         REG_WRITE(SHA_START_REG, 1);
-        sha_ll_load(SHA2_256);
 
+        sha_ll_load(SHA2_256);
         nerd_sha_hal_wait_idle();
         if (nerd_sha_ll_read_digest_if(hash)) {
           // ~5 per second
@@ -956,20 +956,21 @@ void minerWorkerHw(void *task_id) {
       for (uint32_t n = 0; n < job->nonce_count; ++n) {
         nerd_sha_ll_fill_text_block_sha256(sha_buffer);
         sha_ll_start_block(SHA2_256);
-
         nerd_sha_hal_wait_idle();
+
         nerd_sha_ll_fill_text_block_sha256_upper(sha_buffer + 64, job->nonce_start + n);
         sha_ll_continue_block(SHA2_256);
-
         nerd_sha_hal_wait_idle();
+
         sha_ll_load(SHA2_256);
-
         nerd_sha_hal_wait_idle();
+
         nerd_sha_ll_fill_text_block_sha256_double();
         sha_ll_start_block(SHA2_256);
-
         nerd_sha_hal_wait_idle();
+
         sha_ll_load(SHA2_256);
+        nerd_sha_hal_wait_idle();
 
         processed_nonces++;
         if (nerd_sha_ll_read_digest_swap_if(hash)) {

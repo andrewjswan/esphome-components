@@ -23,28 +23,19 @@ unsigned long getNextId(unsigned long id) {
   return ++id;
 }
 
-// Verify Payload doesn't has zero lenght
-bool verifyPayload(std::string &line) {
+// Verify Payload doesn't have zero length
+bool verifyPayload(const std::string &line) {
   const char *whitespace = " \t\n\r\f\v";
-
-  line.erase(0, line.find_first_not_of(whitespace));
-  size_t last = line.find_last_not_of(whitespace);
-  if (last != std::string::npos) {
-    line.erase(last + 1);
-  } else {
-    line.clear();
-  }
-
-  return !line.empty();
+  return line.find_first_not_of(whitespace) != std::string::npos;
 }
 
-bool checkError(const JsonDocument doc) {
+bool checkError(const JsonDocument &doc) {
   if (!doc["error"].is<JsonVariant>())
     return false;
   if (doc["error"].size() == 0)
     return false;
 
-  ESP_LOGE(TAG, "ERROR: %d | reason: %s \n", (const int) doc["error"][0], (const char *) doc["error"][1]);
+  ESP_LOGE(TAG, "ERROR: %d | reason: %s \n", (int) doc["error"][0], (const char *) doc["error"][1]);
 
   return true;
 }
@@ -61,8 +52,8 @@ bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSub
 
   // Subscribe
   id = 1;  // Initialize id messages
-  sprintf(payload, "{\"id\": %u, \"method\": \"mining.subscribe\", \"params\": [\"NerdMinerV2/%s\"]}\n", id,
-          NERDMINER_VERSION);
+  snprintf(payload, sizeof(payload), "{\"id\": %lu, \"method\": \"mining.subscribe\", \"params\": [\"%s/%s\"]}\n", id,
+           NERDMINER_CLIENT, NERDMINER_VERSION);
 
   ESP_LOGD(TAG, "[STRATUM] ==> Mining subscribe");
   ESP_LOGD(TAG, " Sending: %s", payload);
@@ -88,7 +79,7 @@ bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSub
   return true;
 }
 
-bool parse_mining_subscribe(std::string line, mining_subscribe &mSubscribe) {
+bool parse_mining_subscribe(const std::string &line, mining_subscribe &mSubscribe) {
   if (!verifyPayload(line))
     return false;
   ESP_LOGD(TAG, " Receiving: %s", line.c_str());
@@ -127,7 +118,8 @@ bool tx_mining_auth(esphome::socket::Socket *client, const char *user, const cha
 
   // Authorize
   id = getNextId(id);
-  sprintf(payload, "{\"params\": [\"%s\", \"%s\"], \"id\": %u, \"method\": \"mining.authorize\"}\n", user, pass, id);
+  snprintf(payload, sizeof(payload), "{\"params\": [\"%s\", \"%s\"], \"id\": %lu, \"method\": \"mining.authorize\"}\n",
+           user, pass, id);
 
   ESP_LOGD(TAG, "[STRATUM] ==> Autorize work");
   ESP_LOGD(TAG, " Sending: %s", payload);
@@ -140,7 +132,7 @@ bool tx_mining_auth(esphome::socket::Socket *client, const char *user, const cha
   return true;
 }
 
-stratum_method parse_mining_method(std::string line) {
+stratum_method parse_mining_method(const std::string &line) {
   if (!verifyPayload(line))
     return STRATUM_PARSE_ERROR;
   ESP_LOGD(TAG, " Receiving: %s", line.c_str());
@@ -167,7 +159,7 @@ stratum_method parse_mining_method(std::string line) {
   return result;
 }
 
-bool parse_mining_notify(std::string line, mining_job &mJob) {
+bool parse_mining_notify(const std::string &line, mining_job &mJob) {
   ESP_LOGD(TAG, "  Parsing Method [MINING NOTIFY]");
   if (!verifyPayload(line))
     return false;
@@ -182,7 +174,15 @@ bool parse_mining_notify(std::string line, mining_job &mJob) {
   mJob.prev_block_hash = doc["params"][1].as<std::string>();
   mJob.coinb1 = doc["params"][2].as<std::string>();
   mJob.coinb2 = doc["params"][3].as<std::string>();
-  mJob.merkle_branch = doc["params"][4];
+  mJob.merkle_branch.clear();
+  if (doc["params"][4].is<JsonArray>()) {
+    JsonArray branches = doc["params"][4].as<JsonArray>();
+    for (JsonVariant v : branches) {
+      if (v.is<const char *>()) {
+        mJob.merkle_branch.emplace_back(v.as<const char *>());
+      }
+    }
+  }
   mJob.version = doc["params"][5].as<std::string>();
   mJob.nbits = doc["params"][6].as<std::string>();
   mJob.ntime = doc["params"][7].as<std::string>();
@@ -209,8 +209,8 @@ bool parse_mining_notify(std::string line, mining_job &mJob) {
   return true;
 }
 
-bool tx_mining_submit(esphome::socket::Socket *client, mining_subscribe mWorker, mining_job mJob, unsigned long nonce,
-                      unsigned long &submit_id) {
+bool tx_mining_submit(esphome::socket::Socket *client, const mining_subscribe &mWorker, const mining_job &mJob,
+                      unsigned long nonce, unsigned long &submit_id) {
   char payload[BUFFER] = {0};
 
   if (client == nullptr)
@@ -220,7 +220,7 @@ bool tx_mining_submit(esphome::socket::Socket *client, mining_subscribe mWorker,
   id = getNextId(id);
   submit_id = id;
   snprintf(payload, sizeof(payload),
-           "{\"id\": %u, \"method\": \"mining.submit\", \"params\": [\"%s\",\"%s\",\"%s\",\"%s\",\"%08x\"]}\n", id,
+           "{\"id\": %lu, \"method\": \"mining.submit\", \"params\": [\"%s\",\"%s\",\"%s\",\"%s\",\"%08lx\"]}\n", id,
            mWorker.wName, mJob.job_id.c_str(), mWorker.extranonce2.c_str(), mJob.ntime.c_str(), nonce);
   ESP_LOGD(TAG, " Sending: %s", payload);
   pool_send(client, std::string(payload));
@@ -228,7 +228,7 @@ bool tx_mining_submit(esphome::socket::Socket *client, mining_subscribe mWorker,
   return true;
 }
 
-bool parse_mining_set_difficulty(std::string line, double &difficulty) {
+bool parse_mining_set_difficulty(const std::string &line, double &difficulty) {
   ESP_LOGD(TAG, "  Parsing Method [SET DIFFICULTY]");
   if (!verifyPayload(line))
     return false;
@@ -252,7 +252,8 @@ bool tx_suggest_difficulty(esphome::socket::Socket *client, double difficulty) {
     return false;
 
   id = getNextId(id);
-  sprintf(payload, "{\"id\": %d, \"method\": \"mining.suggest_difficulty\", \"params\": [%.10g]}\n", id, difficulty);
+  snprintf(payload, sizeof(payload), "{\"id\": %lu, \"method\": \"mining.suggest_difficulty\", \"params\": [%.10g]}\n",
+           id, difficulty);
 
   ESP_LOGD(TAG, " Sending: %s", payload);
   return pool_send(client, std::string(payload)) > 0;

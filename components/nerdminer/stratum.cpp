@@ -174,8 +174,8 @@ bool parse_mining_notify(const std::string &line, mining_job &mJob) {
   mJob.coinb1 = doc["params"][2].as<std::string>();
   mJob.coinb2 = doc["params"][3].as<std::string>();
   mJob.merkle_branch.clear();
-  if (doc["params"][4].is<JsonArrayConst>()) {
-    for (JsonVariantConst v : doc["params"][4].as<JsonArrayConst>()) {
+  if (doc["params"][4].is<JsonArray>()) {
+    for (JsonVariant v : doc["params"][4].as<JsonArray>()) {
       if (v.is<const char *>()) {
         mJob.merkle_branch.emplace_back(v.as<const char *>());
       }

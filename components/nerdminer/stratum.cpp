@@ -52,7 +52,7 @@ bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSub
 
   // Subscribe
   id = 1;  // Initialize id messages
-  sprintf(payload, "{\"id\": %lu, \"method\": \"mining.subscribe\", \"params\": [\"%s/%s\"]}\n", id, NERDMINER_CLIENT,
+  snprintf(payload, sizeof(payload), "{\"id\": %lu, \"method\": \"mining.subscribe\", \"params\": [\"%s/%s\"]}\n", id, NERDMINER_CLIENT,
           NERDMINER_VERSION);
 
   ESP_LOGD(TAG, "[STRATUM] ==> Mining subscribe");
@@ -118,7 +118,7 @@ bool tx_mining_auth(esphome::socket::Socket *client, const char *user, const cha
 
   // Authorize
   id = getNextId(id);
-  sprintf(payload, "{\"params\": [\"%s\", \"%s\"], \"id\": %lu, \"method\": \"mining.authorize\"}\n", user, pass, id);
+  snprintf(payload, sizeof(payload), "{\"params\": [\"%s\", \"%s\"], \"id\": %lu, \"method\": \"mining.authorize\"}\n", user, pass, id);
 
   ESP_LOGD(TAG, "[STRATUM] ==> Autorize work");
   ESP_LOGD(TAG, " Sending: %s", payload);
@@ -251,7 +251,7 @@ bool tx_suggest_difficulty(esphome::socket::Socket *client, double difficulty) {
     return false;
 
   id = getNextId(id);
-  sprintf(payload, "{\"id\": %lu, \"method\": \"mining.suggest_difficulty\", \"params\": [%.10g]}\n", id, difficulty);
+  snprintf(payload, sizeof(payload), "{\"id\": %lu, \"method\": \"mining.suggest_difficulty\", \"params\": [%.10g]}\n", id, difficulty);
 
   ESP_LOGD(TAG, " Sending: %s", payload);
   return pool_send(client, std::string(payload)) > 0;

@@ -475,7 +475,7 @@ void runStratumWorker(void *name) {
           unsigned long id = parse_extract_id(line);
           auto itt = s_submition_map.find(id);
           if (itt != s_submition_map.end()) {
-            ESP_LOGD(TAG, "Refuse submition %d", id);
+            ESP_LOGD(TAG, "Refuse submition %lu", id);
             s_submition_map.erase(itt);
           }
         } break;

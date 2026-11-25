@@ -78,13 +78,13 @@ void MusicLeds::setup() {
   ota::get_global_ota_callback()->add_global_state_listener(this);
 #endif
 
-  // Register callback for incoming raw byte vector
-  this->microphone_->add_data_callback([this](const std::vector<uint8_t> &data) {
-    if (data.empty())
+  // Register callback for incoming audio capture
+  this->microphone_->add_data_callback([this](const microphone::AudioCapture &capture) {
+    if (capture.data.empty())
       return;
 
     // Stream bytes straight into the float ring buffer
-    this->process_audio_to_ring_(data);
+    this->process_audio_to_ring_(capture.data);
 
     if (this->ring_buffer_.available() >= SAMPLES_FFT && this->FFT_Task != nullptr) {
       xTaskNotifyGive(this->FFT_Task);
@@ -281,7 +281,8 @@ void MusicLeds::on_start() {
                           FFTTASK_CORE);        // Core where the task should run
 
   if (this->FFT_Task == nullptr) {
-    this->status_momentary_error("MusicLeds task failed to start...", 1000);
+    ESP_LOGE(TAG, "MusicLeds task failed to start...");
+    this->status_momentary_error(1000);
   }
 }
 
@@ -386,7 +387,8 @@ void MusicLeds::FFT_Code(void *parameter) {
   while (!(xEventGroupGetBits(this_task->event_group_) & EventGroupBits::COMMAND_STOP)) {
     // Only run the FFT computing code if microphone running
     if (!this_task->microphone_is_running()) {
-      this_task->status_momentary_warning("Microphone not running!");
+      ESP_LOGW(TAG, "Microphone not running!");
+      this_task->status_momentary_warning();
       vTaskDelay(pdMS_TO_TICKS(100));
       continue;
     }

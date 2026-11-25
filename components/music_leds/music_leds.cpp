@@ -333,7 +333,7 @@ void MusicLedsSoundLoopTrigger::process(float volume_smth, int16_t volume_raw, f
 }
 #endif
 
-void MusicLeds::process_audio_to_ring_(const std::vector<uint8_t> &data) {
+void MusicLeds::process_audio_to_ring_(std::span<const uint8_t> data) {
   const auto &stream_info = this->microphone_->get_audio_stream_info();
 
   const size_t source_bytes_per_sample = stream_info.samples_to_bytes(1);

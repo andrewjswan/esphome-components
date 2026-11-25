@@ -25,6 +25,8 @@
 #include "esphome/components/ota/ota_backend.h"
 #endif
 
+#include <span>
+
 namespace esphome::music_leds {
 
 static const char *const TAG = "music_leds";
@@ -144,7 +146,7 @@ class MusicLeds final : public Component
   void on_stop();
 
   RingBuffer<float, RING_BUFFER_SIZE> ring_buffer_;
-  void process_audio_to_ring_(const std::vector<uint8_t> &data);
+  void process_audio_to_ring_(std::span<const uint8_t> data);
 
   static void FFT_Code(void *params);
   TaskHandle_t FFT_Task{nullptr};

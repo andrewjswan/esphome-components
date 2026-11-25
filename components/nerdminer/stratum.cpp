@@ -35,7 +35,7 @@ bool checkError(const JsonDocument &doc) {
   if (doc["error"].size() == 0)
     return false;
 
-  ESP_LOGE(TAG, "ERROR: %d | reason: %s \n", (const int) doc["error"][0], (const char *) doc["error"][1]);
+  ESP_LOGE(TAG, "ERROR: %d | reason: %s \n", (int) doc["error"][0], (const char *) doc["error"][1]);
 
   return true;
 }
@@ -52,7 +52,7 @@ bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSub
 
   // Subscribe
   id = 1;  // Initialize id messages
-  sprintf(payload, "{\"id\": %u, \"method\": \"mining.subscribe\", \"params\": [\"NerdMinerV2/%s\"]}\n", id,
+  sprintf(payload, "{\"id\": %lu, \"method\": \"mining.subscribe\", \"params\": [\"NerdMinerV2/%s\"]}\n", id,
           NERDMINER_VERSION);
 
   ESP_LOGD(TAG, "[STRATUM] ==> Mining subscribe");
@@ -118,7 +118,7 @@ bool tx_mining_auth(esphome::socket::Socket *client, const char *user, const cha
 
   // Authorize
   id = getNextId(id);
-  sprintf(payload, "{\"params\": [\"%s\", \"%s\"], \"id\": %u, \"method\": \"mining.authorize\"}\n", user, pass, id);
+  sprintf(payload, "{\"params\": [\"%s\", \"%s\"], \"id\": %lu, \"method\": \"mining.authorize\"}\n", user, pass, id);
 
   ESP_LOGD(TAG, "[STRATUM] ==> Autorize work");
   ESP_LOGD(TAG, " Sending: %s", payload);
@@ -175,7 +175,8 @@ bool parse_mining_notify(const std::string &line, mining_job &mJob) {
   mJob.coinb2 = doc["params"][3].as<std::string>();
   mJob.merkle_branch.clear();
   if (doc["params"][4].is<JsonArray>()) {
-    for (JsonVariant v : doc["params"][4].as<JsonArray>()) {
+    JsonArray branches = doc["params"][4].as<JsonArray>();
+    for (JsonVariant v : branches) {
       if (v.is<const char *>()) {
         mJob.merkle_branch.emplace_back(v.as<const char *>());
       }
@@ -218,7 +219,7 @@ bool tx_mining_submit(esphome::socket::Socket *client, const mining_subscribe &m
   id = getNextId(id);
   submit_id = id;
   snprintf(payload, sizeof(payload),
-           "{\"id\": %u, \"method\": \"mining.submit\", \"params\": [\"%s\",\"%s\",\"%s\",\"%s\",\"%08x\"]}\n", id,
+           "{\"id\": %lu, \"method\": \"mining.submit\", \"params\": [\"%s\",\"%s\",\"%s\",\"%s\",\"%08x\"]}\n", id,
            mWorker.wName, mJob.job_id.c_str(), mWorker.extranonce2.c_str(), mJob.ntime.c_str(), nonce);
   ESP_LOGD(TAG, " Sending: %s", payload);
   pool_send(client, std::string(payload));
@@ -250,7 +251,7 @@ bool tx_suggest_difficulty(esphome::socket::Socket *client, double difficulty) {
     return false;
 
   id = getNextId(id);
-  sprintf(payload, "{\"id\": %d, \"method\": \"mining.suggest_difficulty\", \"params\": [%.10g]}\n", id, difficulty);
+  sprintf(payload, "{\"id\": %lu, \"method\": \"mining.suggest_difficulty\", \"params\": [%.10g]}\n", id, difficulty);
 
   ESP_LOGD(TAG, " Sending: %s", payload);
   return pool_send(client, std::string(payload)) > 0;

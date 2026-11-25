@@ -28,7 +28,7 @@
 namespace esphome::music_leds {
 
 static const char *const TAG = "music_leds";
-static const char *const MUSIC_LEDS_VERSION = "2026.7.5";
+static const char *const MUSIC_LEDS_VERSION = "2026.11.1";
 
 enum PLAYMODE {
   MODE_BLURZ,
@@ -96,7 +96,7 @@ class MusicLeds final : public Component
 #endif
 {
  public:
-  ~MusicLeds() override;
+  ~MusicLeds();
 
   float get_setup_priority() const override { return setup_priority::LATE; }
 

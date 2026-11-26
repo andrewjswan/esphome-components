@@ -505,7 +505,7 @@ void minerWorkerHw(void *task_id) {
     while (remaining > 0 && s_job_version.load(std::memory_order_relaxed) == cached_version &&
            s_mining_running.load(std::memory_order_relaxed)) {
       uint32_t done = 0;
-      bool candidate = sha256_pipelined_mine(header_swapped, &nonce_swapped, remaining, &done, &active);
+      bool candidate = sha256_pipelined_mine(header_swapped, &nonce_swapped, remaining, &done, &s_hw_mining_active);
 
       s_hashes.fetch_add(done, std::memory_order_relaxed);
       remaining = (done < remaining) ? (remaining - done) : 0;

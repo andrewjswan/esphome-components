@@ -6,6 +6,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import ota, socket
 from esphome.const import CONF_ID
+from esphome.types import ConfigType
 
 _LOGGER = logging.getLogger(__name__)
 

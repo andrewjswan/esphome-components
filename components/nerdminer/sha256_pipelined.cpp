@@ -30,10 +30,12 @@ bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *n
   const uint32_t sha_pad = 0x80000000U;
   const uint32_t first_sha_bit_len = 0x00000280U;   // 640 bits (80-byte header)
   const uint32_t second_sha_bit_len = 0x00000100U;  // 256 bits (32-byte intermediate digest)
-  uint32_t remaining = max_iterations;
-  uint32_t found = 0;
 
-  // Register allocation inside Xtensa inline assembly:
+  // control_regs[0] = remaining iterations (in/out)
+  // control_regs[1] = candidate found flag (out: 1 if early-reject passed, 0 otherwise)
+  uint32_t loop_state[2] = {max_iterations, 0U};
+
+  // Register allocation inside Xtensa inline assembly (7 inputs + 6 clobbers = 13 regs, fits Xtensa window):
   //   a2 = current big-endian nonce
   //   a3, a4 = scratch registers
   //   a5 = SHA control register base (SHA_TEXT_BASE + 0x90: +0 START, +4 CONTINUE, +8 LOAD, +12 BUSY)
@@ -43,7 +45,7 @@ bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *n
       "l32i.n   a2,  %[nonce], 0     \n"
       "addi     a5,  %[sb], 0x90     \n"
       "movi.n   a8,  0               \n"
-      "mov      a9,  %[rem]          \n"
+      "l32i.n   a9,  %[state], 0     \n"
 
       "pipe_start:                   \n"
       // Load block 1 (first 64 bytes of header) into SHA_TEXT[0..15]
@@ -172,19 +174,20 @@ bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *n
       "j        pipe_end             \n"
 
       "pipe_found:                   \n"
-      "movi.n   %[found], 1          \n"
+      "movi.n   a3, 1                \n"
+      "s32i.n   a3, %[state], 4      \n"
 
       "pipe_end:                     \n"
       "s32i.n   a2, %[nonce], 0      \n"
-      "mov      %[rem], a9           \n"
-      : [rem] "+r"(remaining), [found] "+r"(found)
+      "s32i.n   a9, %[state], 0      \n"
+      :
       : [sb] "r"(sha_base), [in] "r"(header_swapped), [nonce] "r"(nonce_swapped),
-        [flag] "r"(mining_flag), [pad] "r"(sha_pad), [len1] "r"(first_sha_bit_len),
-        [len2] "r"(second_sha_bit_len)
+        [state] "r"(loop_state), [flag] "r"(mining_flag), [pad] "r"(sha_pad),
+        [len1] "r"(first_sha_bit_len), [len2] "r"(second_sha_bit_len)
       : "a2", "a3", "a4", "a5", "a8", "a9", "memory");
 
-  *hashes_done = max_iterations - remaining;
-  return found != 0;
+  *hashes_done = max_iterations - loop_state[0];
+  return loop_state[1] != 0U;
 }
 // clang-format on
 

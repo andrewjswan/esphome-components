@@ -12,6 +12,9 @@
 #include <mutex>
 #include <string.h>
 
+#include <lwip/netdb.h>
+#include <lwip/sockets.h>
+
 #include <esp_random.h>
 #include <hal/sha_hal.h>
 #include <hal/sha_ll.h>
@@ -37,6 +40,8 @@ constexpr uint32_t HW_BATCH_SIZE = 65536U;
 constexpr uint32_t SW_BATCH_SIZE = 4096U;
 constexpr uint32_t SW_YIELD_INTERVAL = 512U;
 constexpr uint32_t HW_YIELD_BATCHES = 16U;
+constexpr double DEFAULT_DIFFICULTY = 0.0014;
+constexpr uint32_t KEEPALIVE_TIME_MS = 30U * 60U * 1000U;
 
 struct ActiveJob {
   uint32_t version{0};

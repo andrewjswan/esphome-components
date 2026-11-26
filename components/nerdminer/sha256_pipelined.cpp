@@ -163,8 +163,8 @@ bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *n
       "l32i.n   a4, a5, 12           \n"
       "bnez.n   a4, pipe_wait5       \n"
 
-      // Early 16-bit reject: upper 16 bits of H0 are at offset 28 (little-endian low halfword)
-      "l16ui    a3, %[sb], 28        \n"
+      // Early 16-bit reject: H0 is at SHA_TEXT[0] (offset 0), upper 16 bits in low halfword
+      "l16ui    a3, %[sb], 0         \n"
       "beqz.n   a3, pipe_found       \n"
 
       // Stop if batch limit reached or mining_flag cleared

@@ -36,7 +36,11 @@ namespace esphome::nerdminer {
 
 namespace {
 
+#if defined(CONFIG_IDF_TARGET_ESP32)
 constexpr uint32_t HW_BATCH_SIZE = 65536U;
+#else
+constexpr uint32_t HW_BATCH_SIZE = 16384U;
+#endif
 constexpr uint32_t SW_BATCH_SIZE = 4096U;
 constexpr uint32_t SW_YIELD_INTERVAL = 512U;
 constexpr uint32_t HW_YIELD_BATCHES = 16U;

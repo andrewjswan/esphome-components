@@ -106,7 +106,7 @@ ssize_t pool_send(esphome::socket::Socket *sock, const std::string &data) {
       total_sent += sent;
       start_time = millis();
     } else if (sent < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINPROGRESS) {
         yield();
         if (millis() - start_time > 1500) {
           ESP_LOGD(TAG, "Send: Timeout (Socket buffer full)");

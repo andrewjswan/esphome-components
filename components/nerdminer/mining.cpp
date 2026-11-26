@@ -254,20 +254,25 @@ void runStratumWorker(void *name) {
         continue;
       }
 
-      uint32_t conn_start = millis();
       bool connected = false;
-      while (millis() - conn_start < 5000) {
-        int sock_err = 0;
-        socklen_t len = sizeof(sock_err);
-        if (client->getsockopt(SOL_SOCKET, SO_ERROR, &sock_err, &len) == 0 && sock_err == 0) {
-          struct sockaddr_storage peer{};
-          socklen_t peer_len = sizeof(peer);
-          if (client->getpeername(reinterpret_cast<struct sockaddr *>(&peer), &peer_len) == 0) {
+      int fd = client->get_fd();
+      if (fd >= 0) {
+        fd_set write_fds;
+        FD_ZERO(&write_fds);
+        FD_SET(fd, &write_fds);
+
+        struct timeval tv {};
+        tv.tv_sec = 5;
+        tv.tv_usec = 0;
+
+        int sel = lwip_select(fd + 1, nullptr, &write_fds, nullptr, &tv);
+        if (sel > 0 && FD_ISSET(fd, &write_fds)) {
+          int sock_err = 0;
+          socklen_t len = sizeof(sock_err);
+          if (client->getsockopt(SOL_SOCKET, SO_ERROR, &sock_err, &len) == 0 && sock_err == 0) {
             connected = true;
-            break;
           }
         }
-        vTaskDelay(50 / portTICK_PERIOD_MS);
       }
 
       if (!connected) {

@@ -79,8 +79,7 @@ std::atomic<double> s_best_diff{0.0};
 
 void update_best_diff(double candidate_diff) {
   double prev = s_best_diff.load(std::memory_order_relaxed);
-  while (candidate_diff > prev &&
-         !s_best_diff.compare_exchange_weak(prev, candidate_diff, std::memory_order_relaxed)) {
+  while (candidate_diff > prev && !s_best_diff.compare_exchange_weak(prev, candidate_diff, std::memory_order_relaxed)) {
   }
 }
 
@@ -155,9 +154,7 @@ void init_miner_sha() {
 #endif
 }
 
-void stopMining() {
-  s_mining_running.store(false, std::memory_order_release);
-}
+void stopMining() { s_mining_running.store(false, std::memory_order_release); }
 
 void runMonitor(void *name) {
   ESP_LOGD(TAG, "Starting %s", static_cast<char *>(name));
@@ -228,7 +225,7 @@ void runStratumWorker(void *name) {
 
       client->setblocking(false);
 
-      struct addrinfo hints {};
+      struct addrinfo hints{};
       hints.ai_family = AF_INET;
       hints.ai_socktype = SOCK_STREAM;
       struct addrinfo *res = nullptr;
@@ -263,7 +260,7 @@ void runStratumWorker(void *name) {
         int sock_err = 0;
         socklen_t len = sizeof(sock_err);
         if (client->getsockopt(SOL_SOCKET, SO_ERROR, &sock_err, &len) == 0 && sock_err == 0) {
-          struct sockaddr_storage peer {};
+          struct sockaddr_storage peer{};
           socklen_t peer_len = sizeof(peer);
           if (client->getpeername(reinterpret_cast<struct sockaddr *>(&peer), &peer_len) == 0) {
             connected = true;

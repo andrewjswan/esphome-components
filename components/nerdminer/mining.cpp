@@ -327,7 +327,7 @@ void runStratumWorker(void *name) {
       }
     }
 
-    if ((millis() - last_job_time) > KEEPALIVE_TIME_ms) {
+    if ((millis() - last_job_time) > KEEPALIVE_TIME_MS) {
       ESP_LOGD(TAG, "Keepalive timeout, reconnecting...");
       pool_close(client);
       is_subscribed = false;
@@ -418,7 +418,7 @@ void minerWorkerSw(void *task_id) {
       local_job = s_active_job;
       cached_version = local_job.version;
       nerd_mids(midstate, local_job.data.bytearray_blockheader);
-      nerd_bake(bake, local_job.data.bytearray_blockheader + 64);
+      nerd_sha256_bake(midstate, local_job.data.bytearray_blockheader + 64, bake);
     }
 
     uint32_t start_nonce = s_next_nonce.fetch_add(SW_BATCH_SIZE, std::memory_order_relaxed);
@@ -485,7 +485,7 @@ void minerWorkerHw(void *task_id) {
       }
 
       nerd_mids(sw_midstate, local_job.data.bytearray_blockheader);
-      nerd_bake(sw_bake, local_job.data.bytearray_blockheader + 64);
+      nerd_sha256_bake(sw_midstate, local_job.data.bytearray_blockheader + 64, sw_bake);
     }
 
     uint32_t start_nonce = s_next_nonce.fetch_add(HW_BATCH_SIZE, std::memory_order_relaxed);

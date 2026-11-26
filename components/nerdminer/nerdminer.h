@@ -44,10 +44,10 @@ class NerdMiner final : public Component
 #endif
 
  protected:
-  TaskHandle_t stratum_handle = nullptr;
-  TaskHandle_t monitor_handle = nullptr;
-  TaskHandle_t miner1_handle = nullptr;
-  TaskHandle_t miner2_handle = nullptr;
+  TaskHandle_t stratum_handle_{nullptr};
+  TaskHandle_t monitor_handle_{nullptr};
+  TaskHandle_t miner_hw_handle_{nullptr};
+  TaskHandle_t miner_sw_handle_{nullptr};
 
 };  // NerdMiner
 

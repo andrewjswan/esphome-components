@@ -68,6 +68,7 @@ ActiveJob s_active_job{};
 std::atomic<uint32_t> s_job_version{0};
 std::atomic<uint32_t> s_next_nonce{0};
 std::atomic<bool> s_mining_running{true};
+volatile bool s_hw_mining_active{true};
 
 std::mutex s_submit_mutex;
 std::deque<ShareSubmission> s_submit_queue;
@@ -154,7 +155,10 @@ void init_miner_sha() {
 #endif
 }
 
-void stopMining() { s_mining_running.store(false, std::memory_order_release); }
+void stopMining() {
+  s_hw_mining_active = false;
+  s_mining_running.store(false, std::memory_order_release);
+}
 
 void runMonitor(void *name) {
   ESP_LOGD(TAG, "Starting %s", static_cast<char *>(name));
@@ -189,6 +193,7 @@ void runMonitor(void *name) {
 void runStratumWorker(void *name) {
   ESP_LOGD(TAG, "Starting %s", static_cast<char *>(name));
 
+  s_hw_mining_active = true;
   s_mining_running.store(true, std::memory_order_release);
 
   unsigned long id = 1;
@@ -500,7 +505,6 @@ void minerWorkerHw(void *task_id) {
     while (remaining > 0 && s_job_version.load(std::memory_order_relaxed) == cached_version &&
            s_mining_running.load(std::memory_order_relaxed)) {
       uint32_t done = 0;
-      volatile bool active = true;
       bool candidate = sha256_pipelined_mine(header_swapped, &nonce_swapped, remaining, &done, &active);
 
       s_hashes.fetch_add(done, std::memory_order_relaxed);

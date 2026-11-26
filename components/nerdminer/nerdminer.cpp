@@ -55,25 +55,31 @@ void NerdMiner::start() {
 void NerdMiner::stop() {
   stopMining();
 
-  if (this->miner_hw_handle_ != nullptr) {
-    vTaskDelete(this->miner_hw_handle_);
-    this->miner_hw_handle_ = nullptr;
+  // Wait up to 500 ms for tasks to exit cleanly on their own (closing sockets & releasing HW)
+  for (int i = 0; i < 25; i++) {
+    bool any_running = false;
+    if (this->miner_hw_handle_ != nullptr && eTaskGetState(this->miner_hw_handle_) != eDeleted) {
+      any_running = true;
+    }
+    if (this->miner_sw_handle_ != nullptr && eTaskGetState(this->miner_sw_handle_) != eDeleted) {
+      any_running = true;
+    }
+    if (this->stratum_handle_ != nullptr && eTaskGetState(this->stratum_handle_) != eDeleted) {
+      any_running = true;
+    }
+    if (this->monitor_handle_ != nullptr && eTaskGetState(this->monitor_handle_) != eDeleted) {
+      any_running = true;
+    }
+    if (!any_running) {
+      break;
+    }
+    vTaskDelay(20 / portTICK_PERIOD_MS);
   }
 
-  if (this->miner_sw_handle_ != nullptr) {
-    vTaskDelete(this->miner_sw_handle_);
-    this->miner_sw_handle_ = nullptr;
-  }
-
-  if (this->stratum_handle_ != nullptr) {
-    vTaskDelete(this->stratum_handle_);
-    this->stratum_handle_ = nullptr;
-  }
-
-  if (this->monitor_handle_ != nullptr) {
-    vTaskDelete(this->monitor_handle_);
-    this->monitor_handle_ = nullptr;
-  }
+  this->miner_hw_handle_ = nullptr;
+  this->miner_sw_handle_ = nullptr;
+  this->stratum_handle_ = nullptr;
+  this->monitor_handle_ = nullptr;
 
   ESP_LOGCONFIG(TAG, "NerdMiner stopped.");
 }

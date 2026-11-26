@@ -261,7 +261,7 @@ void runStratumWorker(void *name) {
         FD_ZERO(&write_fds);
         FD_SET(fd, &write_fds);
 
-        struct timeval tv {};
+        struct timeval tv{};
         tv.tv_sec = 5;
         tv.tv_usec = 0;
 

@@ -78,11 +78,6 @@ bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSub
 }
 
 bool parse_mining_subscribe(const std::string &line, mining_subscribe &mSubscribe) {
-  if (!verifyPayload(line))
-    return false;
-  ESP_LOGD(TAG, " Receiving: %s", line.c_str());
-
-bool parse_mining_subscribe(const std::string &line, mining_subscribe &mSubscribe) {
   if (!verifyPayload(line)) {
     return false;
   }

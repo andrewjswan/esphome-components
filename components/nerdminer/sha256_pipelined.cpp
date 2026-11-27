@@ -31,8 +31,8 @@ bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *n
   const uint32_t first_sha_bit_len = 0x00000280U;   // 640 bits (80-byte header)
   const uint32_t second_sha_bit_len = 0x00000100U;  // 256 bits (32-byte intermediate digest)
 
-  // control_regs[0] = remaining iterations (in/out)
-  // control_regs[1] = candidate found flag (out: 1 if early-reject passed, 0 otherwise)
+  // loop_state[0] = remaining iterations (in/out)
+  // loop_state[1] = candidate found flag (out: 1 if early-reject passed, 0 otherwise)
   uint32_t loop_state[2] = {max_iterations, 0U};
 
   // Register allocation inside Xtensa inline assembly (7 inputs + 6 clobbers = 13 regs, fits Xtensa window):

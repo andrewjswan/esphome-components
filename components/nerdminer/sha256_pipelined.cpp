@@ -3,6 +3,8 @@
 #if defined(CONFIG_IDF_TARGET_ESP32)
 
 #include <esp_attr.h>
+
+#include <soc/dport_access.h>
 #include <soc/dport_reg.h>
 #include <soc/hwcrypto_reg.h>
 
@@ -163,7 +165,9 @@ bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *n
       "l32i.n   a4, a5, 12           \n"
       "bnez.n   a4, pipe_wait5       \n"
 
-      // Early 16-bit reject: read 32-bit word from DPORT SHA_TEXT (offset 28) and check low 16 bits
+      // Flush DPORT read bridge via APB register (0x3FF40078) before reading SHA_TEXT
+      "movi     a4, 0x3FF40078       \n"
+      "l32i.n   a4, a4, 0            \n"
       "l32i.n   a3, %[sb], 28        \n"
       "extui    a3, a3, 0, 16        \n"
       "beqz.n   a3, pipe_found       \n"
@@ -189,17 +193,17 @@ bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *n
 
   *hashes_done = max_iterations - loop_state[0];
   if (loop_state[1] != 0U) {
-    // Read final 32-byte digest directly from SHA_TEXT[0..7] in reverse word order with byte swap
-    // (identical to working nerd_sha_ll_read_digest_swap_if in main)
+    DPORT_INTERRUPT_DISABLE();
     auto *out_words = reinterpret_cast<uint32_t *>(hash_out);
-    out_words[0] = __builtin_bswap32(sha_base[7]);
-    out_words[1] = __builtin_bswap32(sha_base[6]);
-    out_words[2] = __builtin_bswap32(sha_base[5]);
-    out_words[3] = __builtin_bswap32(sha_base[4]);
-    out_words[4] = __builtin_bswap32(sha_base[3]);
-    out_words[5] = __builtin_bswap32(sha_base[2]);
-    out_words[6] = __builtin_bswap32(sha_base[1]);
-    out_words[7] = __builtin_bswap32(sha_base[0]);
+    out_words[0] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 7 * 4));
+    out_words[1] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 6 * 4));
+    out_words[2] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 5 * 4));
+    out_words[3] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 4 * 4));
+    out_words[4] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 3 * 4));
+    out_words[5] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 2 * 4));
+    out_words[6] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 1 * 4));
+    out_words[7] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 0 * 4));
+    DPORT_INTERRUPT_RESTORE();
     return true;
   }
   return false;

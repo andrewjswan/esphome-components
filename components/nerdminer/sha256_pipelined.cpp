@@ -187,23 +187,22 @@ bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *n
         [len1] "r"(first_sha_bit_len), [len2] "r"(second_sha_bit_len)
       : "a2", "a3", "a4", "a5", "a8", "a9", "memory");
 
-  *hashes_done = max_iterations - loop_state;
+  *hashes_done = max_iterations - loop_state[0];
   if (loop_state[1] != 0U) {
     // Read final 32-byte digest directly from SHA_TEXT[0..7] in reverse word order with byte swap
     // (identical to working nerd_sha_ll_read_digest_swap_if in main)
     auto *out_words = reinterpret_cast<uint32_t *>(hash_out);
-    out_words = __builtin_bswap32(sha_base);
-    out_words = __builtin_bswap32(sha_base);
-    out_words = __builtin_bswap32(sha_base);
-    out_words = __builtin_bswap32(sha_base);
-    out_words = __builtin_bswap32(sha_base);
-    out_words = __builtin_bswap32(sha_base);
-    out_words = __builtin_bswap32(sha_base);
-    out_words = __builtin_bswap32(sha_base);
+    out_words[0] = __builtin_bswap32(sha_base[0]);
+    out_words[1] = __builtin_bswap32(sha_base[1]);
+    out_words[2] = __builtin_bswap32(sha_base[2]);
+    out_words[3] = __builtin_bswap32(sha_base[3]);
+    out_words[4] = __builtin_bswap32(sha_base[4]);
+    out_words[5] = __builtin_bswap32(sha_base[5]);
+    out_words[6] = __builtin_bswap32(sha_base[6]);
+    out_words[7] = __builtin_bswap32(sha_base[7]);
     return true;
   }
   return false;
-
 }
 // clang-format on
 

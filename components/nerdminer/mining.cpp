@@ -174,8 +174,12 @@ void runMonitor(void *name) {
 
       uint32_t pending_hashes = s_hashes.load(std::memory_order_relaxed);
       uint32_t current_khashes = (Mhashes * 1000U) + (pending_hashes / 1000U);
-      elapsedKHs = current_khashes - totalKHashes;
-      totalKHashes = current_khashes;
+      if (current_khashes >= totalKHashes) {
+        elapsedKHs = current_khashes - totalKHashes;
+        totalKHashes = current_khashes;
+      } else {
+        elapsedKHs = 0;
+      }
 
       shares = s_shares.load(std::memory_order_relaxed);
       valids = s_valids.load(std::memory_order_relaxed);
@@ -360,8 +364,10 @@ void runStratumWorker(void *name) {
 
         case MINING_NOTIFY:
           if (parse_mining_notify(line, m_job)) {
-            uint32_t leftover = s_hashes.exchange(0, std::memory_order_relaxed);
-            Mhashes += leftover / 1000000U;
+            static uint32_t hash_remainder = 0;
+            uint32_t total_pending = hash_remainder + s_hashes.exchange(0, std::memory_order_relaxed);
+            Mhashes += total_pending / 1000000U;
+            hash_remainder = total_pending % 1000000U;
 
             m_miner_data = calculateMiningData(m_worker, m_job);
 

@@ -14,7 +14,7 @@ CODEOWNERS = ["@andrewjswan"]
 
 DEPENDENCIES = ["network"]
 
-AUTO_LOAD = ["socket"]
+AUTO_LOAD = ["json", "socket"]
 
 logging.info("Load NerdMiner component https://github.com/andrewjswan/esphome-components")
 logging.info("If you like the NerdMiner component, you can support it with a star ⭐ on GitHub.")

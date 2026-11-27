@@ -512,18 +512,17 @@ void minerWorkerHw(void *task_id) {
     while (remaining > 0 && s_job_version.load(std::memory_order_relaxed) == cached_version &&
            s_mining_running.load(std::memory_order_relaxed)) {
       uint32_t done = 0;
-      bool candidate = sha256_pipelined_mine(header_swapped, &nonce_swapped, remaining, &done, &s_hw_mining_active);
-
+      uint8_t verify_hash;
+      bool candidate =
+          sha256_pipelined_mine(header_swapped, &nonce_swapped, remaining, &done, verify_hash, &s_hw_mining_active);
+  
       s_hashes.fetch_add(done, std::memory_order_relaxed);
       remaining = (done < remaining) ? (remaining - done) : 0;
-
+  
       if (candidate) {
-        // Assembly incremented nonce_swapped before exiting on early-reject hit
         uint32_t candidate_nonce = __builtin_bswap32(nonce_swapped - 1U);
-        if (nerd_sha256d_baked_nonce(sw_midstate, candidate_nonce, sw_bake, verify_hash)) {
-          memcpy(local_job.data.bytearray_blockheader + 76, &candidate_nonce, sizeof(uint32_t));
-          record_candidate(local_job, verify_hash);
-        }
+        memcpy(local_job.data.bytearray_blockheader + 76, &candidate_nonce, sizeof(uint32_t));
+        record_candidate(local_job, verify_hash);
       }
 
       // Feed standard ESPHome IDLE WDT periodically without reconfiguring watchdog

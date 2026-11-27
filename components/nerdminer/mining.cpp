@@ -15,6 +15,7 @@
 #include <lwip/sockets.h>
 
 #include <esp_random.h>
+#include <mbedtls/sha256.h>
 
 #if defined(CONFIG_IDF_TARGET_ESP32)
 #include <sha/sha_parallel_engine.h>
@@ -42,7 +43,7 @@ constexpr uint32_t HW_BATCH_SIZE = 16384U;
 constexpr uint32_t SW_BATCH_SIZE = 4096U;
 constexpr uint32_t SW_YIELD_INTERVAL = 512U;
 constexpr uint32_t HW_YIELD_BATCHES = 16U;
-constexpr double DEFAULT_DIFFICULTY = 0.0014;
+constexpr double DEFAULT_DIFFICULTY = 0.00015;
 constexpr uint32_t KEEPALIVE_TIME_MS = 30U * 60U * 1000U;
 
 struct ActiveJob {
@@ -419,9 +420,14 @@ void minerWorkerSw(void *task_id) {
 
   ActiveJob local_job{};
   uint32_t cached_version = 0;
-  uint32_t midstate[8];
-  uint32_t bake[17];
+  uint8_t tail_and_nonce[16];
+  uint8_t inter_hash[32];
   uint8_t hash[32];
+
+  mbedtls_sha256_context base_ctx;
+  mbedtls_sha256_context work_ctx;
+  mbedtls_sha256_init(&base_ctx);
+  mbedtls_sha256_init(&work_ctx);
 
   while (s_mining_running.load(std::memory_order_acquire)) {
     uint32_t global_ver = s_job_version.load(std::memory_order_acquire);
@@ -431,11 +437,16 @@ void minerWorkerSw(void *task_id) {
     }
 
     if (global_ver != cached_version) {
-      std::lock_guard<std::mutex> lock(s_job_mutex);
-      local_job = s_active_job;
-      cached_version = local_job.version;
-      nerd_mids(midstate, local_job.data.bytearray_blockheader);
-      nerd_sha256_bake(midstate, local_job.data.bytearray_blockheader + 64, bake);
+      {
+        std::lock_guard<std::mutex> lock(s_job_mutex);
+        local_job = s_active_job;
+        cached_version = local_job.version;
+      }
+
+      // Precompute first 64-byte block state once per job
+      mbedtls_sha256_starts(&base_ctx, 0);
+      mbedtls_sha256_update(&base_ctx, local_job.data.bytearray_blockheader, 64);
+      memcpy(tail_and_nonce, local_job.data.bytearray_blockheader + 64, 12);
     }
 
     uint32_t start_nonce = s_next_nonce.fetch_add(SW_BATCH_SIZE, std::memory_order_relaxed);
@@ -448,8 +459,20 @@ void minerWorkerSw(void *task_id) {
         break;
       }
 
+      memcpy(tail_and_nonce + 12, &n, sizeof(uint32_t));
+
+      mbedtls_sha256_clone(&work_ctx, &base_ctx);
+      mbedtls_sha256_update(&work_ctx, tail_and_nonce, 16);
+      mbedtls_sha256_finish(&work_ctx, inter_hash);
+
+      mbedtls_sha256_starts(&work_ctx, 0);
+      mbedtls_sha256_update(&work_ctx, inter_hash, 32);
+      mbedtls_sha256_finish(&work_ctx, hash);
+
       batch_hashes++;
-      if (nerd_sha256d_baked_nonce(midstate, n, bake, hash)) {
+
+      // Early 16-bit check on upper bytes of little-endian 256-bit hash
+      if (hash[31] == 0 && hash[30] == 0) {
         memcpy(local_job.data.bytearray_blockheader + 76, &n, sizeof(uint32_t));
         record_candidate(local_job, hash);
       }
@@ -466,6 +489,8 @@ void minerWorkerSw(void *task_id) {
     }
   }
 
+  mbedtls_sha256_free(&work_ctx);
+  mbedtls_sha256_free(&base_ctx);
   vTaskDelete(nullptr);
 }
 
@@ -477,8 +502,6 @@ void minerWorkerHw(void *task_id) {
   ActiveJob local_job{};
   uint32_t cached_version = 0;
   uint32_t header_swapped[20];
-  uint32_t sw_midstate[8];
-  uint32_t sw_bake[17];
   uint8_t verify_hash[32];
   uint32_t yield_batches = 0;
 
@@ -500,9 +523,6 @@ void minerWorkerHw(void *task_id) {
       for (int i = 0; i < 20; i++) {
         header_swapped[i] = __builtin_bswap32(header_words[i]);
       }
-
-      nerd_mids(sw_midstate, local_job.data.bytearray_blockheader);
-      nerd_sha256_bake(sw_midstate, local_job.data.bytearray_blockheader + 64, sw_bake);
     }
 
     uint32_t start_nonce = s_next_nonce.fetch_add(HW_BATCH_SIZE, std::memory_order_relaxed);
@@ -512,7 +532,6 @@ void minerWorkerHw(void *task_id) {
     while (remaining > 0 && s_job_version.load(std::memory_order_relaxed) == cached_version &&
            s_mining_running.load(std::memory_order_relaxed)) {
       uint32_t done = 0;
-      uint8_t verify_hash;
       bool candidate =
           sha256_pipelined_mine(header_swapped, &nonce_swapped, remaining, &done, verify_hash, &s_hw_mining_active);
 

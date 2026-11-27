@@ -329,7 +329,6 @@ void runStratumWorker(void *name) {
       tx_mining_submit(client.get(), sub.worker, sub.job, sub.nonce, submit_id);
       ESP_LOGD(TAG, " - Current diff: %f", sub.diff);
       ESP_LOGD(TAG, " - Pool diff: %f", current_pool_difficulty);
-      ESP_LOGD(TAG, " - TX SHARE: ");
 
       s_shares.fetch_add(1, std::memory_order_relaxed);
       if (sub.valid_block) {

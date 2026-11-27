@@ -15,7 +15,7 @@ void sha256_pipelined_init() {
 
 // clang-format off
 bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *nonce_swapped, uint32_t max_iterations,
-                                     uint32_t *hashes_done, const volatile bool *mining_flag) {
+                                     uint32_t *hashes_done, uint8_t *hash_out, const volatile bool *mining_flag) {
   if (max_iterations == 0 || !*mining_flag) {
     *hashes_done = 0;
     return false;

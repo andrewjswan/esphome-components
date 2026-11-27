@@ -523,8 +523,7 @@ void minerWorkerHw(void *task_id) {
       }
     }
 
-    uint32_t start_nonce = s_next_nonce.fetch_add(HW_BATCH_SIZE, std::memory_order_relaxed);
-    uint32_t nonce_swapped = __builtin_bswap32(start_nonce);
+    uint32_t nonce_swapped = s_next_nonce.fetch_add(HW_BATCH_SIZE, std::memory_order_relaxed);
     uint32_t remaining = HW_BATCH_SIZE;
 
     while (remaining > 0 && s_job_version.load(std::memory_order_relaxed) == cached_version &&

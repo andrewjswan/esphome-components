@@ -100,7 +100,6 @@ void record_candidate(const ActiveJob &local_job, const uint8_t *hash) {
     if (s_submit_queue.size() < 16) {
       s_submit_queue.push_back(std::move(sub));
     }
-    ESP_LOGD_HEX(TAG, hash, 32, 32, " - TX SHARE HASH: %s");
   }
 }
 

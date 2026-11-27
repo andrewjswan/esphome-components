@@ -1,6 +1,5 @@
 #include "mining.h"
 #include "monitor.h"
-#include "nerdSHA256plus.h"
 #include "nerdminer.h"
 #include "stratum.h"
 #include "timeconst.h"

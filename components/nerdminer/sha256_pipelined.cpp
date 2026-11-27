@@ -3,7 +3,6 @@
 #if defined(CONFIG_IDF_TARGET_ESP32)
 
 #include <esp_attr.h>
-
 #include <soc/dport_access.h>
 #include <soc/dport_reg.h>
 #include <soc/hwcrypto_reg.h>
@@ -15,7 +14,6 @@ void sha256_pipelined_init() {
   DPORT_REG_CLR_BIT(DPORT_PERI_RST_EN_REG, DPORT_PERI_EN_SHA | DPORT_PERI_EN_SECUREBOOT);
 }
 
-// clang-format off
 bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *nonce_swapped, uint32_t max_iterations,
                                      uint32_t *hashes_done, uint8_t *hash_out, const volatile bool *mining_flag) {
   if (max_iterations == 0 || !*mining_flag) {
@@ -23,192 +21,87 @@ bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *n
     return false;
   }
 
-  // Ensure SHA peripheral clock is active
   if ((DPORT_REG_READ(DPORT_PERI_CLK_EN_REG) & DPORT_PERI_EN_SHA) == 0) {
     sha256_pipelined_init();
   }
 
-  volatile uint32_t *sha_base = reinterpret_cast<volatile uint32_t *>(SHA_TEXT_BASE);
-  const uint32_t sha_pad = 0x80000000U;
-  const uint32_t first_sha_bit_len = 0x00000280U;   // 640 bits (80-byte header)
-  const uint32_t second_sha_bit_len = 0x00000100U;  // 256 bits (32-byte intermediate digest)
+  volatile uint32_t *sha_text = reinterpret_cast<volatile uint32_t *>(SHA_TEXT_BASE);
+  uint32_t n_swapped = *nonce_swapped;
+  uint32_t count = 0;
 
-  // loop_state[0] = remaining iterations (in/out)
-  // loop_state[1] = candidate found flag (out: 1 if early-reject passed, 0 otherwise)
-  uint32_t loop_state[2] = {max_iterations, 0U};
+  while (count < max_iterations && *mining_flag) {
+    // 1. Load block 1 (first 64 bytes of pre-swapped header)
+    for (int i = 0; i < 16; ++i) {
+      sha_text[i] = header_swapped[i];
+    }
+    DPORT_REG_WRITE(SHA_256_START_REG, 1);
+    while (DPORT_REG_READ(SHA_256_BUSY_REG) != 0) {
+    }
 
-  // Register allocation inside Xtensa inline assembly (7 inputs + 6 clobbers = 13 regs, fits Xtensa window):
-  //   a2 = current big-endian nonce
-  //   a3, a4 = scratch registers
-  //   a5 = SHA control register base (SHA_TEXT_BASE + 0x90: +0 START, +4 CONTINUE, +8 LOAD, +12 BUSY)
-  //   a8 = constant 0 for unrolled padding stores
-  //   a9 = remaining iteration counter
-  __asm__ __volatile__(
-      "l32i.n   a2,  %[nonce], 0     \n"
-      "addi     a5,  %[sb], 0x90     \n"
-      "movi.n   a8,  0               \n"
-      "l32i.n   a9,  %[state], 0     \n"
+    // 2. Load block 2 (remaining 12 bytes + swapped nonce + SHA-256 padding)
+    sha_text[0] = header_swapped[16];
+    sha_text[1] = header_swapped[17];
+    sha_text[2] = header_swapped[18];
+    sha_text[3] = n_swapped;
+    sha_text[4] = 0x80000000U;
+    for (int i = 5; i < 15; ++i) {
+      sha_text[i] = 0U;
+    }
+    sha_text[15] = 0x00000280U;
 
-      "pipe_start:                   \n"
-      // Load block 1 (first 64 bytes of header) into SHA_TEXT[0..15]
-      "l32i.n   a3,  %[in],  0       \n"
-      "s32i.n   a3,  %[sb],  0       \n"
-      "l32i.n   a3,  %[in],  4       \n"
-      "s32i.n   a3,  %[sb],  4       \n"
-      "l32i.n   a3,  %[in],  8       \n"
-      "s32i.n   a3,  %[sb],  8       \n"
-      "l32i.n   a3,  %[in], 12       \n"
-      "s32i.n   a3,  %[sb], 12       \n"
-      "l32i.n   a3,  %[in], 16       \n"
-      "s32i.n   a3,  %[sb], 16       \n"
-      "l32i.n   a3,  %[in], 20       \n"
-      "s32i.n   a3,  %[sb], 20       \n"
-      "l32i.n   a3,  %[in], 24       \n"
-      "s32i.n   a3,  %[sb], 24       \n"
-      "l32i.n   a3,  %[in], 28       \n"
-      "s32i.n   a3,  %[sb], 28       \n"
-      "l32i.n   a3,  %[in], 32       \n"
-      "s32i.n   a3,  %[sb], 32       \n"
-      "l32i.n   a3,  %[in], 36       \n"
-      "s32i.n   a3,  %[sb], 36       \n"
-      "l32i.n   a3,  %[in], 40       \n"
-      "s32i.n   a3,  %[sb], 40       \n"
-      "l32i.n   a3,  %[in], 44       \n"
-      "s32i.n   a3,  %[sb], 44       \n"
-      "l32i.n   a3,  %[in], 48       \n"
-      "s32i.n   a3,  %[sb], 48       \n"
-      "l32i.n   a3,  %[in], 52       \n"
-      "s32i.n   a3,  %[sb], 52       \n"
-      "l32i.n   a3,  %[in], 56       \n"
-      "s32i.n   a3,  %[sb], 56       \n"
-      "l32i.n   a3,  %[in], 60       \n"
-      "s32i.n   a3,  %[sb], 60       \n"
+    DPORT_REG_WRITE(SHA_256_CONTINUE_REG, 1);
+    while (DPORT_REG_READ(SHA_256_BUSY_REG) != 0) {
+    }
 
-      // Trigger SHA_START on block 1
-      "movi.n   a3, 1                \n"
-      "s32i.n   a3, a5, 0            \n"
-      "memw                          \n"
+    DPORT_REG_WRITE(SHA_256_LOAD_REG, 1);
+    while (DPORT_REG_READ(SHA_256_BUSY_REG) != 0) {
+    }
 
-      // Pipeline: load block 2 (tail + nonce + SHA-256 padding) while hardware hashes block 1
-      "l32i     a3,  %[in], 64       \n"
-      "s32i.n   a3,  %[sb],  0       \n"
-      "l32i     a3,  %[in], 68       \n"
-      "s32i.n   a3,  %[sb],  4       \n"
-      "l32i     a3,  %[in], 72       \n"
-      "s32i.n   a3,  %[sb],  8       \n"
-      "s32i.n   a2,  %[sb], 12       \n"
-      "s32i.n   %[pad], %[sb], 16    \n"
-      "s32i.n   a8,  %[sb], 20       \n"
-      "s32i.n   a8,  %[sb], 24       \n"
-      "s32i.n   a8,  %[sb], 28       \n"
-      "s32i.n   a8,  %[sb], 32       \n"
-      "s32i.n   a8,  %[sb], 36       \n"
-      "s32i.n   a8,  %[sb], 40       \n"
-      "s32i.n   a8,  %[sb], 44       \n"
-      "s32i.n   a8,  %[sb], 48       \n"
-      "s32i.n   a8,  %[sb], 52       \n"
-      "s32i.n   a8,  %[sb], 56       \n"
-      "s32i.n   %[len1], %[sb], 60   \n"
+    // 3. Second SHA-256 on 32-byte intermediate digest already loaded in SHA_TEXT[0..7]
+    sha_text[8] = 0x80000000U;
+    for (int i = 9; i < 15; ++i) {
+      sha_text[i] = 0U;
+    }
+    sha_text[15] = 0x00000100U;
 
-      // Wait for block 1 completion
-      "pipe_wait1:                   \n"
-      "l32i.n   a3, a5, 12           \n"
-      "bnez.n   a3, pipe_wait1       \n"
+    DPORT_REG_WRITE(SHA_256_START_REG, 1);
+    while (DPORT_REG_READ(SHA_256_BUSY_REG) != 0) {
+    }
 
-      // Trigger SHA_CONTINUE on block 2
-      "movi.n   a3, 1                \n"
-      "s32i.n   a3, a5, 4            \n"
-      "memw                          \n"
+    DPORT_REG_WRITE(SHA_256_LOAD_REG, 1);
+    while (DPORT_REG_READ(SHA_256_BUSY_REG) != 0) {
+    }
 
-      // Wait for block 2 completion
-      "pipe_wait2:                   \n"
-      "l32i.n   a4, a5, 12           \n"
-      "bnez.n   a4, pipe_wait2       \n"
+    // Increment big-endian nonce (keep contract: candidate is *nonce_swapped - 1)
+    n_swapped++;
+    count++;
 
-      // Trigger SHA_LOAD to copy intermediate digest into SHA_TEXT[0..7]
-      "movi.n   a4, 1                \n"
-      "s32i.n   a4, a5, 8            \n"
-      "memw                          \n"
-
-      // Increment nonce while waiting for SHA_LOAD
-      "addi.n   a2, a2, 1            \n"
-
-      // Wait for intermediate load
-      "pipe_wait3:                   \n"
-      "l32i.n   a4, a5, 12           \n"
-      "bnez.n   a4, pipe_wait3       \n"
-
-      // Append double-SHA padding (words 9..14 remain zero from block 2)
-      "s32i.n   %[pad], %[sb], 32    \n"
-      "s32i.n   %[len2], %[sb], 60   \n"
-
-      // Trigger SHA_START for second SHA-256
-      "movi.n   a4, 1                \n"
-      "s32i.n   a4, a5, 0            \n"
-      "memw                          \n"
-
-      // Decrement batch counter while second SHA runs
-      "addi.n   a9, a9, -1           \n"
-
-      // Wait for second SHA completion
-      "pipe_wait4:                   \n"
-      "l32i.n   a4, a5, 12           \n"
-      "bnez.n   a4, pipe_wait4       \n"
-
-      // Trigger SHA_LOAD to read final digest into SHA_TEXT[0..7]
-      "movi.n   a3, 1                \n"
-      "s32i.n   a3, a5, 8            \n"
-      "memw                          \n"
-
-      // Wait for final load
-      "pipe_wait5:                   \n"
-      "l32i.n   a4, a5, 12           \n"
-      "bnez.n   a4, pipe_wait5       \n"
-
-      // Flush DPORT read bridge via APB register (0x3FF40078) before reading SHA_TEXT
-      "movi     a4, 0x3FF40078       \n"
-      "l32i.n   a4, a4, 0            \n"
-      "l32i.n   a3, %[sb], 28        \n"
-      "extui    a3, a3, 0, 16        \n"
-      "beqz.n   a3, pipe_found       \n"
-
-      // Stop if batch limit reached or mining_flag cleared
-      "beqz.n   a9, pipe_end         \n"
-      "l8ui     a3, %[flag], 0       \n"
-      "bnez.n   a3, pipe_start       \n"
-      "j        pipe_end             \n"
-
-      "pipe_found:                   \n"
-      "movi.n   a3, 1                \n"
-      "s32i.n   a3, %[state], 4      \n"
-
-      "pipe_end:                     \n"
-      "s32i.n   a2, %[nonce], 0      \n"
-      "s32i.n   a9, %[state], 0      \n"
-      :
-      : [sb] "r"(sha_base), [in] "r"(header_swapped), [nonce] "r"(nonce_swapped),
-        [state] "r"(loop_state), [flag] "r"(mining_flag), [pad] "r"(sha_pad),
-        [len1] "r"(first_sha_bit_len), [len2] "r"(second_sha_bit_len)
-      : "a2", "a3", "a4", "a5", "a8", "a9", "memory");
-
-  *hashes_done = max_iterations - loop_state[0];
-  if (loop_state[1] != 0U) {
+    // 4. Read H0 safely via DPORT_SEQUENCE_REG_READ and check upper 16 bits
     DPORT_INTERRUPT_DISABLE();
-    auto *out_words = reinterpret_cast<uint32_t *>(hash_out);
-    out_words[0] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 7 * 4));
-    out_words[1] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 6 * 4));
-    out_words[2] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 5 * 4));
-    out_words[3] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 4 * 4));
-    out_words[4] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 3 * 4));
-    out_words[5] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 2 * 4));
-    out_words[6] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 1 * 4));
-    out_words[7] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 0 * 4));
+    uint32_t fin = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 7 * 4);
+    if ((fin & 0xFFFFU) == 0U) {
+      auto *out_words = reinterpret_cast<uint32_t *>(hash_out);
+      out_words[7] = __builtin_bswap32(fin);
+      out_words[0] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 0 * 4));
+      out_words[1] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 1 * 4));
+      out_words[2] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 2 * 4));
+      out_words[3] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 3 * 4));
+      out_words[4] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 4 * 4));
+      out_words[5] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 5 * 4));
+      out_words[6] = __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 6 * 4));
+      DPORT_INTERRUPT_RESTORE();
+
+      *nonce_swapped = n_swapped;
+      *hashes_done = count;
+      return true;
+    }
     DPORT_INTERRUPT_RESTORE();
-    return true;
   }
+
+  *nonce_swapped = n_swapped;
+  *hashes_done = count;
   return false;
 }
-// clang-format on
 
 }  // namespace esphome::nerdminer
 

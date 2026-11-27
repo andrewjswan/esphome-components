@@ -25,7 +25,6 @@ bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *n
     sha256_pipelined_init();
   }
 
-  volatile uint32_t *sha_text = reinterpret_cast<volatile uint32_t *>(SHA_TEXT_BASE);
   uint32_t n_swapped = *nonce_swapped;
   uint32_t count = 0;
 

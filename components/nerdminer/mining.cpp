@@ -515,10 +515,10 @@ void minerWorkerHw(void *task_id) {
       uint8_t verify_hash;
       bool candidate =
           sha256_pipelined_mine(header_swapped, &nonce_swapped, remaining, &done, verify_hash, &s_hw_mining_active);
-  
+
       s_hashes.fetch_add(done, std::memory_order_relaxed);
       remaining = (done < remaining) ? (remaining - done) : 0;
-  
+
       if (candidate) {
         uint32_t candidate_nonce = __builtin_bswap32(nonce_swapped - 1U);
         memcpy(local_job.data.bytearray_blockheader + 76, &candidate_nonce, sizeof(uint32_t));

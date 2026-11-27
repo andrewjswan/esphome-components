@@ -4,16 +4,17 @@ import logging
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import ota
+from esphome.components import ota, socket
 from esphome.const import CONF_ID
+from esphome.types import ConfigType
 
 _LOGGER = logging.getLogger(__name__)
 
 CODEOWNERS = ["@andrewjswan"]
 
-DEPENDENCIES = ["wifi", "http_request"]
+DEPENDENCIES = ["network"]
 
-AUTO_LOAD = ["nerdminer"]
+AUTO_LOAD = ["json", "socket"]
 
 logging.info("Load NerdMiner component https://github.com/andrewjswan/esphome-components")
 logging.info("If you like the NerdMiner component, you can support it with a star ⭐ on GitHub.")
@@ -38,7 +39,14 @@ NERDMINER_SCHEMA = cv.Schema(
     },
 )
 
-CONFIG_SCHEMA = cv.All(NERDMINER_SCHEMA)
+
+def _consume_sockets(config: ConfigType) -> ConfigType:
+    """Register socket need for NerdMiner component."""
+    socket.consume_sockets(1, "nerdminer")(config)
+    return config
+
+
+CONFIG_SCHEMA = cv.All(NERDMINER_SCHEMA, _consume_sockets, cv.only_on_esp32)
 
 
 async def to_code(config) -> None:

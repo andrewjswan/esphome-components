@@ -1,17 +1,15 @@
+#include <cstdio>
+#include <cstring>
+
 #include "stratum.h"
-#include "utils.h"
 #include "nerdminer.h"
+#include "utils.h"
 
-#include "lwip/sockets.h"
+#include "esphome/components/json/json_util.h"
 #include "esphome/core/log.h"
-
-#include <ArduinoJson.h>
-#include <string.h>
-#include <stdio.h>
 
 namespace esphome::nerdminer {
 
-JsonDocument doc;
 unsigned long id = 1;
 
 // Get next JSON RPC Id
@@ -29,14 +27,15 @@ bool verifyPayload(const std::string &line) {
   return line.find_first_not_of(whitespace) != std::string::npos;
 }
 
-bool checkError(const JsonDocument &doc) {
-  if (!doc["error"].is<JsonVariant>())
+bool checkError(JsonObject doc) {
+  if (!doc["error"].is<JsonVariant>() || doc["error"].isNull()) {
     return false;
-  if (doc["error"].size() == 0)
+  }
+  if (doc["error"].size() == 0) {
     return false;
+  }
 
-  ESP_LOGE(TAG, "ERROR: %d | reason: %s \n", (int) doc["error"][0], (const char *) doc["error"][1]);
-
+  ESP_LOGE(TAG, "ERROR: %d | reason: %s", (int) doc["error"][0], doc["error"][1].as<const char *>());
   return true;
 }
 
@@ -73,29 +72,27 @@ bool tx_mining_subscribe(esphome::socket::Socket *client, mining_subscribe &mSub
   if ((mSubscribe.extranonce1.length() == 0)) {
     ESP_LOGD(TAG, "[STRATUM] >>>>>>>>> Work aborted.");
     ESP_LOGD(TAG, "  extranonce1 length: %u", mSubscribe.extranonce1.length());
-    doc.clear();
     return false;
   }
   return true;
 }
 
 bool parse_mining_subscribe(const std::string &line, mining_subscribe &mSubscribe) {
-  if (!verifyPayload(line))
+  if (!verifyPayload(line)) {
     return false;
+  }
   ESP_LOGD(TAG, " Receiving: %s", line.c_str());
 
-  DeserializationError error = deserializeJson(doc, line);
+  return esphome::json::parse_json(line, [&](JsonObject root) -> bool {
+    if (checkError(root) || !root["result"].is<JsonVariant>()) {
+      return false;
+    }
 
-  if (error || checkError(doc))
-    return false;
-  if (!doc["result"].is<JsonVariant>())
-    return false;
-
-  mSubscribe.sub_details = doc["result"][0][0][1].as<std::string>();
-  mSubscribe.extranonce1 = doc["result"][1].as<std::string>();
-  mSubscribe.extranonce2_size = doc["result"][2];
-
-  return true;
+    mSubscribe.sub_details = root["result"][0][0][1].as<std::string>();
+    mSubscribe.extranonce1 = root["result"][1].as<std::string>();
+    mSubscribe.extranonce2_size = root["result"][2];
+    return true;
+  });
 }
 
 mining_subscribe init_mining_subscribe(void) {
@@ -137,24 +134,28 @@ stratum_method parse_mining_method(const std::string &line) {
     return STRATUM_PARSE_ERROR;
   ESP_LOGD(TAG, " Receiving: %s", line.c_str());
 
-  DeserializationError error = deserializeJson(doc, line);
-  if (error || checkError(doc))
-    return STRATUM_PARSE_ERROR;
+  stratum_method result = STRATUM_PARSE_ERROR;
+  esphome::json::parse_json(line, [&](JsonObject root) -> bool {
+    if (checkError(root)) {
+      result = STRATUM_PARSE_ERROR;
+      return false;
+    }
 
-  if (!doc["method"].is<JsonVariant>()) {
-    // "error":null means success
-    if (doc["error"].isNull())
-      return STRATUM_SUCCESS;
-    else
-      return STRATUM_UNKNOWN;
-  }
-  stratum_method result = STRATUM_UNKNOWN;
+    if (!root["method"].is<JsonVariant>()) {
+      result = root["error"].isNull() ? STRATUM_SUCCESS : STRATUM_UNKNOWN;
+      return true;
+    }
 
-  if (strcmp("mining.notify", (const char *) doc["method"]) == 0) {
-    result = MINING_NOTIFY;
-  } else if (strcmp("mining.set_difficulty", (const char *) doc["method"]) == 0) {
-    result = MINING_SET_DIFFICULTY;
-  }
+    const char *method = root["method"].as<const char *>();
+    if (method != nullptr && strcmp("mining.notify", method) == 0) {
+      result = MINING_NOTIFY;
+    } else if (method != nullptr && strcmp("mining.set_difficulty", method) == 0) {
+      result = MINING_SET_DIFFICULTY;
+    } else {
+      result = STRATUM_UNKNOWN;
+    }
+    return true;
+  });
 
   return result;
 }
@@ -164,49 +165,33 @@ bool parse_mining_notify(const std::string &line, mining_job &mJob) {
   if (!verifyPayload(line))
     return false;
 
-  DeserializationError error = deserializeJson(doc, line);
-  if (error)
-    return false;
-  if (!doc["params"].is<JsonVariant>())
-    return false;
+  return esphome::json::parse_json(line, [&](JsonObject root) -> bool {
+    if (checkError(root) || !root["params"].is<JsonVariant>()) {
+      return false;
+    }
 
-  mJob.job_id = doc["params"][0].as<std::string>();
-  mJob.prev_block_hash = doc["params"][1].as<std::string>();
-  mJob.coinb1 = doc["params"][2].as<std::string>();
-  mJob.coinb2 = doc["params"][3].as<std::string>();
-  mJob.merkle_branch.clear();
-  if (doc["params"][4].is<JsonArray>()) {
-    JsonArray branches = doc["params"][4].as<JsonArray>();
-    for (JsonVariant v : branches) {
-      if (v.is<const char *>()) {
-        mJob.merkle_branch.emplace_back(v.as<const char *>());
+    mJob.job_id = root["params"][0].as<std::string>();
+    mJob.prev_block_hash = root["params"][1].as<std::string>();
+    mJob.coinb1 = root["params"][2].as<std::string>();
+    mJob.coinb2 = root["params"][3].as<std::string>();
+
+    mJob.merkle_branch.clear();
+    if (root["params"][4].is<JsonArray>()) {
+      JsonArray branches = root["params"][4].as<JsonArray>();
+      for (JsonVariant v : branches) {
+        if (!v.isNull()) {
+          mJob.merkle_branch.push_back(v.as<std::string>());
+        }
       }
     }
-  }
-  mJob.version = doc["params"][5].as<std::string>();
-  mJob.nbits = doc["params"][6].as<std::string>();
-  mJob.ntime = doc["params"][7].as<std::string>();
-  mJob.clean_jobs = doc["params"][8];  // bool
+    ESP_LOGD(TAG, "  merkle_branch size: %zu", mJob.merkle_branch.size());
 
-#ifdef DEBUG_MINING
-  ESP_LOGD(TAG, "  job_id: %s", mJob.job_id.c_str());
-  ESP_LOGD(TAG, "  prevhash: %s", mJob.prev_block_hash.c_str());
-  ESP_LOGD(TAG, "  coinb1: %s", mJob.coinb1.c_str());
-  ESP_LOGD(TAG, "  coinb2: %s", mJob.coinb2.c_str());
-  ESP_LOGD(TAG, "  merkle_branch size: %d", mJob.merkle_branch.size());
-  ESP_LOGD(TAG, "  version: %s", mJob.version.c_str());
-  ESP_LOGD(TAG, "  nbits: %s", mJob.nbits.c_str());
-  ESP_LOGD(TAG, "  ntime: %s", mJob.ntime.c_str());
-  ESP_LOGD(TAG, "  clean_jobs: %s", YESNO(mJob.clean_jobs));
-#endif
-
-  // Check if parameters where correctly received
-  if (checkError(doc)) {
-    ESP_LOGD(TAG, "[STRATUM] >>>>>>>>> Work aborted.");
-    return false;
-  }
-
-  return true;
+    mJob.version = root["params"][5].as<std::string>();
+    mJob.nbits = root["params"][6].as<std::string>();
+    mJob.ntime = root["params"][7].as<std::string>();
+    mJob.clean_jobs = root["params"][8];
+    return true;
+  });
 }
 
 bool tx_mining_submit(esphome::socket::Socket *client, const mining_subscribe &mWorker, const mining_job &mJob,
@@ -233,16 +218,15 @@ bool parse_mining_set_difficulty(const std::string &line, double &difficulty) {
   if (!verifyPayload(line))
     return false;
 
-  DeserializationError error = deserializeJson(doc, line);
-  if (error)
-    return false;
-  if (!doc["params"].is<JsonVariant>())
-    return false;
+  return esphome::json::parse_json(line, [&](JsonObject root) -> bool {
+    if (checkError(root) || !root["params"].is<JsonVariant>()) {
+      return false;
+    }
 
-  difficulty = (double) doc["params"][0];
-  ESP_LOGD(TAG, "  difficulty: %f", difficulty);
-
-  return true;
+    difficulty = root["params"][0].as<double>();
+    ESP_LOGD(TAG, "  difficulty: %f", difficulty);
+    return true;
+  });
 }
 
 bool tx_suggest_difficulty(esphome::socket::Socket *client, double difficulty) {
@@ -260,19 +244,14 @@ bool tx_suggest_difficulty(esphome::socket::Socket *client, double difficulty) {
 }
 
 unsigned long parse_extract_id(const std::string &line) {
-  DeserializationError error = deserializeJson(doc, line);
-  if (error) {
-    return 0;
-  }
-
-  if (doc["id"].isNull()) {
-    return 0;
-  }
-  if (!doc["id"].is<unsigned long>()) {
-    return 0;
-  }
-
-  return doc["id"].as<unsigned long>();
+  unsigned long extracted_id = 0;
+  esphome::json::parse_json(line, [&](JsonObject root) -> bool {
+    if (!root["id"].isNull() && root["id"].is<unsigned long>()) {
+      extracted_id = root["id"].as<unsigned long>();
+    }
+    return true;
+  });
+  return extracted_id;
 }
 
 }  // namespace esphome::nerdminer

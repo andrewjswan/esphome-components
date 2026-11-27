@@ -1,11 +1,11 @@
 #pragma once
 
-#include "esphome/components/socket/socket.h"
-#include "esphome/components/wifi/wifi_component.h"
-
+#include <cstdint>
+#include <string>
 #include <vector>
-#include <stdint.h>
-#include <ArduinoJson.h>
+
+#include "esphome/components/json/json_util.h"
+#include "esphome/components/socket/socket.h"
 
 namespace esphome::nerdminer {
 
@@ -48,7 +48,7 @@ typedef enum {
 
 unsigned long getNextId(unsigned long id);
 bool verifyPayload(const std::string &line);
-bool checkError(const JsonDocument &doc);
+bool checkError(JsonObject doc);
 
 // Method Mining.Subscribe
 mining_subscribe init_mining_subscribe(void);

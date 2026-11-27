@@ -14,7 +14,7 @@ namespace esphome::nerdminer {
 
 static const char *const TAG = "nerdminer";
 static const char *const NERDMINER_CLIENT = "NerdMinerV2";
-static const char *const NERDMINER_VERSION = ESPHOME_VERSION "-1.7.0";
+static const char *const NERDMINER_VERSION = ESPHOME_VERSION "-2.0.0";
 
 class NerdMiner final : public Component
 #ifdef USE_OTA_STATE_LISTENER
@@ -44,10 +44,10 @@ class NerdMiner final : public Component
 #endif
 
  protected:
-  TaskHandle_t stratum_handle = nullptr;
-  TaskHandle_t monitor_handle = nullptr;
-  TaskHandle_t miner1_handle = nullptr;
-  TaskHandle_t miner2_handle = nullptr;
+  TaskHandle_t stratum_handle_{nullptr};
+  TaskHandle_t monitor_handle_{nullptr};
+  TaskHandle_t miner_hw_handle_{nullptr};
+  TaskHandle_t miner_sw_handle_{nullptr};
 
 };  // NerdMiner
 

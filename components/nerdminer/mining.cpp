@@ -1,36 +1,34 @@
 #include "mining.h"
-#include "nerdminer.h"
-#include "nerdSHA256plus.h"
-#include "stratum.h"
 #include "monitor.h"
-#include "utils.h"
+#include "nerdSHA256plus.h"
+#include "nerdminer.h"
+#include "stratum.h"
 #include "timeconst.h"
+#include "utils.h"
 
-#include <ArduinoJson.h>
 #include <atomic>
+#include <cstring>
 #include <deque>
 #include <mutex>
-#include <string.h>
 
 #include <lwip/netdb.h>
 #include <lwip/sockets.h>
 
 #include <esp_random.h>
-#include <hal/sha_hal.h>
-#include <hal/sha_ll.h>
 
 #if defined(CONFIG_IDF_TARGET_ESP32)
 #include <sha/sha_parallel_engine.h>
 #include "sha256_pipelined.h"
 #elif defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
+#include <hal/sha_hal.h>
+#include <hal/sha_ll.h>
 #include <sha/sha_dma.h>
 #endif
 
-#include "esphome/core/hal.h"
-#include "esphome/core/helpers.h"
-#include "esphome/core/log.h"
 #include "esphome/components/network/util.h"
 #include "esphome/components/socket/socket.h"
+#include "esphome/core/hal.h"
+#include "esphome/core/log.h"
 
 namespace esphome::nerdminer {
 

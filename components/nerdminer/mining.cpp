@@ -100,6 +100,7 @@ void record_candidate(const ActiveJob &local_job, const uint8_t *hash) {
     if (s_submit_queue.size() < 16) {
       s_submit_queue.push_back(std::move(sub));
     }
+    ESP_LOGD_HEX(TAG, hash, 32, 32, " - TX SHARE HASH: %s");
   }
 }
 
@@ -367,7 +368,6 @@ void runStratumWorker(void *name) {
             Mhashes += total_pending / 1000000U;
             hash_remainder = total_pending % 1000000U;
 
-            mining_subscribe worker_for_job = m_worker;
             m_miner_data = calculateMiningData(m_worker, m_job);
             m_job.coinb1.clear();
             m_job.coinb2.clear();
@@ -376,7 +376,7 @@ void runStratumWorker(void *name) {
             {
               std::lock_guard<std::mutex> lock(s_job_mutex);
               s_active_job.version++;
-              s_active_job.worker = worker_for_job;
+              s_active_job.worker = m_worker;
               s_active_job.job = m_job;
               s_active_job.data = m_miner_data;
               s_active_job.pool_difficulty = current_pool_difficulty;

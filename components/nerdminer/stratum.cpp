@@ -1,13 +1,12 @@
+#include <cstdio>
+#include <cstring>
+
 #include "stratum.h"
-#include "utils.h"
 #include "nerdminer.h"
+#include "utils.h"
 
-#include "lwip/sockets.h"
+#include "esphome/components/json/json_util.h"
 #include "esphome/core/log.h"
-
-#include <ArduinoJson.h>
-#include <string.h>
-#include <stdio.h>
 
 namespace esphome::nerdminer {
 

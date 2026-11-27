@@ -29,8 +29,8 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
+#include "esphome/components/network/util.h"
 #include "esphome/components/socket/socket.h"
-#include "esphome/components/wifi/wifi_component.h"
 
 namespace esphome::nerdminer {
 
@@ -213,7 +213,7 @@ void runStratumWorker(void *name) {
   bool is_subscribed = false;
 
   while (s_mining_running.load(std::memory_order_acquire)) {
-    if (!esphome::wifi::global_wifi_component->is_connected()) {
+    if (!esphome::network::is_connected()) {
       mMonitor.NerdStatus = NM_Connecting;
       vTaskDelay(1000 / portTICK_PERIOD_MS);
       continue;

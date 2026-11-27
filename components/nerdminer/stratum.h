@@ -48,7 +48,7 @@ typedef enum {
 
 unsigned long getNextId(unsigned long id);
 bool verifyPayload(const std::string &line);
-bool checkError(const JsonDocument &doc);
+bool checkError(JsonObject doc);
 
 // Method Mining.Subscribe
 mining_subscribe init_mining_subscribe(void);

@@ -25,11 +25,12 @@ void sha256_pipelined_init();
  * @param nonce_swapped  In/out big-endian nonce value.
  * @param max_iterations Maximum hashes to compute before returning to caller.
  * @param hashes_done    Output count of double-hashes completed in this call.
+ * @param hash_out       Output buffer (32 bytes) receiving the little-endian final digest when true is returned.
  * @param mining_flag    Pointer to active flag; loop aborts if false.
  * @return true if a 16-bit early-reject candidate was found, false otherwise.
  */
 bool sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *nonce_swapped, uint32_t max_iterations,
-                           uint32_t *hashes_done, const volatile bool *mining_flag);
+                           uint32_t *hashes_done, uint8_t *hash_out, const volatile bool *mining_flag);
 
 }  // namespace esphome::nerdminer
 

@@ -497,15 +497,15 @@ void minerWorkerHw(void *task_id) {
 
    uint32_t current_nonce = s_next_nonce.fetch_add(HW_BATCH_SIZE, std::memory_order_relaxed);
    uint32_t remaining = HW_BATCH_SIZE;
-  
+
    while (remaining > 0 && s_job_version.load(std::memory_order_relaxed) == cached_version &&
           s_mining_running.load(std::memory_order_relaxed)) {
      uint32_t done = 0;
      bool candidate = sha256_pipelined_mine(header_swapped, &current_nonce, remaining, &done, &s_hw_mining_active);
-  
+
      s_hashes.fetch_add(done, std::memory_order_relaxed);
      remaining = (done < remaining) ? (remaining - done) : 0;
-  
+
      if (candidate) {
        // Assembly incremented current_nonce before exiting on early-reject hit
        uint32_t candidate_nonce = current_nonce - 1U;

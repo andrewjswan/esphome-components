@@ -9,6 +9,7 @@ from esphome import automation
 from esphome.components import esp32, socket
 from esphome.const import CONF_BUFFER_SIZE, CONF_ENABLE_ON_BOOT, CONF_ID, CONF_ON_CONNECT, CONF_ON_DISCONNECT, CONF_PORT, CONF_URL, __version__
 from esphome.cpp_generator import MockObj
+from esphome.types import ConfigType
 
 DOMAIN = "websocket_client"
 
@@ -44,7 +45,7 @@ CONF_SSL = "ssl"
 CONF_USER_AGENT = "user_agent"
 
 
-def _consume_sockets(config):
+def _consume_sockets(config: ConfigType) -> ConfigType:
     """Register socket needs for WebSocket Client component."""
     # WebSocket Client needs 1 socket for the Server connection
     socket.consume_sockets(1, "websocket_client", socket.SocketType.TCP)(config)

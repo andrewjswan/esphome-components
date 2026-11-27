@@ -32,22 +32,22 @@ bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *n
   while (count < max_iterations && *mining_flag) {
     // 1. Load block 1 (first 64 bytes of pre-swapped header)
     for (int i = 0; i < 16; ++i) {
-      sha_text[i] = header_swapped[i];
+      DPORT_REG_WRITE(SHA_TEXT_BASE + i * 4, header_swapped[i]);
     }
     DPORT_REG_WRITE(SHA_256_START_REG, 1);
     while (DPORT_REG_READ(SHA_256_BUSY_REG) != 0) {
     }
 
     // 2. Load block 2 (remaining 12 bytes + swapped nonce + SHA-256 padding)
-    sha_text[0] = header_swapped[16];
-    sha_text[1] = header_swapped[17];
-    sha_text[2] = header_swapped[18];
-    sha_text[3] = n_swapped;
-    sha_text[4] = 0x80000000U;
+    DPORT_REG_WRITE(SHA_TEXT_BASE + 0 * 4, header_swapped[16]);
+    DPORT_REG_WRITE(SHA_TEXT_BASE + 1 * 4, header_swapped[17]);
+    DPORT_REG_WRITE(SHA_TEXT_BASE + 2 * 4, header_swapped[18]);
+    DPORT_REG_WRITE(SHA_TEXT_BASE + 3 * 4, n_swapped);
+    DPORT_REG_WRITE(SHA_TEXT_BASE + 4 * 4, 0x80000000U);
     for (int i = 5; i < 15; ++i) {
-      sha_text[i] = 0U;
+      DPORT_REG_WRITE(SHA_TEXT_BASE + i * 4, 0U);
     }
-    sha_text[15] = 0x00000280U;
+    DPORT_REG_WRITE(SHA_TEXT_BASE + 15 * 4, 0x00000280U);
 
     DPORT_REG_WRITE(SHA_256_CONTINUE_REG, 1);
     while (DPORT_REG_READ(SHA_256_BUSY_REG) != 0) {
@@ -58,11 +58,11 @@ bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *n
     }
 
     // 3. Second SHA-256 on 32-byte intermediate digest already loaded in SHA_TEXT[0..7]
-    sha_text[8] = 0x80000000U;
+    DPORT_REG_WRITE(SHA_TEXT_BASE + 8 * 4, 0x80000000U);
     for (int i = 9; i < 15; ++i) {
-      sha_text[i] = 0U;
+      DPORT_REG_WRITE(SHA_TEXT_BASE + i * 4, 0U);
     }
-    sha_text[15] = 0x00000100U;
+    DPORT_REG_WRITE(SHA_TEXT_BASE + 15 * 4, 0x00000100U);
 
     DPORT_REG_WRITE(SHA_256_START_REG, 1);
     while (DPORT_REG_READ(SHA_256_BUSY_REG) != 0) {

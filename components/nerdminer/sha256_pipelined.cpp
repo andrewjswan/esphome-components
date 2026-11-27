@@ -163,8 +163,9 @@ bool IRAM_ATTR sha256_pipelined_mine(const uint32_t *header_swapped, uint32_t *n
       "l32i.n   a4, a5, 12           \n"
       "bnez.n   a4, pipe_wait5       \n"
 
-      // Early 16-bit reject: H0 is at SHA_TEXT (offset 28) on classic ESP32
-      "l16ui    a3, %[sb], 28        \n"
+      // Early 16-bit reject: read 32-bit word from DPORT SHA_TEXT (offset 28) and check low 16 bits
+      "l32i.n   a3, %[sb], 28        \n"
+      "extui    a3, a3, 0, 16        \n"
       "beqz.n   a3, pipe_found       \n"
 
       // Stop if batch limit reached or mining_flag cleared

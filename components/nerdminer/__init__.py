@@ -12,7 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 
 CODEOWNERS = ["@andrewjswan"]
 
-DEPENDENCIES = ["wifi"]
+DEPENDENCIES = ["network"]
 
 AUTO_LOAD = ["socket"]
 

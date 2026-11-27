@@ -370,6 +370,9 @@ void runStratumWorker(void *name) {
             hash_remainder = total_pending % 1000000U;
 
             m_miner_data = calculateMiningData(m_worker, m_job);
+            m_job.coinb1.clear();
+            m_job.coinb2.clear();
+            m_job.merkle_branch.clear();
 
             {
               std::lock_guard<std::mutex> lock(s_job_mutex);
@@ -495,26 +498,30 @@ void minerWorkerHw(void *task_id) {
         cached_version = local_job.version;
       }
 
-      memcpy(header_swapped, local_job.data.bytearray_blockheader, 80);
+      const uint32_t *header_words = reinterpret_cast<const uint32_t *>(local_job.data.bytearray_blockheader);
+      for (int i = 0; i < 20; i++) {
+        header_swapped[i] = __builtin_bswap32(header_words[i]);
+      }
 
       nerd_mids(sw_midstate, local_job.data.bytearray_blockheader);
       nerd_sha256_bake(sw_midstate, local_job.data.bytearray_blockheader + 64, sw_bake);
     }
 
-    uint32_t current_nonce = s_next_nonce.fetch_add(HW_BATCH_SIZE, std::memory_order_relaxed);
+    uint32_t start_nonce = s_next_nonce.fetch_add(HW_BATCH_SIZE, std::memory_order_relaxed);
+    uint32_t nonce_swapped = __builtin_bswap32(start_nonce);
     uint32_t remaining = HW_BATCH_SIZE;
 
     while (remaining > 0 && s_job_version.load(std::memory_order_relaxed) == cached_version &&
            s_mining_running.load(std::memory_order_relaxed)) {
       uint32_t done = 0;
-      bool candidate = sha256_pipelined_mine(header_swapped, &current_nonce, remaining, &done, &s_hw_mining_active);
+      bool candidate = sha256_pipelined_mine(header_swapped, &nonce_swapped, remaining, &done, &s_hw_mining_active);
 
       s_hashes.fetch_add(done, std::memory_order_relaxed);
       remaining = (done < remaining) ? (remaining - done) : 0;
 
       if (candidate) {
-        // Assembly incremented current_nonce before exiting on early-reject hit
-        uint32_t candidate_nonce = current_nonce - 1U;
+        // Assembly incremented nonce_swapped before exiting on early-reject hit
+        uint32_t candidate_nonce = __builtin_bswap32(nonce_swapped - 1U);
         if (nerd_sha256d_baked_nonce(sw_midstate, candidate_nonce, sw_bake, verify_hash)) {
           memcpy(local_job.data.bytearray_blockheader + 76, &candidate_nonce, sizeof(uint32_t));
           record_candidate(local_job, verify_hash);
